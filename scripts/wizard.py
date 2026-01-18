@@ -363,13 +363,13 @@ class SetupWizard(tk.Tk):
             try:
                 res = subprocess.run(cmd, shell=True, capture_output=True)
                 if res.returncode == 0:
-                    status_lbl.config(text="KURULU ✅", fg="green")
+                    status_lbl.after(0, lambda: status_lbl.config(text="KURULU ✅", fg="green"))
                 else:
-                    status_lbl.config(text="EKSİK ❌", fg="red")
+                    status_lbl.after(0, lambda: status_lbl.config(text="EKSİK ❌", fg="red"))
             except:
-                status_lbl.config(text="EKSİK ❌", fg="red")
+                status_lbl.after(0, lambda: status_lbl.config(text="EKSİK ❌", fg="red"))
         
-        threading.Thread(target=check).start()
+        threading.Thread(target=check, daemon=True).start()
 
     def create_step_path_network(self):
         content = tk.Frame(self.container, bg="white", padx=20, pady=20)
@@ -947,6 +947,51 @@ class SetupWizard(tk.Tk):
                 
         threading.Thread(target=run).start()
 
+    def create_step_security(self):
+        content = tk.Frame(self.container, bg="white", padx=20, pady=20)
+        content.pack(fill="both", expand=True)
+        
+        tk.Label(content, text="Güvenlik Ayarları (SSL)", font=("Segoe UI", 14, "bold"), bg="white").pack(anchor="w")
+        tk.Label(content, text="API iletişimi için HTTPS şifrelemesi ayarlayın.", bg="white", fg="#64748b").pack(anchor="w", pady=(0, 20))
+        
+        info_frame = tk.LabelFrame(content, text="Otomatik SSL (Self-Signed)", bg="white", padx=15, pady=15)
+        info_frame.pack(fill="x", pady=10)
+        
+        tk.Label(info_frame, text="Bu işlem güvenli iletişim için bir sertifika oluşturur ve ayarlar.", bg="white", justify="left").pack(anchor="w")
+        tk.Label(info_frame, text="⚠️ Tarayıcıda 'Güvenli Değil' uyarısı çıkabilir (normaldir), ancak bağlantı şifrelidir.", 
+                 bg="white", fg="#e11d48", font=("Segoe UI", 9, "italic")).pack(anchor="w", pady=(5, 10))
+
+        self.ssl_log = tk.Text(content, bg="#0f172a", fg="#22c55e", font=("Consolas", 9), height=10)
+        self.ssl_log.pack(fill="both", expand=True, pady=10)
+
+        def run_ssl_gen():
+            self.ssl_log.delete(1.0, tk.END)
+            self.ssl_log.insert(tk.END, "> Sertifika oluşturuluyor...\n")
+            try:
+                # Add scripts path to sys.path to import
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                sys.path.append(script_dir)
+                import generate_cert
+                
+                cert, key = generate_cert.generate_self_signed_cert()
+                self.ssl_log.insert(tk.END, f"> Sertifika: {cert}\n")
+                self.ssl_log.insert(tk.END, f"> Anahtar: {key}\n")
+                
+                # Update .env
+                env_path = os.path.join(os.path.dirname(script_dir), ".env")
+                with open(env_path, "a") as f: # Append or Update? Ideally Update.
+                    f.write(f"\nSSL_CERT_FILE={cert}\nSSL_KEY_FILE={key}\n")
+                
+                self.ssl_log.insert(tk.END, "> .env dosyası güncellendi.\n")
+                self.ssl_log.insert(tk.END, "\nBAŞARILI! ✅\n")
+                messagebox.showinfo("Başarılı", "SSL Sertifikası oluşturuldu ve aktif edildi.")
+                
+            except Exception as e:
+                self.ssl_log.insert(tk.END, f"\n[HATA] {e}\n")
+                messagebox.showerror("Hata", str(e))
+
+        ttk.Button(info_frame, text="🔐 SSL Sertifikası Oluştur ve Etkinleştir", command=run_ssl_gen).pack(anchor="w")
+
     def create_step_service_install(self):
         content = tk.Frame(self.container, bg="white", padx=20, pady=20)
         content.pack(fill="both", expand=True)
@@ -988,15 +1033,18 @@ class SetupWizard(tk.Tk):
         ttk.Button(btn_frame, text="Hata Ayıkla (Debug)", command=self.run_service_debug).pack(side="left", padx=5)
         
         # --- NEW ALTERNATIVE STARTUP SECTION ---
-        tk.Label(content, text="\n———————— VEYA ————————", bg="white", fg="#cbd5e1").pack(pady=5)
+        tk.Label(content, text="\n———————— VEYA ————————", bg="white", fg="#888888").pack(pady=(10, 5))
         
-        frm_alt = tk.LabelFrame(content, text="Alternatif: Basit Başlangıç (Önerilen)", bg="white", fg="#475569")
-        frm_alt.pack(fill="x", pady=10)
+        # INCREASED VISIBILITY: Remove white bg from LabelFrame to let system default show, or force black text
+        frm_alt = tk.LabelFrame(content, text="Alternatif: Basit Başlangıç (Önerilen)", bg="#f8fafc", fg="black", font=("Segoe UI", 10, "bold"), padx=10, pady=10)
+        frm_alt.pack(fill="x", pady=15, padx=5)
         
         tk.Label(frm_alt, text="Windows Servisi sorun çıkarıyorsa bunu kullanın.\nSistem her açıldığında otomatik başlar ve saatin yanında KONTROL SİMGESİ ekler.", 
-                 bg="white", justify="left").pack(anchor="w", padx=10, pady=5)
+                 bg="#f8fafc", fg="black", justify="left", font=("Segoe UI", 9)).pack(anchor="w", pady=(0, 10))
                  
-        ttk.Button(frm_alt, text="⚡ Basit Başlangıç + Tray (Simge) Kur", command=self.setup_simple_startup).pack(anchor="w", padx=10, pady=10)
+        # Button with explicit style or packing
+        btn = ttk.Button(frm_alt, text="⚡ BASİT BAŞLANGIÇ KUR (SİMGE)", command=self.setup_simple_startup)
+        btn.pack(anchor="w", ipady=5)
 
         tk.Label(content, text="NOT: Port 8000'i kullanan diğer uvicorn pencerelerini kapatmayı unutmayın.", 
                  bg="white", fg="red", font=("Segoe UI", 9, "italic")).pack(pady=5)

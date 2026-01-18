@@ -1,5 +1,12 @@
 # EXFIN OPS API (Backend)
 
+**Repository:** [https://github.com/ferhatdeveloper/api_servis](https://github.com/ferhatdeveloper/api_servis)
+
+Hızlı Kurulum (Windows Server):
+```powershell
+irm bit.ly/opsapi | iex
+```
+
 **Author:** Ferhat Developer  
 **Version:** 5.2 (Enterprise Deployment)  
 **Framework:** FastAPI (Python)

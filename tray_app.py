@@ -10,11 +10,13 @@ import signal
 import sys
 import webbrowser
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import simpledialog, messagebox
 import ctypes
+import json
 
 # Configuration
-PORT = 8000
+DEFAULT_PORT = 8000
+PORT = DEFAULT_PORT
 HEALTH_URL = f"http://localhost:{PORT}/health"
 DOCS_URL = f"http://localhost:{PORT}/docs"
 APP_NAME = "EXFIN OPS Backend"
@@ -23,32 +25,124 @@ APP_NAME = "EXFIN OPS Backend"
 is_running = False
 icon = None
 
+def get_config_path():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "db_config.json")
+
+def load_port_from_config():
+    """Loads API_PORT from db_config.json if exists."""
+    global PORT
+    config_path = get_config_path()
+    try:
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list) and len(data) > 0:
+                    global_settings = data[0]
+                    PORT = int(global_settings.get("Api_Port", DEFAULT_PORT))
+    except Exception as e:
+        print(f"Config load error: {e}")
+
+def save_port_to_config(new_port):
+    """Saves new port to db_config.json, preserving other settings."""
+    config_path = get_config_path()
+    data = []
+    
+    # Try to load existing
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except: pass
+    
+    # Ensure structure
+    if not isinstance(data, list) or len(data) == 0:
+        data = [{}] # Init global settings dict
+    
+    # Update Port
+    data[0]["Api_Port"] = new_port
+    # Ensure default fields if missing
+    if "DeveloperMode" not in data[0]: data[0]["DeveloperMode"] = True
+    if "Default" not in data[0]: data[0]["Default"] = "PostgreSQLDatabase"
+
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        return True
+    except Exception as e:
+        print(f"Config save error: {e}")
+        return False
+
+
 def create_image(color):
-    """Generates a simple circular icon with the given color."""
+    """Generates a database icon (cylinder stack) with the given color."""
     width = 64
     height = 64
-    image = Image.new('RGB', (width, height), (255, 255, 255))
+    # background color white
+    bg = (255, 255, 255)
+    
+    image = Image.new('RGB', (width, height), bg)
     dc = ImageDraw.Draw(image)
-    dc.rectangle((0, 0, width, height), fill=(255, 255, 255))
-    dc.ellipse((10, 10, width-10, height-10), fill=color, outline=color)
+    
+    # Config
+    fill = color
+    outline = (80, 80, 80) if color != 'black' else (255,255,255)
+    w_line = 2
+    
+    # Dimensions for cylinder
+    # x1, y1, x2, y2
+    
+    # Bottom Base
+    dc.pieslice((12, 44, 52, 58), 0, 180, fill=fill, outline=outline, width=w_line)
+    dc.pieslice((12, 44, 52, 58), 180, 360, fill=fill, outline=outline, width=w_line)
+    
+    # Middle Section Body (Rect)
+    dc.rectangle((12, 16, 52, 51), fill=fill)
+    dc.line((12, 16, 12, 51), fill=outline, width=w_line) # Left wall
+    dc.line((52, 16, 52, 51), fill=outline, width=w_line) # Right wall
+    
+    # Curve bands (Database layers)
+    # Band 1 (Bottom curve of top layer)
+    dc.arc((12, 28, 52, 42), 0, 180, fill=outline, width=w_line)
+    
+    # Band 2 (Bottom curve of middle layer)
+    dc.arc((12, 14, 52, 28), 0, 180, fill=outline, width=w_line)
+
+    # Top Cap (Full Ellipse)
+    dc.ellipse((12, 6, 52, 20), fill=fill, outline=outline, width=w_line)
+    
+    # Re-draw outline of bottom arc to be clean overlying the rect
+    dc.arc((12, 44, 52, 58), 0, 180, fill=outline, width=w_line)
+
     return image
 
 def check_backend_status():
     """Checks if the backend is reachable via HTTP."""
     global is_running
+    
+    # 1. Try Standard HTTP
     try:
-        response = requests.get(HEALTH_URL, timeout=1)
+        response = requests.get(f"http://127.0.0.1:{PORT}{HEALTH_URL}", timeout=1)
+        if response.status_code == 200:
+            return True
+    except:
+        pass
+
+    # 2. Try HTTPS (Self-Signed)
+    try:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        response = requests.get(f"https://127.0.0.1:{PORT}{HEALTH_URL}", timeout=1, verify=False)
         if response.status_code == 200:
             return True
     except:
         pass
     
-    # Second check: is port open?
+    # 3. Socket Fallback (Port Open Check)
     import socket
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(1)
-        result = sock.connect_ex(('127.0.0.1', PORT))
+        result = sock.connect_ex(('127.0.0.1', int(PORT)))
         sock.close()
         if result == 0:
             return True
@@ -145,42 +239,51 @@ def kill_process_by_port(port):
             
     return killed
 
-def check_password():
-    """Asks for password and returns True if correct."""
-    # Hide main root window
+def change_port_action(icon, item):
+    """Prompts user to change the API port."""
+    global PORT
+    
+    # Prompt
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
     try:
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-        
-        # Bring to front hack
-        try:
-             root.lift()
-             root.focus_force()
-        except: pass
+        root.lift()
+        root.focus_force()
+    except: pass
 
-        pwd = simpledialog.askstring("Güvenlik Kontrolü", "Servisi durdurmak için şifreyi girin:", show='*', parent=root)
-        root.destroy()
-        
-        if pwd == "1993":
-            return True
-        elif pwd is not None: # Not cancelled, but wrong
-             # Beep or show error?
-             pass
-    except Exception as e:
-        print(f"Dialog error: {e}")
-        # Fail safe: refuse if GUI fails? or allow? 
-        # Refuse is safer.
-        pass
-        
-    return False
+    new_port_str = simpledialog.askstring("Port Değiştir", f"Mevcut Port: {PORT}\nYeni Port Numarası giriniz:", parent=root)
+    root.destroy()
+
+    if new_port_str and new_port_str.isdigit():
+        new_port = int(new_port_str)
+        if 1024 <= new_port <= 65535:
+            if save_port_to_config(new_port):
+                PORT = new_port
+                # Update URLs
+                global HEALTH_URL, DOCS_URL
+                HEALTH_URL = f"http://localhost:{PORT}/health"
+                DOCS_URL = f"http://localhost:{PORT}/docs"
+                
+                # Ask to restart
+                should_restart = messagebox.askyesno("Yeniden Başlat", "Port değişikliği için servisin yeniden başlatılması gerekiyor.\nŞimdi yapılsın mı?")
+                if should_restart:
+                    restart_backend(icon, item)
+                else:
+                    messagebox.showinfo("Bilgi", "Değişiklik bir sonraki başlangıçta aktif olacak.")
+            else:
+                messagebox.showerror("Hata", "Ayarlar kaydedilemedi!")
+        else:
+            messagebox.showerror("Hata", "Geçersiz Port! (1024 - 65535 arası olmalı)")
+    elif new_port_str:
+        messagebox.showerror("Hata", "Lütfen sayısal bir değer girin.")
 
 def stop_backend(icon, item):
     """Stops the backend process by killing port user."""
     global is_running
     
-    # Password Check
-    if not check_password():
+    # Confirm action since password is gone
+    if not messagebox.askyesno("Onay", "Servisi durdurmak istediğinize emin misiniz?"):
         return False
     
     icon.icon = create_image('orange')
@@ -194,22 +297,22 @@ def stop_backend(icon, item):
     return True
 
 def restart_backend(icon, item):
-    # Only proceed if stop was successful (password correct)
-    if stop_backend(icon, item):
-        time.sleep(2)
-        start_backend(icon, item)
+    stop_backend(icon, item)
+    time.sleep(2)
+    start_backend(icon, item)
 
 def open_docs(icon, item):
     webbrowser.open(DOCS_URL)
 
 def exit_app(icon, item):
     icon.stop()
-    # Ensure backend stops on exit? Optional.
-    # kill_process_by_port(PORT) 
     os._exit(0)
 
 def main():
     global is_running
+    
+    # Load config first
+    load_port_from_config()
     
     # Initial status check
     is_running = check_backend_status()
@@ -222,6 +325,8 @@ def main():
         item('Başlat', start_backend, enabled=lambda i: not is_running),
         item('Durdur', stop_backend, enabled=lambda i: is_running),
         item('Yeniden Başlat', restart_backend),
+        pystray.Menu.SEPARATOR,
+        item('Port Değiştir', change_port_action),
         pystray.Menu.SEPARATOR,
         item('Çıkış', exit_app)
     )

@@ -23,8 +23,9 @@ pydantic
 pydantic-settings
 
 # PDF Generation
-reportlab==4.0.7
-Pillow==10.1.0
+# PDF Generation
+reportlab
+Pillow
 
 # WhatsApp Integration (Twilio)
 twilio==8.10.0
@@ -39,4 +40,6 @@ SQLAlchemy==2.0.23
 
 
 # GUI / System Tray
-pystray==0.19.5
+
+# Template Engine
+jinja2==3.1.2

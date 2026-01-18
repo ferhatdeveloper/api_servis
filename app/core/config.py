@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "admin"
     ALGORITHM: str = "HS256"
+    
+    # SSL Settings
+    SSL_CERT_FILE: Optional[str] = None
+    SSL_KEY_FILE: Optional[str] = None
 
     # Logo Env Params
     LOGO_DB_HOST: Optional[str] = None

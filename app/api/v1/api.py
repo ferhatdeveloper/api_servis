@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import auth, crm, inventory, operations, logo_erp, sync, yoy_reports, database, companies, logo_data, warehouse_transfers, invoice_pdf, system, custom_reports
+from .endpoints import auth, crm, inventory, operations, logo_erp, sync, yoy_reports, database, companies, logo_data, warehouse_transfers, invoice_pdf, system, custom_reports, pdks
 
 api_router = APIRouter()
 
@@ -17,3 +17,5 @@ api_router.include_router(warehouse_transfers.router, prefix="/warehouse", tags=
 api_router.include_router(invoice_pdf.router, prefix="/documents", tags=["Document Generation"])
 api_router.include_router(system.router, prefix="/system", tags=["System Management"])
 api_router.include_router(custom_reports.router, prefix="/custom-reports", tags=["Custom Reports Builder"])
+api_router.include_router(pdks.router, prefix="/pdks", tags=["PDKS"])
+
