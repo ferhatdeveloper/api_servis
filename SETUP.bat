@@ -77,11 +77,13 @@ if !errorLevel! neq 0 (
 )
 
 :: Install ALL dependencies from requirements.txt
+:: Install ALL dependencies from requirements.txt
+:: Install ALL dependencies from requirements.txt
 if exist "requirements.txt" (
-    echo [BILGI] Tum bagimliliklar yukleniyor (requirements.txt)...
+    echo [BILGI] Tum bagimliliklar requirements.txt dosyasindan yukleniyor
     python -m pip install -r requirements.txt --quiet
 ) else (
-    echo [UYARI] requirements.txt bulunamadi! Sadece temel paketler yukleniyor...
+    echo [UYARI] requirements.txt bulunamadi - Sadece temel paketler yukleniyor
     python -m pip install psutil requests psycopg2-binary pymssql --quiet
 )
 
