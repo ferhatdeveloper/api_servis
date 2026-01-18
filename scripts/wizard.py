@@ -1924,5 +1924,17 @@ except Exception as e:
             messagebox.showerror("Hata", f"Kaydetme sırasında hata oluştu: {self.safe_str(e)}")
 
 if __name__ == "__main__":
-    app = SetupWizard()
-    app.mainloop()
+    try:
+        app = SetupWizard()
+        app.run()
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        with open("wizard_crash.log", "w", encoding="utf-8") as f:
+            f.write(error_msg)
+        # Also try to show message box if tk is available
+        try:
+            import tkinter.messagebox
+            tkinter.messagebox.showerror("Wizard Hatası", f"Sihirbaz başlatılamadı.\nDetaylar wizard_crash.log dosyasında.\n\n{str(e)}")
+        except: pass
+mainloop()
