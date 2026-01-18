@@ -37,6 +37,23 @@ class SetupWizard(tk.Tk):
     def __init__(self):
         super().__init__()
         
+        # Hide Console if on Windows
+        try:
+            import ctypes
+            import platform
+            if platform.system() == "Windows":
+                # Check if we are hosted in a console
+                kernel32 = ctypes.WinDLL('kernel32')
+                user32 = ctypes.WinDLL('user32')
+                hwnd = kernel32.GetConsoleWindow()
+                if hwnd:
+                    # Check if this console was spawned specifically for us (heuristic)
+                    # Or just force hide as requested.
+                    # SW_HIDE = 0
+                    user32.ShowWindow(hwnd, 0)
+        except:
+            pass
+            
         # Windows High-DPI support
         try:
             from ctypes import windll
