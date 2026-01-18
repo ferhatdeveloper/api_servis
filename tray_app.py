@@ -279,17 +279,26 @@ def change_port_action(icon, item):
         messagebox.showerror("Hata", "Lütfen sayısal bir değer girin.")
 
 def stop_backend(icon, item):
-    """Stops the backend process by killing port user."""
+    """Stops the backend process."""
     global is_running
     
-    # Confirm action since password is gone
+    # Confirm action
     if not messagebox.askyesno("Onay", "Servisi durdurmak istediğinize emin misiniz?"):
         return False
     
     icon.icon = create_image('orange')
     icon.title = "Durduruluyor..."
     
+    # Kill process by port
     kill_process_by_port(PORT)
+    
+    # Also try killing by process name as a fallback/additional measure
+    try:
+        # This command targets python.exe processes that have "main.py" in their window title
+        # This is a common pattern for processes started by the .bat script
+        subprocess.run("taskkill /F /IM python.exe /FI \"WINDOWTITLE eq main.py*\"", shell=True, capture_output=True)
+    except Exception as e:
+        print(f"Taskkill by name error: {e}")
 
     time.sleep(2)
     is_running = check_backend_status()
@@ -297,16 +306,48 @@ def stop_backend(icon, item):
     return True
 
 def restart_backend(icon, item):
-    stop_backend(icon, item)
-    time.sleep(2)
-    start_backend(icon, item)
+    if stop_backend(icon, item): # Only proceed if stop was confirmed/successful
+        time.sleep(2) # Give some time for processes to fully terminate
+        start_backend(icon, item)
+
+def open_logs(icon, item):
+    """Opens the logs directory."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    log_dir = os.path.join(base_dir, "logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    os.startfile(log_dir)
+
+def backup_database(icon, item):
+    """Runs the backup script."""
+    import threading
+    def run_backup():
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            script_path = os.path.join(base_dir, "scripts", "backup_db.py")
+            
+            # We run it using the venv python
+            venv_python = os.path.join(base_dir, "venv", "Scripts", "python.exe")
+            if not os.path.exists(venv_python):
+                venv_python = "python" # Fallback
+            
+            result = subprocess.run([venv_python, script_path], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                icon.notify("Yedekleme Başarılı!", "Veritabanı yedeği 'backups' klasörüne alındı.")
+            else:
+                icon.notify("Yedekleme Hatası", f"Hata oluştu:\n{result.stderr}")
+        except Exception as e:
+             icon.notify("Hata", str(e))
+
+    threading.Thread(target=run_backup).start()
 
 def open_docs(icon, item):
-    webbrowser.open(DOCS_URL)
+    webbrowser.open(f"http://127.0.0.1:{PORT}/docs")
 
 def exit_app(icon, item):
     icon.stop()
-    os._exit(0)
+    sys.exit()
 
 def main():
     global is_running
@@ -325,6 +366,9 @@ def main():
         item('Başlat', start_backend, enabled=lambda i: not is_running),
         item('Durdur', stop_backend, enabled=lambda i: is_running),
         item('Yeniden Başlat', restart_backend),
+        pystray.Menu.SEPARATOR,
+        item('Sistem Loglarını Gör', open_logs),
+        item('Veritabanı Yedeği Al', backup_database),
         pystray.Menu.SEPARATOR,
         item('Port Değiştir', change_port_action),
         pystray.Menu.SEPARATOR,

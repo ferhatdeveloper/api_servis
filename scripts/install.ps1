@@ -16,8 +16,9 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 }
 
 # 2. Çalışma Dizini Belirleme
-$TargetDir = Read-Host "Kurulum dizinini girin [Varsayılan: $DefaultDir]"
-if ([string]::IsNullOrWhiteSpace($TargetDir)) { $TargetDir = $DefaultDir }
+# 2. Çalışma Dizini Belirleme
+$TargetDir = $DefaultDir 
+# $TargetDir = Read-Host "Kurulum dizinini girin [Varsayılan: $DefaultDir]"
 
 if (!(Test-Path $TargetDir)) {
     Write-Host "[BİLGİ] Klasör oluşturuluyor: $TargetDir" -ForegroundColor Yellow
