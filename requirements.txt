@@ -1,0 +1,42 @@
+# EXFIN_API Requirements
+# Python 3.9+
+
+# FastAPI Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database Drivers
+psycopg2-binary==2.9.9
+pymssql==2.2.8
+
+# Security & Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# Logging
+loguru==0.7.2
+
+# Data Validation
+pydantic
+pydantic-settings
+
+# PDF Generation
+reportlab==4.0.7
+Pillow==10.1.0
+
+# WhatsApp Integration (Twilio)
+twilio==8.10.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Date & Time
+python-dateutil==2.8.2
+APScheduler==3.10.4
+SQLAlchemy==2.0.23
+
+
+# GUI / System Tray
+pystray==0.19.5

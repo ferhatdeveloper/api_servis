@@ -1,0 +1,116 @@
+import pymssql
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from loguru import logger
+from .config import settings
+
+class DatabaseManager:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DatabaseManager, cls).__new__(cls)
+            cls._instance.connections = {}
+        return cls._instance
+    
+    def get_connection(self, name: str):
+        """Get or create a connection by its Name from db_config.json"""
+        if name in self.connections:
+            conn = self.connections[name]
+            # Check if closed
+            if hasattr(conn, 'closed') and conn.closed:
+                del self.connections[name]
+            else:
+                return conn
+                
+        # Connection not found or closed, create new
+        config = next((c for c in settings.DB_CONFIGS if c.get("Name") == name), None)
+        
+        # Fallback to Env Variables if not found in db_config.json
+        if not config:
+            if name == "PostgreSQLDatabase" or name == settings.DEFAULT_DB:
+                config = {
+                    "Type": "PostgreSQL",
+                    "Server": settings.DB_HOST,
+                    "Port": settings.DB_PORT,
+                    "Database": settings.DB_NAME,
+                    "Username": settings.DB_USER,
+                    "Password": settings.DB_PASSWORD
+                }
+            elif name == "LOGO_Database":
+                if settings.LOGO_DB_HOST:
+                    config = {
+                        "Type": "MSSQL",
+                        "Server": settings.LOGO_DB_HOST,
+                        # Assuming DB name is handled or default, or added to env later
+                        "Database": "LOGO", 
+                        "Username": settings.LOGO_DB_USER,
+                        "Password": settings.LOGO_DB_PASSWORD
+                    }
+                else:
+                    logger.warning(f"Database configuration '{name}' not found.")
+                    return None
+            else:
+                logger.error(f"Database configuration '{name}' not found.")
+                return None
+            
+        try:
+            db_type = config.get("Type")
+            if db_type == "PostgreSQL":
+                conn = psycopg2.connect(
+                    user=config.get("Username"),
+                    password=config.get("Password"),
+                    host=config.get("Server"),
+                    port=config.get("Port", 5432),
+                    database=config.get("Database")
+                )
+            elif db_type == "MSSQL":
+                conn = pymssql.connect(
+                    server=config.get("Server"),
+                    user=config.get("Username"),
+                    password=config.get("Password"),
+                    database=config.get("Database")
+                )
+            else:
+                logger.error(f"Unsupported database type: {db_type}")
+                return None
+                
+            self.connections[name] = conn
+            logger.info(f"Connected to {name} ({db_type}) successfully.")
+            return conn
+        except Exception as e:
+            logger.error(f"Connection failed for {name}: {e}")
+            return None
+
+    def execute_pg_query(self, query: str, params: tuple = None, fetch: bool = True):
+        """Execute PostgreSQL query using default DB"""
+        conn = self.get_connection(settings.DEFAULT_DB)
+        if not conn: return None
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, params)
+                if fetch:
+                    return cur.fetchall()
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"PostgreSQL execution error: {e}")
+            conn.rollback()
+            return None
+
+    def execute_ms_query(self, query: str, params: tuple = None, fetch: bool = True, db_name: str = "LOGO_Database"):
+        """Execute MSSQL query using named DB"""
+        conn = self.get_connection(db_name)
+        if not conn: return None
+        try:
+            with conn.cursor(as_dict=True) as cur:
+                cur.execute(query, params)
+                if fetch:
+                    return cur.fetchall()
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"MSSQL ({db_name}) execution error: {e}")
+            return None
+
+db_manager = DatabaseManager()

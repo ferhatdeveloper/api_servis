@@ -1,0 +1,109 @@
+openapi: 3.0.0
+info:
+  title: EXFIN Ops Reporting API
+  description: Comprehensive reporting API for EXFIN Operations & Logo ERP Integration. Supports 160+ dynamic reports.
+  version: 2.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local Development Server
+
+paths:
+  /reports/generic/{report_code}:
+    get:
+      summary: Get generic report data
+      description: Returns tabular data for any report registered in the system (160+ reports).
+      parameters:
+        - name: report_code
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique code of the report (e.g., INV_REPORT_01).
+        - name: X-Firma
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Logo Firma Number (e.g., 001).
+        - name: X-Period
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Logo Period Number (e.g., 01).
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /reports/pos-daily:
+    get:
+      summary: POS Daily (Z-Report)
+      description: Specialized report for retail sales summary.
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Daily sales summary
+
+  /reports/lot-expiry:
+    get:
+      summary: Lot Expiry Warning
+      description: Identifies inventory lots nearing expiration.
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: int
+            default: 30
+      responses:
+        '200':
+          description: Expiry warnings
+
+  /reports/transfers:
+    get:
+      summary: Warehouse Transfers
+      description: Audits stock movements between warehouses.
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Transfer records
+
+  /reports/cashflow:
+    get:
+      summary: Cashflow Analysis
+      description: Aggregated balances from Cash (Kasa) and Bank.
+      responses:
+        '200':
+          description: Liquidity status
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
