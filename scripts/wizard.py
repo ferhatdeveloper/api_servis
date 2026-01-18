@@ -750,7 +750,7 @@ class SetupWizard(tk.Tk):
                 ms_cur.execute("SELECT TOP 10 NR, NAME FROM L_CAPIWHOUSE ORDER BY NR")
                 whs = ms_cur.fetchall()
                 for w in whs:
-                rows.append(("AMBAR", str(w['NR']), w['NAME'], ""))
+                    rows.append(("AMBAR", str(w['NR']), w['NAME'], ""))
             
             ms_conn.close()
             
