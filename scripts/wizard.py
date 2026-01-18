@@ -193,7 +193,8 @@ class SetupWizard(tk.Tk):
             self.create_step_dependencies,
             self.create_step_path_network,
             self.create_step_db_config,
-            self.create_step_data_transfer, # NEW STEP
+            self.create_step_data_transfer,
+            self.create_step_security, # NEW STEP
             self.create_step_service_install,
             self.create_step_finish
         ]
