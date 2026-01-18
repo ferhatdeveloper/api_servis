@@ -318,6 +318,28 @@ def open_logs(icon, item):
         os.makedirs(log_dir)
     os.startfile(log_dir)
 
+def open_backup_folder(icon, item):
+    """Opens the backup directory."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    # Default
+    backup_dir = os.path.join(base_dir, "backups")
+    
+    # Try reading config
+    try:
+        config_path = os.path.join(base_dir, "backup_config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                custom = data.get("backup_dir")
+                if custom and os.path.exists(custom):
+                    backup_dir = custom
+    except: pass
+    
+    if not os.path.exists(backup_dir):
+        os.makedirs(backup_dir)
+    
+    os.startfile(backup_dir)
+
 def backup_database(icon, item):
     """Runs the backup script."""
     import threading
@@ -360,14 +382,16 @@ def main():
     initial_icon = create_image('green' if is_running else 'red')
     
     menu = pystray.Menu(
-        item('Durum: ' + ('Çalışıyor' if is_running else 'Durdu'), lambda i, it: None, enabled=False),
+        item('EXFIN OPS API v2.1', lambda: None, enabled=False),
+        pystray.Menu.SEPARATOR,
         item('Swagger UI Aç', open_docs),
         pystray.Menu.SEPARATOR,
-        item('Başlat', start_backend, enabled=lambda i: not is_running),
+        item('Başlat', start_backend),
         item('Durdur', stop_backend, enabled=lambda i: is_running),
         item('Yeniden Başlat', restart_backend),
         pystray.Menu.SEPARATOR,
         item('Sistem Loglarını Gör', open_logs),
+        item('Yedekleme Klasörüne Git', open_backup_folder),
         item('Veritabanı Yedeği Al', backup_database),
         pystray.Menu.SEPARATOR,
         item('Port Değiştir', change_port_action),
