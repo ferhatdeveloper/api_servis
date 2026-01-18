@@ -69,4 +69,4 @@ if __name__ == "__main__":
              }
              logger.info(f"SSL Enabled. Cert: {settings.SSL_CERT_FILE}")
 
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.API_PORT, reload=True, **ssl_config)
+    uvicorn.run("main:app", host="0.0.0.0", port=settings.API_PORT, reload=False, **ssl_config)
