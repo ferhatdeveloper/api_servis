@@ -76,10 +76,17 @@ if !errorLevel! neq 0 (
     exit /b 1
 )
 
-:: Install core dependencies silently
-python -m pip install psutil requests psycopg2-binary pymssql --quiet
+:: Install ALL dependencies from requirements.txt
+if exist "requirements.txt" (
+    echo [BILGI] Tum bagimliliklar yukleniyor (requirements.txt)...
+    python -m pip install -r requirements.txt --quiet
+) else (
+    echo [UYARI] requirements.txt bulunamadi! Sadece temel paketler yukleniyor...
+    python -m pip install psutil requests psycopg2-binary pymssql --quiet
+)
+
 if %errorLevel% neq 0 (
-    echo [UYARI] Bazı kütüphaneler yüklenemedi, sihirbaz yine de denenecek...
+    echo [UYARI] Bagimlilik yuklemesinde hata olustu, yine de devam ediliyor...
 )
 
 :: Check if wizard exists

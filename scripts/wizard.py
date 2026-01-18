@@ -364,30 +364,63 @@ class SetupWizard(tk.Tk):
         self.dep_list = tk.Frame(content, bg="white")
         self.dep_list.pack(fill="x", pady=20)
         
-        self.add_dep_row("Git SCM", "git --version")
-        self.add_dep_row("PostgreSQL 16", "sc query postgresql-x64-16")
-        self.add_dep_row("Python 3.10+", "python --version")
+        self.add_dep_row("Git SCM", cmd="git --version")
+        self.add_dep_row("PostgreSQL 15+", check_func=self.check_postgres_version)
+        self.add_dep_row("Python 3.10+", cmd="python --version")
 
-    def add_dep_row(self, name, cmd):
+    def add_dep_row(self, name, cmd=None, check_func=None):
         row = tk.Frame(self.dep_list, bg="white", pady=5)
         row.pack(fill="x")
         
         tk.Label(row, text=name, bg="white", width=20, anchor="w", font=("Segoe UI", 10)).pack(side="left")
         
-        status_lbl = tk.Label(row, text="Kontrol ediliyor...", bg="white", width=20)
+        status_lbl = tk.Label(row, text="Kontrol ediliyor...", bg="white", width=25, anchor="w")
         status_lbl.pack(side="left")
         
         def check():
-            try:
-                res = subprocess.run(cmd, shell=True, capture_output=True)
-                if res.returncode == 0:
-                    status_lbl.after(0, lambda: status_lbl.config(text="KURULU ✅", fg="green"))
-                else:
+            if check_func:
+                success, text = check_func()
+                bg_color = "green" if success else "red"
+                status_lbl.after(0, lambda: status_lbl.config(text=text, fg=bg_color))
+            else:
+                try:
+                    res = subprocess.run(cmd, shell=True, capture_output=True)
+                    if res.returncode == 0:
+                        status_lbl.after(0, lambda: status_lbl.config(text="KURULU ✅", fg="green"))
+                    else:
+                        status_lbl.after(0, lambda: status_lbl.config(text="EKSİK ❌", fg="red"))
+                except:
                     status_lbl.after(0, lambda: status_lbl.config(text="EKSİK ❌", fg="red"))
-            except:
-                status_lbl.after(0, lambda: status_lbl.config(text="EKSİK ❌", fg="red"))
         
         threading.Thread(target=check, daemon=True).start()
+
+    def check_postgres_version(self):
+        # 1. Try psql --version
+        try:
+            res = subprocess.run("psql --version", shell=True, capture_output=True, text=True)
+            if res.returncode == 0:
+                # Output: 'psql (PostgreSQL) 16.1'
+                out = res.stdout.strip()
+                import re
+                match = re.search(r"(\d+)\.(\d+)", out)
+                if match:
+                    major = int(match.group(1))
+                    if major >= 15:
+                        return True, f"KURULU (v{major}) ✅"
+                    else:
+                        return False, f"ESKİ SÜRÜM (v{major}) ⚠️"
+        except: pass
+        
+        # 2. Fallback: Check Services for common versions
+        for v in [17, 16, 15]:
+            try:
+                cmd = f"sc query postgresql-x64-{v}"
+                res = subprocess.run(cmd, shell=True, capture_output=True)
+                if res.returncode == 0:
+                    return True, f"SERVİS (v{v}) ✅"
+            except: pass
+            
+        return False, "BULUNAMADI (Min 15) ❌"
 
     def create_step_path_network(self):
         content = tk.Frame(self.container, bg="white", padx=20, pady=20)
@@ -599,6 +632,72 @@ class SetupWizard(tk.Tk):
                 ent.insert(0, val)
             ent.grid(row=i+row_offset, column=1, sticky="ew", pady=5)
             self.ui_entries[config_key] = ent
+        
+        # Backup Folder Selection (Only for Postgres for now or global)
+        if prefix == "pg":
+             tk.Label(parent, text="Yedekleme Klasörü:", bg="white", width=15, anchor="w").grid(row=len(labels)+row_offset, column=0, pady=5)
+             
+             f_bkp = tk.Frame(parent, bg="white")
+             f_bkp.grid(row=len(labels)+row_offset, column=1, sticky="ew", pady=5)
+             
+             ent_bkp = ttk.Entry(f_bkp)
+             ent_bkp.pack(side="left", fill="x", expand=True)
+             
+             default_bkp = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "backups")
+             saved_bkp = self.config_data.get("backup_dir", default_bkp)
+             ent_bkp.insert(0, saved_bkp)
+             self.ui_entries["backup_dir"] = ent_bkp
+             
+             def browse_bkp():
+                 d = filedialog.askdirectory()
+                 if d:
+                     ent_bkp.delete(0, tk.END)
+                     ent_bkp.insert(0, d)
+             
+             ttk.Button(f_bkp, text="...", width=3, command=browse_bkp).pack(side="left", padx=(5,0))
+             
+             # Backup Frequency
+             tk.Label(parent, text="Yedekleme Sıklığı:", bg="white", width=15, anchor="w").grid(row=len(labels)+row_offset+1, column=0, pady=5)
+             chk_freq = ttk.Combobox(parent, values=["Kapalı", "Saatlik", "Günlük"], state="readonly")
+             
+             saved_interval = self.config_data.get("backup_interval", "Kapalı")
+             # Map english to turkish for UI if needed or just use English in config
+             # Let's simple mapping logic in save
+             chk_freq.set(saved_interval)
+             chk_freq.grid(row=len(labels)+row_offset+1, column=1, sticky="ew", pady=5)
+             self.ui_entries["backup_interval_ui"] = chk_freq
+
+    def save_wizard_config(self):
+        # Helper to save wizard config to json
+        config_path = "wizard_config.json"
+        
+        # Harvest data
+        data = {}
+        if hasattr(self, "ui_entries"):
+            for key, ent in self.ui_entries.items():
+                if isinstance(ent, ttk.Combobox):
+                    data[key] = ent.get()
+                else:
+                    data[key] = ent.get()
+        
+        # Save to file
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        
+        # Also update backup_config.json specifically for the backup script
+        if "backup_dir" in data:
+            bkp_config = {"backup_dir": data["backup_dir"]}
+            
+            # Map UI interval to code
+            ui_interval = data.get("backup_interval_ui", "Kapalı")
+            if ui_interval == "Saatlik": bkp_config["backup_interval"] = "hourly"
+            elif ui_interval == "Günlük": bkp_config["backup_interval"] = "daily"
+            else: bkp_config["backup_interval"] = "off"
+            
+            # Save it where backup_db.py can find it comfortably (e.g. backend root)
+            root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            with open(os.path.join(root_dir, "backup_config.json"), "w", encoding="utf-8") as f:
+                json.dump(bkp_config, f, indent=4)
             
             if is_pass:
                 # Add Show Password Toggle
@@ -982,6 +1081,13 @@ class SetupWizard(tk.Tk):
 
         self.ssl_log = tk.Text(content, bg="#0f172a", fg="#22c55e", font=("Consolas", 9), height=10)
         self.ssl_log.pack(fill="both", expand=True, pady=10)
+
+        def run_db_setup():
+            self.db_log.delete(1.0, tk.END)
+            self.db_log.insert(tk.END, "Veritabanı kontrol ediliyor...\n")
+            
+            # Save entries to environment/config
+            self.save_wizard_config()
 
         def run_ssl_gen():
             self.ssl_log.delete(1.0, tk.END)
