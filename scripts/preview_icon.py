@@ -1,5 +1,7 @@
-from tray_app import create_image
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tray_app import create_image
 
 try:
     img = create_image('green')

@@ -13,7 +13,7 @@ from pathlib import Path
 
 # --- BOOTSTRAP: ERROR LOGGING BEFORE ANYTHING ELSE ---
 # This ensures we see errors even if the class fails to load
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
 if not os.path.exists(LOG_DIR):
     try: os.makedirs(LOG_DIR)
     except: pass
@@ -29,7 +29,7 @@ boot_trace(f"Service Module Loaded. CWD: {os.getcwd()}. Args: {sys.argv}")
 
 # Proje dizinini Python path'ine ekle ve çalışma dizinini değiştir
 try:
-    project_dir = Path(__file__).parent.absolute()
+    project_dir = Path(__file__).parent.parent.absolute()
     sys.path.insert(0, str(project_dir))
     os.chdir(project_dir)
     boot_trace(f"Directory changed to: {project_dir}")

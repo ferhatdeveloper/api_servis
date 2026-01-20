@@ -76,8 +76,10 @@ def setup():
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()
         
-        print("Executing MASTER.sql content...")
-        run_sql_file(cur, "MASTER.sql")
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        master_path = os.path.join(root_dir, "sql", "setup", "01_master_setup.sql")
+        print(f"Executing {master_path} content...")
+        run_sql_file(cur, master_path)
         
         print("Setup completed successfully! 🚀")
         cur.close()

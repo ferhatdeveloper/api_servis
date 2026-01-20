@@ -43,7 +43,7 @@ class DatabaseManager:
                         "Type": "MSSQL",
                         "Server": settings.LOGO_DB_HOST,
                         # Assuming DB name is handled or default, or added to env later
-                        "Database": "LOGO", 
+                        "Database": settings.LOGO_DB_NAME, 
                         "Username": settings.LOGO_DB_USER,
                         "Password": settings.LOGO_DB_PASSWORD
                     }

@@ -24,6 +24,8 @@ except Exception as e:
 except SystemExit:
     logger.error("Another instance is already running! Exiting.")
     sys.exit(-1)
+except singleton.SingleInstanceException:
+    logger.warning("SingleInstanceException raised! A stale lock file might exist. Continuing cautiously...")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -56,17 +58,48 @@ async def root():
         "status": "online"
     }
 
+
+# Retail API Integration
+from retail.middleware.tenant import TenantMiddleware
+from retail.api.v1 import api_router as retail_api_router
+
+# Add Tenant Middleware (ensure it runs)
+app.add_middleware(TenantMiddleware)
+
+# Include Retail Routes
+app.include_router(retail_api_router, prefix="/retail/api/v1", tags=["Retail"])
+
+
 if __name__ == "__main__":
     import uvicorn
+    import os
     
     ssl_config = {}
-    if settings.SSL_CERT_FILE and settings.SSL_KEY_FILE:
-        import os
-        if os.path.exists(settings.SSL_CERT_FILE) and os.path.exists(settings.SSL_KEY_FILE):
-             ssl_config = {
-                 "ssl_keyfile": settings.SSL_KEY_FILE,
-                 "ssl_certfile": settings.SSL_CERT_FILE
-             }
-             logger.info(f"SSL Enabled. Cert: {settings.SSL_CERT_FILE}")
+    
+    # Resolve paths relative to main.py if not absolute
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    cert_file = settings.SSL_CERT_FILE
+    key_file = settings.SSL_KEY_FILE
+    
+    # If paths are just filenames, prepend base_dir/Certifica/
+    if cert_file and not os.path.isabs(cert_file):
+         cert_file = os.path.join(base_dir, "Certifica", os.path.basename(cert_file))
+    if key_file and not os.path.isabs(key_file):
+         key_file = os.path.join(base_dir, "Certifica", os.path.basename(key_file))
 
+    if settings.USE_HTTPS and cert_file and key_file:
+        if os.path.exists(cert_file) and os.path.exists(key_file):
+             ssl_config = {
+                 "ssl_keyfile": key_file,
+                 "ssl_certfile": cert_file
+             }
+             logger.info(f"SSL Enabled. Cert: {cert_file}")
+        else:
+             logger.warning(f"SSL Files not found: {cert_file}, {key_file}. Falling back to HTTP.")
+    elif settings.USE_HTTPS:
+         logger.warning("HTTPS enabled but certificate paths not configured. Falling back to HTTP.")
+
+    protocol = "https" if ssl_config else "http"
+    logger.info(f"Starting server on {protocol}://0.0.0.0:{settings.API_PORT}")
     uvicorn.run("main:app", host="0.0.0.0", port=settings.API_PORT, reload=False, **ssl_config)

@@ -15,6 +15,13 @@ class LogoCustomerBase(BaseModel):
     tax_office: Optional[str] = None
     tax_number: Optional[str] = None
 
+@router.get("/firms")
+async def get_firms():
+    """
+    Get list of available firms from Logo Database (L_CAPIFIRM)
+    """
+    return await logo_service.get_available_firms()
+
 @router.get("/customers")
 async def get_logo_customers(
     search: Optional[str] = Query(None),

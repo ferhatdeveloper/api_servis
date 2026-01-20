@@ -115,7 +115,9 @@ def get_existing_tables(conn):
 def sync_db():
     print(f"--- Starting Smart DB Sync for {DB_NAME} ---")
     
-    schema_path = os.path.join(os.path.dirname(__file__), "sql", "schema", "01_core_schema.sql")
+    # Look for sql dir in parent of scripts
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    schema_path = os.path.join(root_dir, "sql", "schema", "01_core_schema.sql")
     if not os.path.exists(schema_path):
         print(f"Error: Schema file not found at {schema_path}")
         return

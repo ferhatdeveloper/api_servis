@@ -10,7 +10,7 @@ import sys
 class SchedulerService:
     def __init__(self):
         # Persistence: Use local SQLite for jobs
-        db_path = os.path.join(os.getcwd(), "scheduler.db")
+        db_path = os.path.join(os.getcwd(), "exfin.db")
         jobstores = {
             'default': SQLAlchemyJobStore(url=f'sqlite:///{db_path}')
         }
@@ -71,30 +71,69 @@ class SchedulerService:
             with open(config_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 
-            interval = data.get("backup_interval", "off") # off, hourly, daily
+            interval = data.get("backup_interval", "off") # off, hourly, daily, weekly
             
             if interval == "hourly":
+                h_val = 1
+                try:
+                    h_val = int(data.get("backup_hours", "1"))
+                except: h_val = 1
+                
                 self.scheduler.add_job(
                     self.run_backup_process,
                     'interval',
-                    hours=1,
+                    hours=h_val,
                     id=job_id,
                     replace_existing=True,
-                    name="Hourly Backup"
+                    name=f"Hourly Backup (Every {h_val} hours)"
                 )
-                logger.info("Scheduled Hourly Backup.")
+                logger.info(f"Scheduled Hourly Backup (Every {h_val} hours).")
                 
             elif interval == "daily":
+                # Parse time
+                t_str = data.get("backup_time", "23:00")
+                try:
+                    hour, minute = map(int, t_str.split(':'))
+                except:
+                    hour, minute = 23, 0
+
                 self.scheduler.add_job(
                     self.run_backup_process,
                     'cron',
-                    hour=23, # Default to 11 PM
-                    minute=0,
+                    hour=hour,
+                    minute=minute,
                     id=job_id,
                     replace_existing=True,
-                    name="Daily Backup (23:00)"
+                    name=f"Daily Backup ({t_str})"
                 )
-                logger.info("Scheduled Daily Backup at 23:00.")
+                logger.info(f"Scheduled Daily Backup at {t_str}.")
+
+            elif interval == "weekly":
+                # Parse time
+                t_str = data.get("backup_time", "23:00")
+                try:
+                    hour, minute = map(int, t_str.split(':'))
+                except:
+                    hour, minute = 23, 0
+                
+                # Parse days
+                days = data.get("backup_days", [])
+                if not days:
+                    days_str = "*" # Every day if empty (fallback)
+                else:
+                    days_str = ",".join(days)
+
+                self.scheduler.add_job(
+                    self.run_backup_process,
+                    'cron',
+                    hour=hour,
+                    minute=minute,
+                    day_of_week=days_str,
+                    id=job_id,
+                    replace_existing=True,
+                    name=f"Weekly Backup ({t_str} on {days_str})"
+                )
+                logger.info(f"Scheduled Weekly Backup at {t_str} on {days_str}.")
                 
         except Exception as e:
             logger.error(f"Error refreshing schedule: {e}")

@@ -658,14 +658,72 @@ class SetupWizard(tk.Tk):
              
              # Backup Frequency
              tk.Label(parent, text="Yedekleme Sıklığı:", bg="white", width=15, anchor="w").grid(row=len(labels)+row_offset+1, column=0, pady=5)
-             chk_freq = ttk.Combobox(parent, values=["Kapalı", "Saatlik", "Günlük"], state="readonly")
              
-             saved_interval = self.config_data.get("backup_interval", "Kapalı")
-             # Map english to turkish for UI if needed or just use English in config
-             # Let's simple mapping logic in save
+             # Frame for Frequency options
+             f_freq = tk.Frame(parent, bg="white")
+             f_freq.grid(row=len(labels)+row_offset+1, column=1, sticky="ew", pady=5)
+             
+             chk_freq = ttk.Combobox(f_freq, values=["Kapalı", "Saatlik", "Günlük", "Haftalık"], state="readonly")
+             saved_interval = self.config_data.get("backup_interval_ui", "Kapalı")
              chk_freq.set(saved_interval)
-             chk_freq.grid(row=len(labels)+row_offset+1, column=1, sticky="ew", pady=5)
+             chk_freq.pack(side="left", fill="x", expand=True)
              self.ui_entries["backup_interval_ui"] = chk_freq
+             
+             # Dynamic Options Frame (Time & Days)
+             self.f_backup_opts = tk.Frame(parent, bg="white")
+             self.f_backup_opts.grid(row=len(labels)+row_offset+2, column=1, sticky="ew")
+             
+             # Hourly Interval Selection
+             self.f_hours = tk.Frame(self.f_backup_opts, bg="white")
+             tk.Label(self.f_hours, text="Aralık (Saat):", bg="white").pack(side="left")
+             self.ent_backup_hours = ttk.Entry(self.f_hours, width=5)
+             self.ent_backup_hours.insert(0, self.config_data.get("backup_hours", "1"))
+             self.ent_backup_hours.pack(side="left")
+             self.ui_entries["backup_hours"] = self.ent_backup_hours
+
+             # Time Selection (Daily/Weekly)
+             self.f_time = tk.Frame(self.f_backup_opts, bg="white")
+             tk.Label(self.f_time, text="Saat:", bg="white", width=5).pack(side="left")
+             self.ent_backup_time = ttk.Entry(self.f_time, width=8)
+             self.ent_backup_time.insert(0, self.config_data.get("backup_time", "23:00"))
+             self.ent_backup_time.pack(side="left")
+             self.ui_entries["backup_time"] = self.ent_backup_time
+             
+             # Days Selection (Weekly)
+             self.f_days = tk.Frame(self.f_backup_opts, bg="white")
+             tk.Label(self.f_days, text="Günler:", bg="white", width=6).pack(side="left", anchor="n")
+             
+             self.days_vars = {}
+             day_map = [("Pzt", "mon"), ("Sal", "tue"), ("Çar", "wed"), ("Per", "thu"), ("Cum", "fri"), ("Cmt", "sat"), ("Paz", "sun")]
+             
+             f_days_checks = tk.Frame(self.f_days, bg="white")
+             f_days_checks.pack(side="left")
+             
+             saved_days = self.config_data.get("backup_days", [])
+             
+             for i, (label, val) in enumerate(day_map):
+                 var = tk.BooleanVar(value=(val in saved_days))
+                 chk = tk.Checkbutton(f_days_checks, text=label, variable=var, bg="white")
+                 chk.grid(row=i//4, column=i%4, sticky="w")
+                 self.days_vars[val] = var
+
+             def update_backup_ui(event=None):
+                 freq = chk_freq.get()
+                 # Reset visibility
+                 self.f_hours.pack_forget()
+                 self.f_time.pack_forget()
+                 self.f_days.pack_forget()
+                 
+                 if freq == "Saatlik":
+                     self.f_hours.pack(anchor="w", pady=2)
+                 elif freq == "Günlük":
+                     self.f_time.pack(anchor="w", pady=2)
+                 elif freq == "Haftalık":
+                     self.f_time.pack(anchor="w", pady=2)
+                     self.f_days.pack(anchor="w", pady=2)
+             
+             chk_freq.bind("<<ComboboxSelected>>", update_backup_ui)
+             update_backup_ui() # init state
 
     def save_wizard_config(self):
         # Helper to save wizard config to json
@@ -690,9 +748,28 @@ class SetupWizard(tk.Tk):
             
             # Map UI interval to code
             ui_interval = data.get("backup_interval_ui", "Kapalı")
-            if ui_interval == "Saatlik": bkp_config["backup_interval"] = "hourly"
-            elif ui_interval == "Günlük": bkp_config["backup_interval"] = "daily"
-            else: bkp_config["backup_interval"] = "off"
+            
+            if ui_interval == "Saatlik": 
+                bkp_config["backup_interval"] = "hourly"
+                bkp_config["backup_hours"] = data.get("backup_hours", "1")
+            elif ui_interval == "Günlük": 
+                bkp_config["backup_interval"] = "daily"
+                bkp_config["backup_time"] = data.get("backup_time", "23:00")
+            elif ui_interval == "Haftalık":
+                bkp_config["backup_interval"] = "weekly"
+                bkp_config["backup_time"] = data.get("backup_time", "23:00")
+                
+                # harvest days from self.days_vars if accessible, but we only have 'data' dict here
+                # We need to ensure days_vars are captured into 'data' before this point
+                pass 
+            else: 
+                bkp_config["backup_interval"] = "off"
+                
+            # SPECIAL HANDLE: Since save_wizard_config reads from `self.ui_entries` but days are in `self.days_vars`
+            # We need to manually inject them into bkp_config if we can access 'self'
+            if hasattr(self, 'days_vars'):
+                 selected_days = [d for d, v in self.days_vars.items() if v.get()]
+                 bkp_config["backup_days"] = selected_days
             
             # Save it where backup_db.py can find it comfortably (e.g. backend root)
             root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1883,10 +1960,53 @@ except Exception as e:
                 val = val.split(" - ")[0].strip()
             self.config_data[key] = val
             
-        # 2. Save db_config.json
+        # 2. Save to exfin.db (Single Source of Truth)
         try:
-            with open("db_config.json", "r", encoding="utf-8") as f:
-                db_config = json.load(f)
+            import sqlite3
+            sql_conn = sqlite3.connect("exfin.db")
+            sql_cur = sql_conn.cursor()
+            sql_cur.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+            sql_cur.execute('''CREATE TABLE IF NOT EXISTS api_connections 
+                            (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, url TEXT, 
+                             db_type TEXT, db_host TEXT, db_port TEXT, db_name TEXT, 
+                             db_user TEXT, db_pwd TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            
+            # Global Settings
+            gs = {
+                "Api_Port": self.config_data.get("api_port", "8000"),
+                "Streamlit_Port": "8501", 
+                "DeveloperMode": "True",
+                "UseHTTPS": "False",
+                "Default": "PostgreSQLDatabase"
+            }
+            for k, v in gs.items():
+                sql_cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (k, str(v)))
+            
+            # Save Connections (ID 1 for Postgres, ID 2 for Logo)
+            sql_cur.execute("INSERT OR REPLACE INTO api_connections (id, name, url, db_type, db_host, db_port, db_name, db_user, db_pass) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          ("Postgres_Main", "localhost", "PostgreDatabase", 
+                           self.config_data.get("pg_host"), self.config_data.get("pg_port"), 
+                           self.config_data.get("pg_db"), self.config_data.get("pg_user"), self.config_data.get("pg_pass")))
+            
+            sql_cur.execute("INSERT OR REPLACE INTO api_connections (id, name, url, db_type, db_host, db_port, db_name, db_user, db_pass) VALUES (2, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          ("LOGO_Database", ".", "MSSQLDatabase", 
+                           self.config_data.get("ms_host"), "1433", 
+                           self.config_data.get("ms_db"), self.config_data.get("ms_user"), self.config_data.get("ms_pass")))
+            
+            sql_conn.commit()
+            sql_conn.close()
+        except Exception as e:
+            print(f"SQLite Save Error: {e}")
+
+        # 3. Save db_config.json (Mirror for compatibility)
+        try:
+            if os.path.exists("db_config.json"):
+                with open("db_config.json", "r", encoding="utf-8") as f:
+                    db_config = json.load(f)
+            else:
+                db_config = [{"DeveloperMode": True, "UseHTTPS": False, "Api_Port": 8000, "Default": "PostgreSQLDatabase"}, 
+                             {"Type": "PostgreSQL", "Name": "Postgres_Main"}, 
+                             {"Type": "MSSQL", "Name": "LOGO_Database"}]
             
             for item in db_config:
                 if item.get("Type") == "PostgreSQL":
@@ -1895,15 +2015,13 @@ except Exception as e:
                     item["Database"] = self.config_data["pg_db"]
                     item["Username"] = self.config_data["pg_user"]
                     item["Password"] = self.config_data["pg_pass"]
-                elif item.get("Type") == "MSSQL" and item.get("Name") == "LOGO_Database":
+                elif (item.get("Type") == "MSSQL" and item.get("Name") == "LOGO_Database") or item.get("Name") == "LOGO_Database":
                     item["Server"] = self.config_data["ms_host"]
-                    # item["Port"] = int(self.config_data["ms_port"])
                     item["Database"] = self.config_data["ms_db"]
                     item["Username"] = self.config_data["ms_user"]
                     item["Password"] = self.config_data["ms_pass"]
                     item["FirmaNo"] = self.config_data["ms_firma"]
                     item["DonemNo"] = self.config_data["ms_donem"]
-                    # Save Connection Type
                     item["ConnectionType"] = self.ui_entries["ms_conn_type"].get()
             
             with open("db_config.json", "w", encoding="utf-8") as f:
@@ -1926,7 +2044,7 @@ except Exception as e:
 if __name__ == "__main__":
     try:
         app = SetupWizard()
-        app.run()
+        app.mainloop()
     except Exception as e:
         import traceback
         error_msg = traceback.format_exc()
@@ -1937,4 +2055,3 @@ if __name__ == "__main__":
             import tkinter.messagebox
             tkinter.messagebox.showerror("Wizard Hatası", f"Sihirbaz başlatılamadı.\nDetaylar wizard_crash.log dosyasında.\n\n{str(e)}")
         except: pass
-mainloop()

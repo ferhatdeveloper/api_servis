@@ -20,57 +20,64 @@ PORT = DEFAULT_PORT
 HEALTH_URL = f"http://localhost:{PORT}/health"
 DOCS_URL = f"http://localhost:{PORT}/docs"
 APP_NAME = "EXFIN OPS Backend"
+DEFAULT_REPORT_PORT = 8501
+REPORT_PORT = DEFAULT_REPORT_PORT
+REPORT_URL = f"http://localhost:{REPORT_PORT}"
+USE_HTTPS = False
 
 # Global State
 is_running = False
 icon = None
 
-def get_config_path():
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "db_config.json")
+def get_db_path():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "exfin.db")
 
 def load_port_from_config():
-    """Loads API_PORT from db_config.json if exists."""
-    global PORT
-    config_path = get_config_path()
+    """Loads API_PORT and STREAMLIT_PORT from SQLite."""
+    global PORT, REPORT_PORT, REPORT_URL
+    db_path = get_db_path()
     try:
-        if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, list) and len(data) > 0:
-                    global_settings = data[0]
-                    PORT = int(global_settings.get("Api_Port", DEFAULT_PORT))
-    except Exception as e:
-        print(f"Config load error: {e}")
+        import sqlite3
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            # API Port
+            res = conn.execute("SELECT value FROM settings WHERE key='Api_Port'").fetchone()
+            if res: PORT = int(res[0])
+            
+            # Report Port
+            res_rep = conn.execute("SELECT value FROM settings WHERE key='Streamlit_Port'").fetchone()
+            if res_rep: 
+                REPORT_PORT = int(res_rep[0])
+                REPORT_URL = f"http://localhost:{REPORT_PORT}"
+                
+            conn.close()
+    except: pass
 
-def save_port_to_config(new_port):
-    """Saves new port to db_config.json, preserving other settings."""
-    config_path = get_config_path()
-    data = []
-    
-    # Try to load existing
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except: pass
-    
-    # Ensure structure
-    if not isinstance(data, list) or len(data) == 0:
-        data = [{}] # Init global settings dict
-    
-    # Update Port
-    data[0]["Api_Port"] = new_port
-    # Ensure default fields if missing
-    if "DeveloperMode" not in data[0]: data[0]["DeveloperMode"] = True
-    if "Default" not in data[0]: data[0]["Default"] = "PostgreSQLDatabase"
-
+def load_current_dev_mode():
+    db_path = get_db_path()
     try:
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
+        import sqlite3
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            res = conn.execute("SELECT value FROM settings WHERE key='DeveloperMode'").fetchone()
+            conn.close()
+            if res:
+                return res[0].lower() == "true"
+    except: pass
+    return True
+
+def save_port_to_config(new_port, port_key='Api_Port'):
+    """Saves new port to SQLite."""
+    db_path = get_db_path()
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (port_key, str(new_port)))
+        conn.commit()
+        conn.close()
         return True
-    except Exception as e:
-        print(f"Config save error: {e}")
-        return False
+    except: return False
 
 
 def create_image(color):
@@ -119,23 +126,31 @@ def check_backend_status():
     """Checks if the backend is reachable via HTTP."""
     global is_running
     
-    # 1. Try Standard HTTP
+    # 1. Try Standard Check based on current mode
     try:
-        response = requests.get(f"http://127.0.0.1:{PORT}{HEALTH_URL}", timeout=1)
-        if response.status_code == 200:
-            return True
-    except:
-        pass
-
-    # 2. Try HTTPS (Self-Signed)
-    try:
+        # We try the configured mode first
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        response = requests.get(f"https://127.0.0.1:{PORT}{HEALTH_URL}", timeout=1, verify=False)
+        
+        global HEALTH_URL
+        # Ensure URL matches current config state if it wasn't updated yet (safety)
+        protocol = "https" if USE_HTTPS else "http"
+        HEALTH_URL = f"{protocol}://127.0.0.1:{PORT}/health"
+
+        response = requests.get(HEALTH_URL, timeout=1, verify=False)
         if response.status_code == 200:
             return True
     except:
         pass
+    
+    # 2. Fallback: Try the OTHER protocol just in case config mismatch
+    try:
+        other_proto = "http" if USE_HTTPS else "https"
+        other_url = f"{other_proto}://127.0.0.1:{PORT}/health"
+        requests.get(other_url, timeout=1, verify=False)
+        # If this succeeds, running but on wrong proto? allow it as "running"
+        return True 
+    except: pass
     
     # 3. Socket Fallback (Port Open Check)
     import socket
@@ -192,8 +207,19 @@ def start_backend(icon, item):
              f.write(f'"{venv_python}" main.py\n')
     
     try:
-        # Run hidden
+        # Run hidden Backend
         subprocess.Popen(bat_path, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        
+        # Run hidden Reports (Streamlit)
+        reports_bat = os.path.join(base_dir, "scripts", "run_reports_silent.bat")
+        if os.path.exists(reports_bat):
+             subprocess.Popen(reports_bat, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+             
+        # Run hidden Watchdog Worker
+        worker_bat = os.path.join(base_dir, "scripts", "run_worker_silent.bat")
+        if os.path.exists(worker_bat):
+             subprocess.Popen(worker_bat, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+             
     except Exception as e:
         print(f"Start error: {e}")
 
@@ -243,40 +269,51 @@ def change_port_action(icon, item):
     """Prompts user to change the API port."""
     global PORT
     
-    # Prompt
     root = tk.Tk()
     root.withdraw()
     root.attributes('-topmost', True)
-    try:
-        root.lift()
-        root.focus_force()
-    except: pass
-
-    new_port_str = simpledialog.askstring("Port Değiştir", f"Mevcut Port: {PORT}\nYeni Port Numarası giriniz:", parent=root)
+    
+    new_port_str = simpledialog.askstring("API Port Değiştir", f"Mevcut Port: {PORT}\nYeni Port Numarası giriniz:", parent=root)
     root.destroy()
 
     if new_port_str and new_port_str.isdigit():
         new_port = int(new_port_str)
         if 1024 <= new_port <= 65535:
-            if save_port_to_config(new_port):
+            if save_port_to_config(new_port, 'Api_Port'):
                 PORT = new_port
-                # Update URLs
                 global HEALTH_URL, DOCS_URL
                 HEALTH_URL = f"http://localhost:{PORT}/health"
                 DOCS_URL = f"http://localhost:{PORT}/docs"
                 
-                # Ask to restart
-                should_restart = messagebox.askyesno("Yeniden Başlat", "Port değişikliği için servisin yeniden başlatılması gerekiyor.\nŞimdi yapılsın mı?")
-                if should_restart:
+                if messagebox.askyesno("Yeniden Başlat", "API portu değiştirildi. Servis yeniden başlatılsın mı?"):
                     restart_backend(icon, item)
-                else:
-                    messagebox.showinfo("Bilgi", "Değişiklik bir sonraki başlangıçta aktif olacak.")
             else:
                 messagebox.showerror("Hata", "Ayarlar kaydedilemedi!")
         else:
-            messagebox.showerror("Hata", "Geçersiz Port! (1024 - 65535 arası olmalı)")
-    elif new_port_str:
-        messagebox.showerror("Hata", "Lütfen sayısal bir değer girin.")
+            messagebox.showerror("Hata", "Geçersiz Port!")
+
+def change_report_port_action(icon, item):
+    """Prompts user to change the Streamlit port."""
+    global REPORT_PORT, REPORT_URL
+    
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    
+    new_port_str = simpledialog.askstring("Rapor Portu Değiştir", f"Mevcut Port: {REPORT_PORT}\nYeni Port Numarası giriniz:", parent=root)
+    root.destroy()
+
+    if new_port_str and new_port_str.isdigit():
+        new_port = int(new_port_str)
+        if 1024 <= new_port <= 65535:
+            if save_port_to_config(new_port, 'Streamlit_Port'):
+                REPORT_PORT = new_port
+                REPORT_URL = f"http://localhost:{REPORT_PORT}"
+                messagebox.showinfo("Başarılı", f"Rapor portu {REPORT_PORT} olarak güncellendi.\nEtki etmesi için 'Yeniden Başlat' yapınız.")
+            else:
+                messagebox.showerror("Hata", "Ayarlar kaydedilemedi!")
+        else:
+            messagebox.showerror("Hata", "Geçersiz Port!")
 
 def stop_backend(icon, item):
     """Stops the backend process."""
@@ -291,12 +328,14 @@ def stop_backend(icon, item):
     
     # Kill process by port
     kill_process_by_port(PORT)
+    kill_process_by_port(REPORT_PORT) # Kill Streamlit
     
     # Also try killing by process name as a fallback/additional measure
     try:
         # This command targets python.exe processes that have "main.py" in their window title
-        # This is a common pattern for processes started by the .bat script
         subprocess.run("taskkill /F /IM python.exe /FI \"WINDOWTITLE eq main.py*\"", shell=True, capture_output=True)
+         # Streamlit generic kill (might be aggressive but ensures cleanup)
+        subprocess.run("taskkill /F /IM streamlit.exe", shell=True, capture_output=True)
     except Exception as e:
         print(f"Taskkill by name error: {e}")
 
@@ -365,19 +404,81 @@ def backup_database(icon, item):
     threading.Thread(target=run_backup).start()
 
 def open_docs(icon, item):
-    webbrowser.open(f"http://127.0.0.1:{PORT}/docs")
+    global DOCS_URL
+    webbrowser.open(DOCS_URL)
+
+def toggle_dev_mode(icon, item):
+    """Toggles the Developer Mode setting in SQLite."""
+    db_path = get_db_path()
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        res = conn.execute("SELECT value FROM settings WHERE key='DeveloperMode'").fetchone()
+        current_state = res[0].lower() == "true" if res else True
+        new_state = not current_state
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('DeveloperMode', ?)", (str(new_state),))
+        conn.commit()
+        conn.close()
+        
+        state_str = "Açık" if new_state else "Kapalı"
+        icon.notify("Geliştirici Modu", f"Geliştirici modu {state_str} olarak değiştirildi.")
+    except Exception as e:
+        icon.notify("Hata", f"Ayarlar güncellenemedi: {str(e)}")
 
 def exit_app(icon, item):
     icon.stop()
     sys.exit()
 
+def load_current_https_mode():
+    db_path = get_db_path()
+    try:
+        import sqlite3
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            res = conn.execute("SELECT value FROM settings WHERE key='UseHTTPS'").fetchone()
+            conn.close()
+            if res:
+                return res[0].lower() == "true"
+    except: pass
+    return False
+
+def toggle_https_mode(icon, item):
+    """Toggles the UseHTTPS setting in SQLite."""
+    db_path = get_db_path()
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        res = conn.execute("SELECT value FROM settings WHERE key='UseHTTPS'").fetchone()
+        current_state = res[0].lower() == "true" if res else False
+        new_state = not current_state
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('UseHTTPS', ?)", (str(new_state),))
+        conn.commit()
+        conn.close()
+        
+        global USE_HTTPS, HEALTH_URL, DOCS_URL
+        USE_HTTPS = new_state
+        protocol = "https" if USE_HTTPS else "http"
+        HEALTH_URL = f"{protocol}://localhost:{PORT}/health"
+        DOCS_URL = f"{protocol}://localhost:{PORT}/docs"
+
+        state_str = "Aktif (HTTPS)" if new_state else "Pasif (HTTP)"
+        icon.notify("HTTPS Ayarı", f"HTTPS {state_str} olarak değiştirildi.")
+    except Exception as e:
+        icon.notify("Hata", f"Ayarlar güncellenemedi: {str(e)}")
+
 def main():
-    global is_running
+    global is_running, USE_HTTPS, HEALTH_URL, DOCS_URL
     
     # Load config first
     load_port_from_config()
+    USE_HTTPS = load_current_https_mode()
     
-    # Initial status check
+    # Init URLs based on config
+    protocol = "https" if USE_HTTPS else "http"
+    HEALTH_URL = f"{protocol}://localhost:{PORT}/health"
+    DOCS_URL = f"{protocol}://localhost:{PORT}/docs"
+
+    # Initial status check (function needs valid URLs)
     is_running = check_backend_status()
     initial_icon = create_image('green' if is_running else 'red')
     
@@ -385,6 +486,7 @@ def main():
         item('EXFIN OPS API v2.1', lambda: None, enabled=False),
         pystray.Menu.SEPARATOR,
         item('Swagger UI Aç', open_docs),
+        item('Rapor Panelini Aç', lambda i, x: webbrowser.open(REPORT_URL)),
         pystray.Menu.SEPARATOR,
         item('Başlat', start_backend),
         item('Durdur', stop_backend, enabled=lambda i: is_running),
@@ -394,7 +496,10 @@ def main():
         item('Yedekleme Klasörüne Git', open_backup_folder),
         item('Veritabanı Yedeği Al', backup_database),
         pystray.Menu.SEPARATOR,
-        item('Port Değiştir', change_port_action),
+        item('API Port Değiştir', change_port_action),
+        item('Rapor Portu Değiştir', change_report_port_action),
+        item('Geliştirici Modu', toggle_dev_mode, checked=lambda i: load_current_dev_mode()),
+        item('HTTPS Kullan', toggle_https_mode, checked=lambda i: load_current_https_mode()),
         pystray.Menu.SEPARATOR,
         item('Çıkış', exit_app)
     )

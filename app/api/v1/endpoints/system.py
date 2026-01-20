@@ -132,3 +132,61 @@ async def system_info():
         "mode": settings.LOGO_INTEGRATION_MODE,
         "backup_path": system_service.backup_dir
     }
+
+class DBConfigRequest(BaseModel):
+    db_type: str # mssql, postgres
+    host: str
+    port: int
+    user: str
+    password: str
+    dbname: str
+    name: str = "Database"
+
+@router.post("/configure-db")
+async def configure_database(req: DBConfigRequest):
+    """
+    Updates db_config.json with new credentials.
+    """
+    import json
+    import os
+    
+    config_path = os.path.join(os.getcwd(), "db_config.json")
+    
+    # Load existing or create new
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            try:
+                configs = json.load(f)
+            except:
+                configs = [{"Default": "PostgreSQLDatabase"}]
+    else:
+        configs = [{"Default": "PostgreSQLDatabase"}]
+        
+    # Construct new config object
+    target_type = "MSSQLDatabase" if req.db_type == "mssql" else "PostgreSQLDatabase"
+    
+    new_entry = {
+        "id": "gen_" + str(len(configs)), 
+        "type": target_type,
+        "Name": "LOGO_Database" if req.db_type == "mssql" else "Main DB",
+        "Server": req.host, # Backend uses 'Server' key usually
+        "url": req.host,    # Legacy support
+        "Port": req.port,
+        "Username": req.user,
+        "user": req.user,
+        "Password": req.password,
+        "password": req.password,
+        "Database": req.dbname,
+        "databaseName": req.dbname
+    }
+    
+    # Remove existing of same type to replace
+    configs = [c for c in configs if c.get("type") != target_type and c.get("Type") != target_type]
+    configs.append(new_entry)
+    
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(configs, f, indent=4)
+        return {"status": "success", "message": "Configuration saved. Please restart the service."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save config: {e}")

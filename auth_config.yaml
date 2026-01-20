@@ -1,0 +1,10 @@
+cookie:
+  expiry_days: 30
+  key: exfin_signature
+  name: exfin_cookie
+credentials:
+  usernames:
+    admin:
+      email: admin@exfin.com
+      name: "Y\xF6netici"
+      password: $2b$12$XpcXgorOQFdgNBolAMed4OV/KDYne06JnLU0EMNAGf02ShZXgFP8i

@@ -1390,4 +1390,38 @@ class LogoIntegrationService:
             logger.error(f"YoY Monthly Comparison failed: {e}")
             return {}
 
+    async def get_available_firms(self):
+        """
+        Fetch list of defined firms AND their periods from L_CAPIFIRM and L_CAPIPERIOD.
+        Returns a tree: Firm -> Periods
+        """
+        try:
+            # 1. Fetch Firms
+            firms_query = "SELECT NR AS FIRM_NO, NAME, TITLE FROM L_CAPIFIRM ORDER BY NR"
+            firms = db_manager.execute_ms_query(firms_query)
+            if not firms: return []
+
+            # 2. Fetch Periods
+            periods_query = "SELECT FIRMNR, NR, BEGDATE, ENDDATE, ACTIVE FROM L_CAPIPERIOD ORDER BY FIRMNR, NR DESC"
+            periods = db_manager.execute_ms_query(periods_query)
+            
+            # 3. Nest Periods under Firms
+            periods_map = {}
+            if periods:
+                for p in periods:
+                    f_nr = p.get('FIRMNR')
+                    if f_nr not in periods_map:
+                        periods_map[f_nr] = []
+                    periods_map[f_nr].append(p)
+            
+            # Attach to firms
+            for f in firms:
+                f_nr = f.get('FIRM_NO')
+                f['PERIODS'] = periods_map.get(f_nr, [])
+                
+            return firms
+        except Exception as e:
+           logger.error(f"Failed to fetch firms/periods: {e}")
+           return []
+
 logo_service = LogoIntegrationService()

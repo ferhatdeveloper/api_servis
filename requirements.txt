@@ -11,6 +11,7 @@ psycopg2-binary==2.9.9
 pymssql==2.2.8
 
 # Security & Authentication
+PyJWT==2.8.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
@@ -22,6 +23,17 @@ loguru==0.7.2
 pydantic
 pydantic-settings
 
+# Dashboard / Reporting (Streamlit)
+streamlit
+streamlit-authenticator
+pandas
+plotly
+sqlalchemy
+requests
+pyodbc
+openai
+pyarrow
+fastparquet
 # PDF Generation
 # PDF Generation
 reportlab
@@ -43,3 +55,13 @@ SQLAlchemy==2.0.23
 
 # Template Engine
 jinja2==3.1.2
+
+# System & Process Management
+tendo>=0.3.0
+pywin32>=306
+psutil>=5.9.0
+asyncpg
+bcrypt
+openpyxl
+redis
+email-validator
