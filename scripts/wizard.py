@@ -633,6 +633,15 @@ class SetupWizard(tk.Tk):
                 ent.insert(0, val)
             ent.grid(row=i+row_offset, column=1, sticky="ew", pady=5)
             self.ui_entries[config_key] = ent
+
+            if is_pass:
+                # Add Show Password Toggle
+                show_var = tk.BooleanVar(value=False)
+                def toggle(v=show_var, e=ent):
+                    e.config(show="" if v.get() else "*")
+                
+                chk = tk.Checkbutton(parent, text="Göster", variable=show_var, command=toggle, bg="white", activebackground="white")
+                chk.grid(row=i+row_offset, column=2, padx=5)
         
         # Backup Folder Selection (Only for Postgres for now or global)
         # Backup Folder Selection (Only for Postgres for now or global)
@@ -727,6 +736,25 @@ class SetupWizard(tk.Tk):
              chk_freq.bind("<<ComboboxSelected>>", update_backup_ui)
              update_backup_ui() # init state
 
+        parent.columnconfigure(1, weight=1)
+        
+        # Calculate next available row
+        next_row = len(labels) + row_offset
+        if prefix == "pg":
+            next_row += 3 # Backup folder, frequency, options rows
+            
+        # Button Frame placed at the calculated next_row
+        btn_frame = tk.Frame(parent, bg="white")
+        btn_frame.grid(row=next_row, column=0, columnspan=2, pady=15)
+        
+        # Check Server Button (New)
+        ttk.Button(btn_frame, text="Sunucuyu Kontrol Et", 
+                   command=lambda p=prefix: self.check_server_connection(p)).pack(side="left", padx=5)
+
+        # Connect/Create DB Button (Existing)
+        ttk.Button(btn_frame, text="Veritabanını Bağla/Kur", 
+                   command=lambda p=prefix: self.test_connection(p)).pack(side="left", padx=5)
+
     def save_wizard_config(self):
         # Helper to save wizard config to json
         config_path = "wizard_config.json"
@@ -737,7 +765,7 @@ class SetupWizard(tk.Tk):
             for key, ent in self.ui_entries.items():
                 if isinstance(ent, ttk.Combobox):
                     data[key] = ent.get()
-                else:
+                elif isinstance(ent, ttk.Entry): 
                     data[key] = ent.get()
         
         # Save to file
@@ -761,14 +789,12 @@ class SetupWizard(tk.Tk):
                 bkp_config["backup_interval"] = "weekly"
                 bkp_config["backup_time"] = data.get("backup_time", "23:00")
                 
-                # harvest days from self.days_vars if accessible, but we only have 'data' dict here
-                # We need to ensure days_vars are captured into 'data' before this point
+                # harvest days from self.days_vars 
                 pass 
             else: 
                 bkp_config["backup_interval"] = "off"
                 
             # SPECIAL HANDLE: Since save_wizard_config reads from `self.ui_entries` but days are in `self.days_vars`
-            # We need to manually inject them into bkp_config if we can access 'self'
             if hasattr(self, 'days_vars'):
                  selected_days = [d for d, v in self.days_vars.items() if v.get()]
                  bkp_config["backup_days"] = selected_days
@@ -777,34 +803,6 @@ class SetupWizard(tk.Tk):
             root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             with open(os.path.join(root_dir, "backup_config.json"), "w", encoding="utf-8") as f:
                 json.dump(bkp_config, f, indent=4)
-            
-            if is_pass:
-                # Add Show Password Toggle
-                show_var = tk.BooleanVar(value=False)
-                def toggle(v=show_var, e=ent):
-                    e.config(show="" if v.get() else "*")
-                
-                chk = tk.Checkbutton(parent, text="Göster", variable=show_var, command=toggle, bg="white", activebackground="white")
-                chk.grid(row=i+row_offset, column=2, padx=5)
-            
-        parent.columnconfigure(1, weight=1)
-        
-        # Calculate next available row
-        next_row = len(labels) + row_offset
-        if prefix == "pg":
-            next_row += 3 # Backup folder, frequency, options rows
-            
-        # Button Frame placed at the calculated next_row
-        btn_frame = tk.Frame(parent, bg="white")
-        btn_frame.grid(row=next_row, column=0, columnspan=2, pady=15)
-        
-        # Check Server Button (New)
-        ttk.Button(btn_frame, text="Sunucuyu Kontrol Et", 
-                   command=lambda p=prefix: self.check_server_connection(p)).pack(side="left", padx=5)
-
-        # Connect/Create DB Button (Existing)
-        ttk.Button(btn_frame, text="Veritabanını Bağla/Kur", 
-                   command=lambda p=prefix: self.test_connection(p)).pack(side="left", padx=5)
 
     def test_connection(self, prefix):
         # Gather data
