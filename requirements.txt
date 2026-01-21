@@ -7,8 +7,8 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
 # Database Drivers
-psycopg2-binary==2.9.9
-pymssql==2.2.8
+psycopg2-binary>=2.9.10
+pymssql>=2.3.2
 
 # Security & Authentication
 PyJWT==2.8.0
@@ -28,8 +28,6 @@ streamlit
 streamlit-authenticator
 pandas
 plotly
-sqlalchemy
-requests
 pyodbc
 openai
 pyarrow
