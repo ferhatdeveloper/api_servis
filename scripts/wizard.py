@@ -635,6 +635,7 @@ class SetupWizard(tk.Tk):
             self.ui_entries[config_key] = ent
         
         # Backup Folder Selection (Only for Postgres for now or global)
+        # Backup Folder Selection (Only for Postgres for now or global)
         if prefix == "pg":
              tk.Label(parent, text="Yedekleme Klasörü:", bg="white", width=15, anchor="w").grid(row=len(labels)+row_offset, column=0, pady=5)
              
