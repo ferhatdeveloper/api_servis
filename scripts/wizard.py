@@ -778,6 +778,7 @@ class SetupWizard(tk.Tk):
                 json.dump(bkp_config, f, indent=4)
             
             if is_pass:
+        if is_pass:
                 # Add Show Password Toggle
                 show_var = tk.BooleanVar(value=False)
                 def toggle(v=show_var, e=ent):
@@ -788,9 +789,14 @@ class SetupWizard(tk.Tk):
             
         parent.columnconfigure(1, weight=1)
         
-        # Button Frame
+        # Calculate next available row
+        next_row = len(labels) + row_offset
+        if prefix == "pg":
+            next_row += 3 # Backup folder, frequency, options rows
+            
+        # Button Frame placed at the calculated next_row
         btn_frame = tk.Frame(parent, bg="white")
-        btn_frame.grid(row=len(labels)+row_offset, column=0, columnspan=2, pady=15)
+        btn_frame.grid(row=next_row, column=0, columnspan=2, pady=15)
         
         # Check Server Button (New)
         ttk.Button(btn_frame, text="Sunucuyu Kontrol Et", 
