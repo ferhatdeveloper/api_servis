@@ -778,7 +778,6 @@ class SetupWizard(tk.Tk):
                 json.dump(bkp_config, f, indent=4)
             
             if is_pass:
-        if is_pass:
                 # Add Show Password Toggle
                 show_var = tk.BooleanVar(value=False)
                 def toggle(v=show_var, e=ent):
