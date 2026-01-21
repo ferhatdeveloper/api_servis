@@ -551,17 +551,18 @@ class SetupWizard(tk.Tk):
         
         tk.Label(content, text="Veritabanı Yapılandırması", font=("Segoe UI", 14, "bold"), bg="white").pack(anchor="w")
         
-        nb = ttk.Notebook(content)
-        nb.pack(fill="both", expand=True, pady=10)
+        # Main Container for Side-by-Side
+        main_frame = tk.Frame(content, bg="white")
+        main_frame.pack(fill="both", expand=True, pady=10)
         
-        # PostgreSQL
-        f_pg = tk.Frame(nb, bg="white", padx=15, pady=15)
-        nb.add(f_pg, text=" EXFINOPS (PostgreSQL) ")
+        # PostgreSQL Frame (Left)
+        f_pg = tk.LabelFrame(main_frame, text=" 1. EXFINOPS (PostgreSQL) ", bg="white", fg="#1e40af", font=("Segoe UI", 11, "bold"), padx=15, pady=15)
+        f_pg.pack(side="left", fill="both", expand=True, padx=(0, 10))
         self.render_db_inputs(f_pg, "pg")
         
-        # MSSQL
-        f_ms = tk.Frame(nb, bg="white", padx=15, pady=15)
-        nb.add(f_ms, text=" LOGO ERP (MSSQL) ")
+        # MSSQL Frame (Right)
+        f_ms = tk.LabelFrame(main_frame, text=" 2. LOGO ERP (MSSQL) ", bg="white", fg="#ea580c", font=("Segoe UI", 11, "bold"), padx=15, pady=15)
+        f_ms.pack(side="right", fill="both", expand=True, padx=(10, 0))
         self.render_db_inputs(f_ms, "ms")
 
     def render_db_inputs(self, parent, prefix):
