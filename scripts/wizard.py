@@ -967,55 +967,88 @@ class SetupWizard(tk.Tk):
                 server=self.config_data["ms_host"],
                 user=self.config_data["ms_user"],
                 password=self.config_data["ms_pass"],
-                database=self.config_data["ms_db"]
+                database=self.config_data["ms_db"],
+                charset='UTF-8'
             )
             ms_cur = ms_conn.cursor(as_dict=True)
             
-            headers = []
-            rows = []
-            title = ""
-            
-            if data_type == "companies":
-                title = "Logo Firmalar ve Dönemler"
-                ms_cur.execute("SELECT NR, NAME, TAXNR, STREET, CITY FROM L_CAPIFIRM ORDER BY NR")
-                firms = ms_cur.fetchall()
-                headers = ["LogoNr", "Firma Adı", "Vergi No", "Adres"]
-                for f in firms:
-                    rows.append((f['NR'], f['NAME'], f.get('TAXNR'), f"{f.get('STREET')} / {f.get('CITY')}"))
-                    
-            elif data_type == "master":
-                title = "Logo Master Veriler (Örnek: Satış Elemanları & Ambarlar)"
-                # Just show Salesmen and Warehouses as sample
-                ms_cur.execute("SELECT TOP 10 CODE, DEFINITION_, EMAILADDR, FIRMNR FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
-                sls = ms_cur.fetchall()
-                headers = ["TÜR", "KOD", "AÇIKLAMA", "EK BİLGİ"]
-                for s in sls:
-                    rows.append(("SATIS_ELEMANI", s['CODE'], s['DEFINITION_'], s['EMAILADDR']))
-                
-                ms_cur.execute("SELECT TOP 10 NR, NAME FROM L_CAPIWHOUSE ORDER BY NR")
-                whs = ms_cur.fetchall()
-                for w in whs:
-                    rows.append(("AMBAR", str(w['NR']), w['NAME'], ""))
-            
-            ms_conn.close()
-            
             # Show in a new window
             top = tk.Toplevel(self)
-            top.title(f"Önizleme: {title}")
-            top.geometry("800x600")
-            top.state('zoomed') # Full screen
+            top.title(f"Önizleme: {data_type}")
+            top.geometry("1100x700")
             
-            tree = ttk.Treeview(top, columns=headers, show="headings")
-            for h in headers:
-                tree.heading(h, text=h)
-                tree.column(h, width=150)
-            
-            tree.pack(fill="both", expand=True, padx=10, pady=10)
-            
-            for r in rows:
-                tree.insert("", tk.END, values=r)
+            # Main Container
+            main_frame = tk.Frame(top, bg="#f0f2f5", padx=10, pady=10)
+            main_frame.pack(fill="both", expand=True)
+
+            if data_type == "companies":
+                top.title("Önizleme: Firmalar ve Dönemler")
                 
-            ttk.Button(top, text="Kapat", command=top.destroy).pack(pady=5)
+                # Full width list for companies
+                f_comp = tk.LabelFrame(main_frame, text=" Firmalar (L_CAPIFIRM) ", bg="white", font=("Segoe UI", 10, "bold"), padx=5, pady=5)
+                f_comp.pack(fill="both", expand=True)
+                
+                cols = ["LogoNr", "Firma Adı", "Vergi No", "Adres"]
+                tree = ttk.Treeview(f_comp, columns=cols, show="headings", height=25)
+                for c in cols:
+                    tree.heading(c, text=c)
+                    tree.column(c, width=150)
+                
+                scr = ttk.Scrollbar(f_comp, orient="vertical", command=tree.yview)
+                tree.configure(yscroll=scr.set)
+                tree.pack(side="left", fill="both", expand=True)
+                scr.pack(side="right", fill="y")
+                
+                ms_cur.execute("SELECT NR, NAME, TAXNR, STREET, CITY FROM L_CAPIFIRM ORDER BY NR")
+                for f in ms_cur.fetchall():
+                    addr = f"{f.get('STREET', '')} {f.get('CITY', '')}"
+                    tree.insert("", tk.END, values=(f['NR'], f.get('NAME'), f.get('TAXNR'), addr))
+                    
+            elif data_type == "master":
+                top.title("Önizleme: Master Veriler (Arapça / Türkçe)")
+                
+                # LEFT PANEL: Salesman
+                f_sales = tk.LabelFrame(main_frame, text=" Satış Elemanları (LG_SLSMAN) ", bg="white", fg="#0f172a", font=("Segoe UI", 10, "bold"), padx=5, pady=5)
+                f_sales.pack(side="left", fill="both", expand=True, padx=(0, 5))
+                
+                cols_s = ["KOD", "AÇIKLAMA", "EK BİLGİ"]
+                tree_s = ttk.Treeview(f_sales, columns=cols_s, show="headings")
+                for c in cols_s: 
+                    tree_s.heading(c, text=c)
+                    tree_s.column(c, width=80)
+                
+                scr_s = ttk.Scrollbar(f_sales, orient="vertical", command=tree_s.yview)
+                tree_s.configure(yscroll=scr_s.set)
+                tree_s.pack(side="left", fill="both", expand=True)
+                scr_s.pack(side="right", fill="y")
+                
+                ms_cur.execute("SELECT TOP 50 CODE, DEFINITION_, EMAILADDR FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
+                for s in ms_cur.fetchall():
+                    tree_s.insert("", tk.END, values=(s['CODE'], s.get('DEFINITION_'), s.get('EMAILADDR')))
+                
+                # RIGHT PANEL: Warehouses
+                f_wh = tk.LabelFrame(main_frame, text=" Ambarlar (L_CAPIWHOUSE) ", bg="white", fg="#0f172a", font=("Segoe UI", 10, "bold"), padx=5, pady=5)
+                f_wh.pack(side="right", fill="both", expand=True, padx=(5, 0))
+                
+                cols_w = ["NR", "İSİM"]
+                tree_w = ttk.Treeview(f_wh, columns=cols_w, show="headings")
+                for c in cols_w: 
+                    tree_w.heading(c, text=c)
+                    tree_w.column(c, width=60)
+
+                scr_w = ttk.Scrollbar(f_wh, orient="vertical", command=tree_w.yview)
+                tree_w.configure(yscroll=scr_w.set)
+                tree_w.pack(side="left", fill="both", expand=True)
+                scr_w.pack(side="right", fill="y")
+
+                ms_cur.execute("SELECT TOP 50 NR, NAME FROM L_CAPIWHOUSE ORDER BY NR")
+                for w in ms_cur.fetchall():
+                    tree_w.insert("", tk.END, values=(w['NR'], w.get('NAME')))
+
+            ms_conn.close()
+            
+            # Close Button
+            ttk.Button(main_frame, text="Kapat", command=top.destroy).pack(side="bottom", pady=10)
             
         except Exception as e:
             messagebox.showerror("Önizleme Hatası", f"Veri çekilemedi:\n{e}")
@@ -1031,7 +1064,8 @@ class SetupWizard(tk.Tk):
                     server=self.config_data["ms_host"],
                     user=self.config_data["ms_user"],
                     password=self.config_data["ms_pass"],
-                    database=self.config_data["ms_db"]
+                    database=self.config_data["ms_db"],
+                    charset='UTF-8'
                 )
                 ms_cur = ms_conn.cursor(as_dict=True)
                 
@@ -1107,7 +1141,8 @@ class SetupWizard(tk.Tk):
                     server=self.config_data["ms_host"],
                     user=self.config_data["ms_user"],
                     password=self.config_data["ms_pass"],
-                    database=self.config_data["ms_db"]
+                    database=self.config_data["ms_db"],
+                    charset='UTF-8'
                 )
                 ms_cur = ms_conn.cursor(as_dict=True)
                 
@@ -1120,6 +1155,16 @@ class SetupWizard(tk.Tk):
                     options="-c client_encoding=UTF8"
                 )
                 pg_cur = pg_conn.cursor()
+                
+                # --- AUTO FIX SCHEMA IF NEEDED ---
+                try:
+                    # Fix users.logo_salesman_code length (default 20 is too small for some Arabic/Legacy codes)
+                    pg_cur.execute("ALTER TABLE users ALTER COLUMN logo_salesman_code TYPE VARCHAR(50)")
+                    pg_conn.commit()
+                except Exception as ex_schema:
+                    pg_conn.rollback()
+                    print(f"Schema check error (ignored): {ex_schema}")
+                # ---------------------------------
                 
                 # 1. SALESMEN (LG_SLSMAN)
                 self.transfer_log.insert(tk.END, "> Satış Elemanları (LG_SLSMAN) aktarılıyor...\n")
@@ -1564,7 +1609,7 @@ oLink.Save
         
         def run():
             try:
-                conn = pymssql.connect(server=host, user=user, password=pwd, database=db, timeout=5)
+                conn = pymssql.connect(server=host, user=user, password=pwd, database=db, timeout=5, charset='UTF-8')
                 cursor = conn.cursor()
                 cursor.execute("SELECT LTRIM(STR(NR, 3, 0)), NAME FROM L_CAPIFIRM ORDER BY NR")
                 firms = [f"{str(row[0]).zfill(3)} - {row[1]}" for row in cursor.fetchall()]
@@ -1600,7 +1645,7 @@ oLink.Save
                     user = self.ui_entries["ms_user"].get()
                     pwd = self.ui_entries["ms_pass"].get()
                     db = self.ui_entries["ms_db"].get()
-                    conn = pymssql.connect(server=host, user=user, password=pwd, database=db, timeout=5)
+                    conn = pymssql.connect(server=host, user=user, password=pwd, database=db, timeout=5, charset='UTF-8')
                     close_at_end = True
                 
                 cursor = conn.cursor()

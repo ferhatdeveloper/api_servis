@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(100),
     phone VARCHAR(20),
     role VARCHAR(20) DEFAULT 'salesman' CHECK (role IN ('admin', 'supervisor', 'salesman', 'warehouse')),
-    logo_salesman_code VARCHAR(20),
+    logo_salesman_code VARCHAR(50),
     is_active BOOLEAN DEFAULT true,
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
