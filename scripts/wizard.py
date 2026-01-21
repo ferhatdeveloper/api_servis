@@ -786,8 +786,18 @@ class SetupWizard(tk.Tk):
                 chk.grid(row=i+row_offset, column=2, padx=5)
             
         parent.columnconfigure(1, weight=1)
-        ttk.Button(parent, text="Bağlantıyı Test Et", 
-                   command=lambda p=prefix: self.test_connection(p)).grid(row=len(labels)+row_offset, column=0, columnspan=2, pady=15)
+        
+        # Button Frame
+        btn_frame = tk.Frame(parent, bg="white")
+        btn_frame.grid(row=len(labels)+row_offset, column=0, columnspan=2, pady=15)
+        
+        # Check Server Button (New)
+        ttk.Button(btn_frame, text="Sunucuyu Kontrol Et", 
+                   command=lambda p=prefix: self.check_server_connection(p)).pack(side="left", padx=5)
+
+        # Connect/Create DB Button (Existing)
+        ttk.Button(btn_frame, text="Veritabanını Bağla/Kur", 
+                   command=lambda p=prefix: self.test_connection(p)).pack(side="left", padx=5)
 
     def test_connection(self, prefix):
         # Gather data
@@ -824,7 +834,8 @@ class SetupWizard(tk.Tk):
                         self.setup_postgresql(host, port, user, pwd, db, create_db=True)
                 except Exception as e:
                     err_msg = self.safe_str(e)
-                    if "database" in err_msg.lower() and "does not exist" in err_msg.lower():
+                    # Check for pgcode 3D000 (Invalid Catalog Name) or fallback to string match
+                    if getattr(e, 'pgcode', None) == '3D000' or ("database" in err_msg.lower() and "does not exist" in err_msg.lower()):
                         if messagebox.askyesno("Veritabanı Yok", f"'{db}' veritabanı bulunamadı. Otomatik oluşturulsun mu?"):
                             self.setup_postgresql(host, port, user, pwd, db, create_db=True)
                         else:
@@ -870,6 +881,42 @@ class SetupWizard(tk.Tk):
                     messagebox.showerror("Hata", friendly_err)
         except Exception as e:
             messagebox.showerror("Beklenmedik Hata", f"Test sırasında bir hata oluştu: {self.safe_str(e)}")
+
+    def check_server_connection(self, prefix):
+        """Checks connection to the Server only (using default DB 'postgres' or 'master')."""
+        host = self.ui_entries[f"{prefix}_host"].get()
+        port = self.ui_entries[f"{prefix}_port"].get()
+        user = self.ui_entries[f"{prefix}_user"].get()
+        pwd = self.ui_entries[f"{prefix}_pass"].get()
+        
+        try:
+            if prefix == "pg":
+                if not psycopg2:
+                    messagebox.showwarning("Uyarı", "psycopg2 modülü yüklü değil.")
+                    return
+                # Connect to default 'postgres' db
+                conn = psycopg2.connect(host=host, port=port, user=user, password=pwd, database="postgres", connect_timeout=5)
+                conn.close()
+                messagebox.showinfo("Başarılı", f"PostgreSQL Sunucu Erişimi: BAŞARILI ✅\n\nHost: {host}\nKullanıcı: {user}\n\nŞimdi 'Veritabanını Bağla/Kur' diyerek devam edebilirsiniz.")
+            else:
+                if not pymssql:
+                    messagebox.showwarning("Uyarı", "pymssql modülü yüklü değil.")
+                    return
+                # Connect to default 'master' db
+                conn = pymssql.connect(server=host, user=user, password=pwd, database="master", timeout=5)
+                conn.close()
+                messagebox.showinfo("Başarılı", f"MSSQL Sunucu Erişimi: BAŞARILI ✅\n\nHost: {host}\nKullanıcı: {user}")
+
+        except Exception as e:
+            err = self.safe_str(e)
+            if "password authentication failed" in err or "Login failed" in err:
+                msg = f"Giriş Başarısız! Şifre veya Kullanıcı adı hatalı.\n\nDetay: {err}"
+            elif "timeout" in err or "refused" in err or "network" in err.lower():
+                msg = f"Sunucuya Ulaşılamıyor!\nIP Adresi ({host}) ve Port ({port}) bilgilerini kontrol edin.\nGüvenlik duvarı ayarlarını gözden geçirin.\n\nDetay: {err}"
+            else:
+                msg = f"Sunucu Bağlantı Hatası:\n{err}"
+            
+            messagebox.showerror("Sunucu Erişim Hatası", msg)
 
     def create_step_data_transfer(self):
         content = tk.Frame(self.container, bg="white", padx=20, pady=20)
