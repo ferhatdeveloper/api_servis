@@ -2050,12 +2050,13 @@ except Exception as e:
         tk.Label(content, text=summary, bg="white", justify="left", font=("Segoe UI", 10)).pack(anchor="w", pady=20)
 
     def finish_setup(self):
-        # 1. Update Config Data from UI
-        for key, ent in self.ui_entries.items():
-            val = ent.get()
-            if " - " in val and (key.endswith("_firma") or key.endswith("_donem")):
-                val = val.split(" - ")[0].strip()
-            self.config_data[key] = val
+        # 1. Clean up specific fields in config_data (remove names from firm/period)
+        # Note: input names are like "001 - Firma Adi", we just want "001"
+        for key in ["ms_firma", "ms_donem", "firma", "donem"]:
+            if key in self.config_data:
+                val = self.config_data[key]
+                if isinstance(val, str) and " - " in val:
+                    self.config_data[key] = val.split(" - ")[0].strip()
             
         # 2. Save to exfin.db (Single Source of Truth)
         try:
