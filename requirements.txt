@@ -20,8 +20,8 @@ python-dotenv==1.0.0
 loguru==0.7.2
 
 # Data Validation
-pydantic
-pydantic-settings
+pydantic==2.5.3
+pydantic-settings==2.1.0
 
 # Dashboard / Reporting (Streamlit)
 streamlit
