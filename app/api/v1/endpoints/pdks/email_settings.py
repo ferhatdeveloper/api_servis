@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
 from typing import List, Optional
-from app.core.pdks_database import get_db
+from app.core.pdks_dependencies import get_db
 from app.services.pdks.email_service import EmailService
 import logging
 

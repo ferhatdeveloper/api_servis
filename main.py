@@ -59,16 +59,13 @@ async def root():
     }
 
 
-# Retail API Integration
-from retail.middleware.tenant import TenantMiddleware
-from retail.api.v1 import api_router as retail_api_router
 
-# Add Tenant Middleware (ensure it runs)
+
+
+
+# Retail Middleware
+from app.middleware.tenant import TenantMiddleware
 app.add_middleware(TenantMiddleware)
-
-# Include Retail Routes
-app.include_router(retail_api_router, prefix="/retail/api/v1", tags=["Retail"])
-
 
 if __name__ == "__main__":
     import uvicorn

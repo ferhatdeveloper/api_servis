@@ -6,17 +6,17 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import json
 
-from app.core.pdks_database import get_db
+from app.core.pdks_dependencies import get_db
 from app.models.pdks.hikvision import AttendanceLog, Base
 
-# Router tanımla prefix='/hikvision' olacak (api.py içinde /api altına eklenecek -> /api/v1/pdks/hikvision)
+# Router tanımla prefix='/hikvision' olacak (api.py içinde /api altına eklenecek -> /api/hikvision)
 router = APIRouter(prefix="/hikvision", tags=["Hikvision"])
 
 @router.post("/webhook")
 async def receive_event(request: Request, db: Session = Depends(get_db)):
     """
     Hikvision cihazından gelen eventleri karşılar.
-    URL: POST /api/v1/pdks/hikvision/webhook
+    URL: POST /api/hikvision/webhook
     """
     try:
         # 1. JSON verisini al
@@ -71,8 +71,7 @@ def analyze_event_type(sub_type):
         75: "face",         # Access Granted by Face
         4: "fingerprint",   # Access Granted by Fingerprint (Genelde 4 veya 5)
         5: "fingerprint",
-        74: "pwd",          # Access Granted by Password (correction from source: 25 -> 74 or keep as is? Source said 25: pwd. I'll keep source.)
-        25: "pwd",
+        25: "pwd",          # Access Granted by Password
     }
     return mapping.get(sub_type, "other")
 

@@ -3,8 +3,7 @@ Otomatik Indexleme Modülü
 Sık sorgulanan kolonları tespit edip otomatik index oluşturur
 """
 from sqlalchemy import text, inspect
-from sqlalchemy.orm import Session
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -153,7 +152,10 @@ class AutoIndexer:
     def create_index(self, table_name: str, column: str, index_name: str) -> bool:
         """Index oluştur"""
         with self.engine.connect() as conn:
-            query = text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} ({column})")
+            query = text(f"""
+                CREATE INDEX IF NOT EXISTS {index_name}
+                ON {table_name} ({column})
+            """)
             conn.execute(query)
             conn.commit()
         
@@ -256,3 +258,4 @@ class AutoIndexer:
             except Exception as e:
                 logger.error(f"Query analiz hatası: {e}")
                 return []
+

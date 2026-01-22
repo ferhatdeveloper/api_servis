@@ -2,7 +2,9 @@
 Hikvision Cihaz Logları için Veritabanı Modeli
 """
 from sqlalchemy import Column, Integer, String, DateTime, Text
-from app.core.pdks_database import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class AttendanceLog(Base):
     """Cihazdan gelen geçiş loglarını saklayan tablo"""

@@ -60,8 +60,50 @@ class Settings(BaseSettings):
     LOGO_PERIOD_NO: str = "01"
     LOGO_INTEGRATION_MODE: str = "DirectDB"
 
+    # --- RetailOS Settings ---
+    API_TITLE: str = "ExRetailOS API"
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    DATABASE_TYPE: str = "postgresql"
+    CENTRAL_DATABASE_URL: str = ""
+    DEFAULT_TENANT_ID: str = "default"
+    
+    # JWT
+    JWT_SECRET: str = "change-this-in-production-min-32-characters"
+    
+    # Uploads
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024
+    UPLOAD_FOLDER: str = "uploads"
+    ALLOWED_EXTENSIONS: str = "pdf,jpg,jpeg,png,xlsx,xls,csv"
+    
+    # Integrations
+    OPENAI_API_KEY: str = ""
+    WHATSAPP_API_KEY: str = ""
+    WHATSAPP_PHONE_NUMBER: str = ""
+    NEBIM_API_URL: str = ""
+    NEBIM_API_KEY: str = ""
+    
+    # Payments
+    ZAIN_CASH_MERCHANT_ID: str = ""
+    ZAIN_CASH_SECRET_KEY: str = ""
+    FASTPAY_API_KEY: str = ""
+    QICARD_MERCHANT_ID: str = ""
+    
+    # Cargo
+    ARAMEX_IRAQ_API_KEY: str = ""
+    DHL_IRAQ_API_KEY: str = ""
+    
+    # Email
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@exretailos.com"
+
     def load_db_config(self):
-        db_path = os.path.join(os.getcwd(), "exfin.db")
+        db_path = os.path.join(os.getcwd(), "api.db")
+        
         if os.path.exists(db_path):
             try:
                 import sqlite3
@@ -69,44 +111,73 @@ class Settings(BaseSettings):
                 c = conn.cursor()
                 
                 # 1. Global Settings
-                rows = c.execute("SELECT key, value FROM settings").fetchall()
-                s_dict = {r[0]: r[1] for r in rows}
-                
-                if s_dict:
-                    self.DEFAULT_DB = s_dict.get("Default", self.DEFAULT_DB)
-                    self.DEVELOPER_MODE = s_dict.get("DeveloperMode", "True").lower() == "true"
-                    self.USE_HTTPS = s_dict.get("UseHTTPS", "False").lower() == "true"
-                    self.API_PORT = int(s_dict.get("Api_Port", self.API_PORT))
-                    self.STREAMLIT_PORT = int(s_dict.get("Streamlit_Port", self.STREAMLIT_PORT))
-                    self.DEBUG = self.DEVELOPER_MODE
+                try:
+                    rows = c.execute("SELECT key, value FROM settings").fetchall()
+                    s_dict = {r[0]: r[1] for r in rows}
+                    
+                    if s_dict:
+                        self.DEFAULT_DB = s_dict.get("Default", self.DEFAULT_DB)
+                        self.DEVELOPER_MODE = s_dict.get("DeveloperMode", str(self.DEVELOPER_MODE)).lower() == "true"
+                        self.USE_HTTPS = s_dict.get("UseHTTPS", str(self.USE_HTTPS)).lower() == "true"
+                        self.API_PORT = int(s_dict.get("Api_Port", self.API_PORT))
+                        self.STREAMLIT_PORT = int(s_dict.get("Streamlit_Port", self.STREAMLIT_PORT))
+                        
+                        # Load other settings if present in DB
+                        if "API_TITLE" in s_dict: self.API_TITLE = s_dict["API_TITLE"]
+                        if "SECRET_KEY" in s_dict: self.SECRET_KEY = s_dict["SECRET_KEY"]
+                        # Add more mappings as needed from settings table
+                        
+                        self.DEBUG = self.DEVELOPER_MODE
+                except: pass
 
-                # 2. Database Connections (for legacy compat)
+                # 2. Database Connections
                 conn.row_factory = sqlite3.Row
-                c_rows = conn.execute("SELECT * FROM api_connections").fetchall()
-                self.DB_CONFIGS = [dict(r) for r in c_rows]
+                try:
+                    c_rows = conn.execute("SELECT * FROM db_connections").fetchall()
+                    # Convert rows to dicts, mapping columns back to what app expects if needed
+                    # App expects: Name, Type, Server, Port, Database, Username, Password
+                    self.DB_CONFIGS = []
+                    for r in c_rows:
+                        self.DB_CONFIGS.append({
+                            "Name": r["name"],
+                            "Type": r["type"],
+                            "Server": r["host"],
+                            "Port": r["port"],
+                            "Database": r["database"],
+                            "Username": r["username"],
+                            "Password": r["password"]
+                        })
+                except: pass
                 
                 conn.close()
-                return True
             except Exception as e:
-                print(f"Error loading exfin.db config: {e}")
-        
-        # Fallback to JSON if DB setup failed
-        config_path = os.path.join(os.getcwd(), "db_config.json")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, list) and len(data) > 0:
-                        globals = data[0]
-                        self.DEFAULT_DB = globals.get("Default", self.DEFAULT_DB)
-                        self.DEVELOPER_MODE = globals.get("DeveloperMode", self.DEVELOPER_MODE)
-                        self.USE_HTTPS = globals.get("UseHTTPS", self.USE_HTTPS)
-                        self.API_PORT = int(globals.get("Api_Port", self.API_PORT))
-                        self.DEBUG = self.DEVELOPER_MODE
-                        self.DB_CONFIGS = data[1:]
-                return True
-            except: pass
-        return False
+                print(f"Error loading api.db config: {e}")
+
+        # --- Generate CENTRAL_DATABASE_URL ---
+        if not self.CENTRAL_DATABASE_URL and self.DB_CONFIGS:
+            # Try to find 'Main DB' or use the first one
+            target_db = next((c for c in self.DB_CONFIGS if c.get("Name") == "Main DB"), None)
+            if not target_db and len(self.DB_CONFIGS) > 0:
+                target_db = self.DB_CONFIGS[0]
+            
+            if target_db:
+                user = target_db.get("Username", "postgres")
+                password = target_db.get("Password") or self.DB_PASSWORD
+                server = target_db.get("Server", "localhost")
+                database = target_db.get("Database") or self.DB_NAME
+                port = target_db.get("Port", 5432)
+                type_ = target_db.get("Type", "PostgreSQL").lower()
+                
+                if "postgres" in type_:
+                    self.CENTRAL_DATABASE_URL = f"postgresql+asyncpg://{user}:{password}@{server}:{port}/{database}"
+                elif "mssql" in type_:
+                    self.CENTRAL_DATABASE_URL = f"mssql+aioodbc://{user}:{password}@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
+
+        # Fallback if still empty
+        if not self.CENTRAL_DATABASE_URL:
+             self.CENTRAL_DATABASE_URL = f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+        return True
 
     class Config:
         env_file = ".env"

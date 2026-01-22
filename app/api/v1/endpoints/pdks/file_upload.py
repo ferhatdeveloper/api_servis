@@ -12,7 +12,7 @@ from datetime import datetime
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
-# Upload dizini - Relative to CWD (Backend root)
+# Upload dizini
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -36,6 +36,11 @@ async def upload_file(
 ):
     """
     Dosya yükle
+    
+    Kategoriler:
+    - employee_documents: Çalışan dökümanları
+    - profile_photos: Profil fotoğrafları
+    - general: Genel dosyalar
     """
     try:
         # Kategori kontrolü
@@ -70,7 +75,7 @@ async def upload_file(
         
         # URL oluştur
         relative_path = file_path.relative_to(UPLOAD_DIR)
-        file_url = f"/api/v1/pdks/files/download/{relative_path.as_posix()}" # Adjusted URL for new prefix
+        file_url = f"/files/download/{relative_path.as_posix()}"
         
         return {
             "status": "success",
@@ -177,7 +182,7 @@ async def list_files(
                 file_list.append({
                     "name": file_path.name,
                     "size": file_stats.st_size,
-                    "url": f"/api/v1/pdks/files/download/{relative_path.as_posix()}", # Adjusted URL
+                    "url": f"/files/download/{relative_path.as_posix()}",
                     "modified": datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
                 })
         
@@ -193,3 +198,4 @@ async def list_files(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Dosya listesi alınamadı: {str(e)}")
+

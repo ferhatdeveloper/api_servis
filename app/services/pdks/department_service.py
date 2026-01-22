@@ -34,30 +34,27 @@ class DepartmentService(BaseService[Department]):
     
     def get_with_employee_count(self) -> List[Dict[str, Any]]:
         """Departmanları çalışan sayısı ile birlikte getir"""
-        # from sqlalchemy import func
-        # from app.models.employee import Employee
-        # TODO: Employee model not found in migration source.
+        from sqlalchemy import func
+        from app.models.pdks.employee import Employee
         
-        # result = self.db.query(
-        #     self.model.id,
-        #     self.model.name,
-        #     self.model.description,
-        #     func.count(Employee.id).label('employee_count')
-        # ).outerjoin(Employee, self.model.id == Employee.department_id)\
-        # .group_by(self.model.id)\
-        # .all()
+        result = self.db.query(
+            self.model.id,
+            self.model.name,
+            self.model.description,
+            func.count(Employee.id).label('employee_count')
+        ).outerjoin(Employee, self.model.id == Employee.department_id)\
+        .group_by(self.model.id)\
+        .all()
         
-        # return [
-        #     {
-        #         "id": row.id,
-        #         "name": row.name,
-        #         "description": row.description,
-        #         "employee_count": row.employee_count
-        #     }
-        #     for row in result
-        # ]
-        return []
-
+        return [
+            {
+                "id": row.id,
+                "name": row.name,
+                "description": row.description,
+                "employee_count": row.employee_count
+            }
+            for row in result
+        ]
     
     def bulk_create(self, departments: List[Dict[str, Any]]) -> List[Department]:
         """Performanslı toplu oluşturma"""

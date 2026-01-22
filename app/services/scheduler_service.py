@@ -10,7 +10,7 @@ import sys
 class SchedulerService:
     def __init__(self):
         # Persistence: Use local SQLite for jobs
-        db_path = os.path.join(os.getcwd(), "exfin.db")
+        db_path = os.path.join(os.getcwd(), "api.db")
         jobstores = {
             'default': SQLAlchemyJobStore(url=f'sqlite:///{db_path}')
         }

@@ -18,7 +18,7 @@ PG_NAME = os.getenv("DB_NAME", "EXFINOPS")
 def get_db_config():
     """Reads SQLite exfin.db for MSSQL credentials, falls back to JSON"""
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    db_path = os.path.join(base_dir, "exfin.db")
+    db_path = os.path.join(base_dir, "api.db")
     
     # 1. Try SQLite
     try:
@@ -26,7 +26,7 @@ def get_db_config():
             import sqlite3
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute("SELECT * FROM api_connections WHERE name LIKE '%LOGO%' OR db_type LIKE '%MSSQL%' LIMIT 1").fetchone()
+            row = conn.execute("SELECT * FROM db_connections WHERE name LIKE '%LOGO%' OR type LIKE '%MSSQL%' LIMIT 1").fetchone()
             conn.close()
             if row:
                 res = dict(row)

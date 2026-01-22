@@ -5,7 +5,8 @@ Sık sorgulanan verileri tespit edip index oluşturur
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
-from app.core.pdks_database import engine, get_db
+from app.core.pdks_core_database import database_manager
+from app.core.pdks_dependencies import get_db
 from app.utils.pdks.auto_indexer import AutoIndexer
 
 router = APIRouter(prefix="/auto-index", tags=["Auto Indexing"])
@@ -19,6 +20,7 @@ async def analyze_table(
     Tablo performansını analiz et ve index önerileri al
     """
     try:
+        engine = database_manager.get_engine()
         indexer = AutoIndexer(engine)
         
         # Performans analizi
@@ -44,8 +46,14 @@ async def create_auto_indexes(
 ):
     """
     Önerilen index'leri oluştur
+    
+    Parameters:
+    - table_name: Tablo adı
+    - min_distinct: En az kaç farklı değere sahip kolonlar için index
+    - auto_create: True ise önerilen tüm index'leri otomatik oluştur
     """
     try:
+        engine = database_manager.get_engine()
         indexer = AutoIndexer(engine)
         
         if auto_create:
@@ -76,6 +84,7 @@ async def analyze_all_tables():
     Tüm tabloları analiz et ve genel index önerileri al
     """
     try:
+        engine = database_manager.get_engine()
         indexer = AutoIndexer(engine)
         
         inspector = indexer.inspector
@@ -118,6 +127,7 @@ async def create_all_suggested_indexes():
     Tüm tablolarda önerilen index'leri oluştur
     """
     try:
+        engine = database_manager.get_engine()
         indexer = AutoIndexer(engine)
         
         result = indexer.create_suggested_indexes()
@@ -140,6 +150,7 @@ async def get_slow_queries():
     Yavaş çalışan sorguları listele ve index önerileri al
     """
     try:
+        engine = database_manager.get_engine()
         indexer = AutoIndexer(engine)
         
         slow_queries = indexer.get_missing_indexes_from_queries()
@@ -153,9 +164,11 @@ async def get_slow_queries():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health")
-async def health_check_auto_index():
+async def health_check():
     """Otomatik indexleme sistem durumu"""
     try:
+        engine = database_manager.get_engine()
+        
         # Extension kontrolü
         with engine.connect() as conn:
             from sqlalchemy import text
@@ -170,3 +183,4 @@ async def health_check_auto_index():
             "status": "error",
             "message": str(e)
         }
+

@@ -36,7 +36,7 @@ try:
 except Exception as e:
     boot_trace(f"Directory change failed: {e}")
 
-SERVICE_NAME = "ExfinOPS_ApiService"
+SERVICE_NAME = "Exfin_ApiService"
 SERVICE_DISPLAY_NAME = "EXFIN OPS API Service"
 
 class ExfinApiService(win32serviceutil.ServiceFramework):

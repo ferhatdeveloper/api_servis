@@ -62,4 +62,9 @@ asyncpg
 bcrypt
 openpyxl
 redis
-email-validator
+
+# PDKS Integration Dependencies
+python-socketio
+python-json-logger
+pyyaml
+websockets

@@ -195,7 +195,12 @@ class DatabaseUtils:
         """
         try:
             # PostgreSQL için
-            result = db.execute(text(f"SELECT pg_size_pretty(pg_total_relation_size('{table_name}')) AS total_size, pg_size_pretty(pg_relation_size('{table_name}')) AS table_size, pg_size_pretty(pg_indexes_size('{table_name}')) AS indexes_size"))
+            result = db.execute(text(f"""
+                SELECT 
+                    pg_size_pretty(pg_total_relation_size('{table_name}')) AS total_size,
+                    pg_size_pretty(pg_relation_size('{table_name}')) AS table_size,
+                    pg_size_pretty(pg_indexes_size('{table_name}')) AS indexes_size
+            """))
             
             row = result.fetchone()
             
@@ -223,7 +228,6 @@ class DatabaseUtils:
             dict: Query plan bilgileri
         """
         try:
-            # Using parameter substitution for safety if possible, or direct strings for EXPLAIN
             explain_query = f"EXPLAIN ANALYZE {query}"
             result = db.execute(text(explain_query))
             

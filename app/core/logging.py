@@ -50,16 +50,49 @@ def configure_logging():
         diagnose=True    # Show variable values in stack trace (Use CAREFULLY in production w/ sensitive data)
     )
 
-    # 4. Integration Log (Specific implementation for Logo services)
-    # We can use a filter function to route specific logs
+    # 4. Logo / Integration Log
     logger.add(
-        os.path.join(LOG_DIR, "integration.log"), 
+        os.path.join(LOG_DIR, "logo.log"), 
         filter=lambda record: "logo" in record["name"].lower() or "integration" in record["message"].lower(),
         rotation="10 MB",
         retention="30 days",
         level="INFO",
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} - {message}",
         enqueue=True
     )
+
+    # 5. Retail Log
+    logger.add(
+        os.path.join(LOG_DIR, "retail.log"), 
+        filter=lambda record: "retail" in record["name"].lower(),
+        rotation="10 MB",
+        retention="30 days",
+        level="INFO",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} - {message}",
+        enqueue=True
+    )
+
+    # 6. PDKS Log
+    logger.add(
+        os.path.join(LOG_DIR, "pdks.log"), 
+        filter=lambda record: "pdks" in record["name"].lower(),
+        rotation="5 MB",
+        retention="30 days",
+        level="INFO",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} - {message}",
+        enqueue=True
+    )
+
+    # 7. Analytics/Reports Log
+    logger.add(
+        os.path.join(LOG_DIR, "analytics.log"), 
+        filter=lambda record: "analytics" in record["name"].lower() or "reports" in record["name"].lower(),
+        rotation="5 MB",
+        retention="30 days",
+        level="INFO",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} - {message}",
+        enqueue=True
+    )
+
 
     logger.info("Advanced Logging System Initialized 🚀")

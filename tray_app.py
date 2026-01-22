@@ -30,7 +30,7 @@ is_running = False
 icon = None
 
 def get_db_path():
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "exfin.db")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "api.db")
 
 def load_port_from_config():
     """Loads API_PORT and STREAMLIT_PORT from SQLite."""

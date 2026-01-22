@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.core.pdks_database import get_db
+from app.core.pdks_dependencies import get_db
 from app.utils.pdks.database_utils import DatabaseUtils
 
 router = APIRouter(prefix="/performance", tags=["Performance"])
@@ -20,6 +20,9 @@ async def create_index(
 ):
     """
     Performans için index oluştur
+    
+    Kullanım:
+    POST /api/performance/create-index?table=employees&column=employee_id&index_name=idx_emp_id
     """
     utils = DatabaseUtils()
     success = utils.create_index(db, table, column, index_name)
@@ -44,6 +47,9 @@ async def create_composite_index(
 ):
     """
     Birden fazla sütun için composite index oluştur
+    
+    Kullanım:
+    POST /api/performance/create-composite-index?table=attendance&columns=employee_id&columns=date&index_name=idx_att_emp_date
     """
     utils = DatabaseUtils()
     success = utils.create_composite_index(db, table, columns, index_name)
@@ -70,6 +76,9 @@ async def add_column(
 ):
     """
     Tabloya yeni sütun ekle
+    
+    Kullanım:
+    POST /api/performance/add-column?table=employees&column_name=new_field&column_type=TEXT
     """
     utils = DatabaseUtils()
     success = utils.add_column(db, table, column_name, column_type, default_value)
@@ -166,6 +175,9 @@ async def explain_query(
 ):
     """
     Query plan analizi (EXPLAIN ANALYZE)
+    
+    Kullanım:
+    POST /api/performance/explain-query?query=SELECT * FROM employees WHERE department_id = 1
     """
     utils = DatabaseUtils()
     plan = utils.explain_query(db, query)

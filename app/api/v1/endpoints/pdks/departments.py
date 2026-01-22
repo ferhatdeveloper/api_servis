@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 import uuid
 
-from app.core.pdks_database import get_db
+from app.core.pdks_dependencies import get_db
 from app.services.pdks.department_service import DepartmentService
 from app.models.pdks.department import Department, DepartmentCreate, DepartmentUpdate, DepartmentResponse
 
@@ -120,8 +120,7 @@ async def get_department_stats(
     Departman istatistikleri
     """
     from sqlalchemy import func, text
-    # from app.models.employee import Employee
-    # TODO: Employee model missing migration
+    from app.models.pdks.employee import Employee
     
     service = DepartmentService(db)
     department = service.get_by_id(dept_id)
@@ -129,23 +128,21 @@ async def get_department_stats(
     if not department:
         raise HTTPException(status_code=404, detail="Departman bulunamadı")
     
-    # İstatistik sorgusu - Disabled due to missing Employee model
-    # stats = db.query(
-    #     func.count(Employee.id).label('total_employees'),
-    #     func.avg(Employee.salary).label('avg_salary'),
-    #     func.max(Employee.salary).label('max_salary'),
-    #     func.min(Employee.salary).label('min_salary')
-    # ).filter(Employee.department_id == dept_id).first()
+    # İstatistik sorgusu
+    stats = db.query(
+        func.count(Employee.id).label('total_employees'),
+        func.avg(Employee.salary).label('avg_salary'),
+        func.max(Employee.salary).label('max_salary'),
+        func.min(Employee.salary).label('min_salary')
+    ).filter(Employee.department_id == dept_id).first()
     
-    # Mock response
     return {
         "department": department.name,
         "stats": {
-            "total_employees": 0,
-            "avg_salary": 0,
-            "max_salary": 0,
-            "min_salary": 0,
-            "note": "Employee stats unavailable due to missing Employee model"
+            "total_employees": stats.total_employees or 0,
+            "avg_salary": float(stats.avg_salary) if stats.avg_salary else 0,
+            "max_salary": float(stats.max_salary) if stats.max_salary else 0,
+            "min_salary": float(stats.min_salary) if stats.min_salary else 0
         }
     }
 

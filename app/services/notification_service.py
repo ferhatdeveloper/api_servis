@@ -4,7 +4,7 @@ import os
 import sqlite3
 
 class NotificationService:
-    def __init__(self, db_path="exfin.db"):
+    def __init__(self, db_path="api.db"):
         self.db_path = db_path
 
     def get_setting(self, key, default=None):
