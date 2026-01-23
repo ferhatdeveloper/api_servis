@@ -102,10 +102,10 @@ def auto_launch_tray(base_dir):
         # Use pythonw.exe if available to run without a console window gracefully
         python_exec = venv_pythonw if os.path.exists(venv_pythonw) else "pythonw"
         
-        logging.info(f"Launching Tray with pythonw: {python_exec} {tray_script}")
+        logging.info(f"Launching Tray with pythonw: {python_exec} {tray_script} --force --no-password")
         print(f"Tray App başlatılıyor: {python_exec}")
         
-        subprocess.Popen([python_exec, tray_script], 
+        subprocess.Popen([python_exec, tray_script, "--force", "--no-password"], 
                          cwd=base_dir)
         logging.info("Tray App process started successfully.")
         print("Tray App launch command sent.")

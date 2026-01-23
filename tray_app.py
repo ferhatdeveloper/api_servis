@@ -82,6 +82,11 @@ def load_company_name_from_db():
 
 def verify_password(title="Güvenlik Doğrulaması"):
     """Prompts user for a password before sensitive actions."""
+    # Check for bypass flag or env var
+    if "--no-password" in sys.argv or os.environ.get("EXFIN_NO_PWD") == "true":
+        logging.info("Password verification bypassed (flag/env).")
+        return True
+
     root = tk.Tk()
     root.withdraw()
     root.attributes('-topmost', True)
@@ -120,6 +125,19 @@ def check_existing_instance():
 
 
         if found_proc:
+            # 2. Check for force flag
+            if "--force" in sys.argv or "--force-restart" in sys.argv:
+                logging.info(f"Force killing existing instance (PID {found_proc.pid}) due to --force flag.")
+                try:
+                    found_proc.kill()
+                    time.sleep(1.0)
+                    if os.path.exists(LOCK_FILE):
+                        try: os.remove(LOCK_FILE)
+                        except: pass
+                    return False # No existing instance left
+                except Exception as e:
+                    logging.error(f"Force kill error: {e}")
+
             # Found another instance! Ask user
             root = tk.Tk()
             root.withdraw()
@@ -367,20 +385,22 @@ def check_backend_status():
         protocol = "https" if USE_HTTPS else "http"
         HEALTH_URL = f"{protocol}://127.0.0.1:{PORT}/health"
 
-        response = requests.get(HEALTH_URL, timeout=1, verify=False)
+        response = requests.get(HEALTH_URL, timeout=2, verify=False)
         if response.status_code == 200:
             return True
-    except:
+    except Exception as e:
+        logging.debug(f"Health check failed: {e}")
         pass
     
     # 2. Fallback: Try the OTHER protocol just in case config mismatch
     try:
         other_proto = "http" if USE_HTTPS else "https"
         other_url = f"{other_proto}://127.0.0.1:{PORT}/health"
-        requests.get(other_url, timeout=1, verify=False)
+        requests.get(other_url, timeout=2, verify=False)
         # If this succeeds, running but on wrong proto? allow it as "running"
         return True 
     except: pass
+
     
     # 3. Socket Fallback (Port Open Check)
     import socket
