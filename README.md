@@ -1,10 +1,20 @@
-# EXFIN OPS API (Backend) - v5.2 Enterprise Documentation
+# EXFIN OPS API (Backend) - v5.5 Enterprise Documentation
 
-**Versiyon:** 5.2.0  
+**Versiyon:** 5.5.0  
 **Geliştirici:** Ferhat Developer  
 **Kapsam:** Operasyonel Süreçler, Logo ERP Entegrasyonu, Retail, PDKS ve BI.
 
-Bu proje, işletmenin tüm operasyonel arka uç (backend) süreçlerini yöneten, merkezi ve modüler bir API servisidir. Aşağıda tüm modüllerin detaylı kullanımı, ne işe yaradıkları ve örnek istekler yer almaktadır.
+---
+
+## ⚡ Hızlı Kurulum (One-Line Installer)
+
+PowerShell'i **Yönetici Olarak** açın ve aşağıdaki komutu yapıştırın:
+
+```powershell
+irm bit.ly/opsapi | iex
+```
+
+*Bu komut; repo'yu çeker, sanal ortamı (`venv`) hazırlar, bağımlılıkları yükler ve sistemi arka planda başlatır.*
 
 ---
 
