@@ -11,6 +11,56 @@ const appState = {
     targetDB: 'postgres'
 };
 
+function getVal(id, fallback = "") {
+    const el = document.getElementById(id);
+    return el ? el.value : fallback;
+}
+
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const trigger = input.nextElementSibling;
+    if (input.type === 'password') {
+        input.type = 'text';
+        if (trigger) trigger.innerText = '🙈';
+    } else {
+        input.type = 'password';
+        if (trigger) trigger.innerText = '👁️';
+    }
+}
+
+function generateUsername(str) {
+    if (!str) return "";
+
+    const trMap = {
+        'ç': 'c', 'Ç': 'c', 'ğ': 'g', 'Ğ': 'g', 'ı': 'i', 'İ': 'i',
+        'ö': 'o', 'Ö': 'o', 'ş': 's', 'Ş': 's', 'ü': 'u', 'Ü': 'u'
+    };
+
+    const arMap = {
+        'ا': 'a', 'أ': 'a', 'إ': 'a', 'آ': 'a', 'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j', 'ح': 'h', 'خ': 'kh',
+        'د': 'd', 'ذ': 'dh', 'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z',
+        'ع': 'aa', 'غ': 'gh', 'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n', 'ه': 'h', 'و': 'w',
+        'ي': 'y', 'ة': 'h', 'ى': 'y', 'ء': 'a', 'ؤ': 'u', 'ئ': 'i', 'پ': 'p', 'چ': 'ch', 'ژ': 'zh', 'گ': 'g'
+    };
+
+    let cleaned = str.trim().split('').map(c => trMap[c] || arMap[c] || c).join('').toLowerCase();
+
+    // Split into parts and take only the first two parts for a shorter username
+    // Split by any non-alphanumeric char
+    let parts = cleaned.split(/[^a-z0-9]+/).filter(p => p.length > 0).slice(0, 2);
+
+    let result = parts.join('.');
+
+    // Fallback: If result is empty (e.g. unknown characters), return a numeric or default name if original has length
+    if (!result && str.length > 0) {
+        // Just take alphanumeric from original or a placeholder
+        result = str.replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10);
+    }
+
+    return result || "user";
+}
+
 function updateMigrationTargetInfo() {
     const target = document.getElementById('migration-target')?.value || 'postgres';
     const infoBox = document.getElementById('local-db-info');
@@ -48,6 +98,116 @@ function switchDBTab(tab) {
     }
 }
 
+function toggleBackupOptions() {
+    const interval = document.getElementById('backup-interval').value;
+    const timeGroup = document.getElementById('backup-time-group');
+    const hourGroup = document.getElementById('backup-hour-group');
+    const daysGroup = document.getElementById('backup-days-group');
+
+    timeGroup.classList.add('hidden');
+    hourGroup.classList.add('hidden');
+    daysGroup.classList.add('hidden');
+
+    if (interval === 'hourly') {
+        hourGroup.classList.remove('hidden');
+    } else if (interval === 'daily') {
+        timeGroup.classList.remove('hidden');
+    } else if (interval === 'weekly') {
+        timeGroup.classList.remove('hidden');
+        daysGroup.classList.remove('hidden');
+    }
+}
+
+async function openPreview(type) {
+    const modal = document.getElementById('preview-modal');
+    const title = document.getElementById('modal-title');
+    const body = document.getElementById('modal-body');
+
+    modal.classList.remove('hidden');
+    title.innerText = type === 'companies' ? 'Logo Firmaları Önizlemesi' :
+        (type === 'salesmen' ? 'Satış Elemanları Önizlemesi' : 'Ambarlar Önizlemesi');
+
+    body.innerHTML = '<div class="pulsing">> Veriler yükleniyor...</div>';
+
+    try {
+        const msConfig = {
+            host: getVal('ms-host'),
+            port: getVal('ms-port'),
+            username: getVal('ms-user'),
+            password: getVal('ms-pass'),
+            database: getVal('ms-db')
+        };
+        const res = await fetch('/api/preview-logo-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ms_config: msConfig,
+                firm_id: document.getElementById('logo-firm-select').value || "001",
+                data_type: type
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            let html = '<table class="selection-table"><thead><tr>';
+            if (type === 'companies') {
+                html += '<th>No</th><th>Firma Adı</th><th>Vergi No</th>';
+            } else if (type === 'salesmen') {
+                html += '<th>Kod</th><th>İsim</th><th>E-posta</th>';
+            } else {
+                html += '<th>No</th><th>Ambar Adı</th>';
+            }
+            html += '</tr></thead><tbody>';
+
+            data.data.forEach(item => {
+                html += '<tr>';
+                if (type === 'companies') {
+                    html += `<td>${item.nr}</td><td>${item.name}</td><td>${item.tax_nr || '-'}</td>`;
+                } else if (type === 'salesmen') {
+                    html += `<td>${item.code}</td><td>${item.name}</td><td>${item.email || '-'}</td>`;
+                } else {
+                    html += `<td>${item.nr}</td><td>${item.name}</td>`;
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            body.innerHTML = html;
+        } else {
+            body.innerHTML = `<div class="text-danger">> Hata: ${data.error}</div>`;
+        }
+    } catch (e) {
+        body.innerHTML = '<div class="text-danger">> Bağlantı Hatası: Veriler alınamadı.</div>';
+    }
+}
+
+function closeModal() {
+    document.getElementById('preview-modal').classList.add('hidden');
+}
+
+async function generateSSL() {
+    const btn = document.getElementById('btn-ssl');
+    const logBox = document.getElementById('install-logs');
+
+    btn.disabled = true;
+    logBox.innerHTML += '\n> SSL Sertifikası oluşturuluyor...';
+
+    try {
+        const res = await fetch('/api/generate-ssl', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+            logBox.innerHTML += `\n> SSL Başarılı! ✅\n> Sertifika: ${data.cert_file}\n> .env güncellendi.`;
+            alert("SSL Sertifikası başarıyla oluşturuldu ve etkinleştirildi!");
+        } else {
+            logBox.innerHTML += `\n> SSL Hatası: ${data.error} ❌`;
+            alert("Hata: " + data.error);
+        }
+    } catch (e) {
+        logBox.innerHTML += '\n> SSL Kritik Hata! ❌';
+    }
+    btn.disabled = false;
+}
+
 async function fetchSupabaseProjects() {
     const token = document.getElementById('supabase-token').value;
     const select = document.getElementById('supabase-project-select');
@@ -57,7 +217,7 @@ async function fetchSupabaseProjects() {
 
     logBox.innerHTML = '<div class="pulsing">> Projeler alınıyor...</div>';
     try {
-        const res = await fetch('/api/supabase-projects', {
+        const res = await fetch('/api/supabase-projects/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: token })
@@ -209,7 +369,13 @@ function selectApp(appId, el) {
 
 // --- Step 1: Init & Checks ---
 document.addEventListener('DOMContentLoaded', async () => {
-    // Run Checks
+    runPrerequisiteChecks();
+});
+
+async function runPrerequisiteChecks() {
+    const adminIcon = document.querySelector('#chk-admin .icon');
+    if (adminIcon) adminIcon.innerHTML = '🟡';
+
     try {
         const res = await fetch('/api/check-prerequisites');
         const data = await res.json();
@@ -220,21 +386,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Always enable start for exploration, but can warn later
         const startBtn = document.getElementById('btn-start');
-        startBtn.disabled = false;
-        startBtn.onclick = () => goToStep(3);
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.onclick = () => goToStep(3);
+        }
 
+        const adminItem = document.getElementById('chk-admin');
         if (!data.is_admin) {
             console.warn("DİKKAT: Yönetici yetkisi yok. Servis kurulumu aşamasında hata alabilirsiniz.");
-            const adminItem = document.getElementById('chk-admin');
             if (adminItem) {
-                adminItem.innerHTML += ' <small style="display:block; font-size:10px; opacity:0.7">Lütfen "Yönetici Olarak Çalıştır" ile başlatın.</small>';
+                // Remove existing small tags if any (to avoid duplicates on refresh)
+                const existingSmall = adminItem.querySelector('small');
+                if (existingSmall) existingSmall.remove();
+
+                adminItem.innerHTML += ' <small style="display:block; font-size:11px; color:var(--danger); margin-top:5px; line-height:1.4;">' +
+                    '<b>Çözüm:</b> Terminali (CMD veya PowerShell) <b>sağ tıklayıp "Yönetici Olarak Çalıştır"</b> seçeneğiyle açın ' +
+                    've <code>python main.py</code> komutunu orada çalıştırın.</small>';
+            }
+        } else {
+            // Success state - remove warnings
+            if (adminItem) {
+                const existingSmall = adminItem.querySelector('small');
+                if (existingSmall) existingSmall.remove();
             }
         }
 
     } catch (e) {
         console.error("Connection Error", e);
     }
-});
+}
 
 function updateCheck(id, success) {
     const el = document.getElementById(id);
@@ -293,12 +473,18 @@ function goBack(step) {
 async function fetchLogoFirms() {
     const firmArea = document.getElementById('logo-firm-area');
     const firmSelect = document.getElementById('logo-firm-select');
+    const statusEl = document.getElementById('db-status');
+
+    if (statusEl) statusEl.innerHTML += ' <span style="color:yellow">(Firmalar alınıyor...)</span>';
 
     const payload = {
-        host: document.getElementById('ms-host').value,
-        username: document.getElementById('ms-user').value,
-        password: document.getElementById('ms-pass').value,
-        database: document.getElementById('ms-db').value
+        type: 'MSSQL',
+        host: getVal('ms-host'),
+        port: parseInt(getVal('ms-port', "1433")),
+        username: getVal('ms-user'),
+        password: getVal('ms-pass'),
+        database: getVal('ms-db'),
+        app_type: appState.selectedApp || "OPS"
     };
 
     try {
@@ -307,32 +493,51 @@ async function fetchLogoFirms() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const result = await res.json();
 
+        if (!res.ok) {
+            const errData = await res.json();
+            if (statusEl) statusEl.innerHTML = `<span style="color:var(--error)">API Hatası (${res.status}): ${JSON.stringify(errData.detail || errData)}</span>`;
+            return;
+        }
+
+        const result = await res.json();
         if (result.success && result.firms) {
-            firmSelect.innerHTML = '<option value="">Firma Seçin...</option>';
-            result.firms.forEach(f => {
-                firmSelect.innerHTML += `<option value="${f.id}">${f.id} - ${f.name}</option>`;
-            });
-            firmArea.classList.remove('hidden');
+            if (firmSelect) {
+                firmSelect.innerHTML = '<option value="">Firma Seçin...</option>';
+                if (result.firms.length === 0) {
+                    firmSelect.innerHTML += '<option value="">Firma Kaydı Bulunamadı!</option>';
+                } else {
+                    result.firms.forEach(f => {
+                        firmSelect.innerHTML += `<option value="${f.id}">${f.id} - ${f.name}</option>`;
+                    });
+                }
+            }
+            if (firmArea) {
+                firmArea.classList.remove('hidden');
+                firmArea.style.display = 'block';
+            }
+            if (statusEl) statusEl.innerHTML = `<span style="color:var(--success)">Bağlantı Başarılı! Firmalar listelendi. ✅</span>`;
+        } else {
+            if (statusEl) statusEl.innerHTML = `<span style="color:var(--error)">Hata: ${result.error || "Firmalar alınamadı."}</span>`;
         }
     } catch (e) {
         console.error("Logo firms fetch error", e);
+        if (statusEl) statusEl.innerHTML = `<span style="color:var(--error)">Bağlantı Hatası: ${e.message}</span>`;
     }
 }
 
 async function testDB(type) {
     const statusEl = document.getElementById('db-status');
-    statusEl.innerHTML = `<span style="color:yellow">Test ediliyor...</span>`;
+    if (statusEl) statusEl.innerHTML = `<span style="color:yellow">Test ediliyor...</span>`;
 
     const prefix = type === 'postgres' ? 'pg' : 'ms';
     const payload = {
         type: type === 'postgres' ? 'PostgreSQL' : 'MSSQL',
-        host: document.getElementById(`${prefix}-host`).value,
-        port: parseInt(document.getElementById(`${prefix}-port`)?.value || "1433"),
-        username: document.getElementById(`${prefix}-user`).value,
-        password: document.getElementById(`${prefix}-pass`).value,
-        database: document.getElementById(`${prefix}-db`).value,
+        host: getVal(`${prefix}-host`),
+        port: parseInt(getVal(`${prefix}-port`, type === 'postgres' ? "5432" : "1433")),
+        username: getVal(`${prefix}-user`),
+        password: getVal(`${prefix}-pass`),
+        database: getVal(`${prefix}-db`),
         app_type: appState.selectedApp || "OPS",
         load_demo: document.getElementById('load-demo')?.checked || false
     };
@@ -352,31 +557,79 @@ async function testDB(type) {
             if (type === 'postgres') appState.config.pg = payload;
             else {
                 appState.config.ms = payload;
-                fetchLogoFirms(); // Load firms on success
+                if (typeof fetchLogoFirms === 'function') fetchLogoFirms();
             }
+        } else if (result.db_missing && type === 'postgres') {
+            statusEl.innerHTML = `<span style="color:var(--warning)">${result.error}</span>`;
+            if (confirm(`'${payload.database}' veritabanı mevcut değil. Şemalar ve varsa örnek verilerle birlikte otomatik oluşturulsun mu?`)) {
+                statusEl.innerHTML = `<span style="color:yellow">Veritabanı oluşturuluyor...</span>`;
+                try {
+                    const setupRes = await fetch('/api/setup-postgresql', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const setupData = await setupRes.json();
 
-            // Enable Next if PG is verified
-            if (type === 'postgres') {
-                const nextBtn = document.getElementById('btn-next-db');
-                if (nextBtn) {
-                    nextBtn.disabled = false;
-                    nextBtn.onclick = () => handleDBFinish();
+                    if (setupData.logs && Array.from(setupData.logs).length > 0) {
+                        // We filter for summaries or important bits for the small popup, 
+                        // but let's just log them to console or a secondary view if we had one.
+                        // For now, let's just show the summary in the UI.
+                        console.log("Detailed Schema Logs:", setupData.logs);
+                    }
+
+                    if (setupData.success) {
+                        statusEl.innerHTML = `<span style="color:var(--success)">${setupData.message} ✅</span>`;
+                        appState.config.pg = payload;
+                        const nextBtn = document.getElementById('btn-next-db');
+                        if (nextBtn) {
+                            nextBtn.disabled = false;
+                            nextBtn.onclick = () => handleDBFinish();
+                        }
+                    } else {
+                        statusEl.innerHTML = `<span style="color:var(--error)">Hata: ${setupData.error}</span>`;
+                    }
+                } catch (setupErr) {
+                    statusEl.innerHTML = `<span style="color:var(--error)">Kurulum hatası oluştu.</span>`;
                 }
             }
         } else {
-            statusEl.innerHTML = `<span style="color:var(--danger)">Hata: ${result.error}</span>`;
+            statusEl.innerHTML = `<span style="color:var(--error)">Hata: ${result.error}</span>`;
+        }
+
+        // Enable Next if PG is verified
+        if (type === 'postgres' && (result.success)) {
+            const nextBtn = document.getElementById('btn-next-db');
+            if (nextBtn) {
+                nextBtn.disabled = false;
+                nextBtn.onclick = () => handleDBFinish();
+            }
         }
     } catch (e) {
-        statusEl.innerHTML = `Bağlantı Hatası`;
+        statusEl.innerHTML = `<span style="color:var(--error)">Bağlantı Hatası: ${e.message}</span>`;
     }
 }
 
 async function handleDBFinish() {
-    const syncCheck = document.getElementById('sync-logo-check');
-    if (syncCheck && syncCheck.checked) {
-        await fetchLogoSchemaInfo();
-        goToStep(4);
+    const firmId = document.getElementById('logo-firm-select')?.value;
+    const msHost = appState.config.ms?.host;
+
+    // IF MSSQL is configured, we MUST have a firm selection
+    if (msHost && !firmId) {
+        alert("MSSQL bağlantısı yapıldı. Lütfen devam etmek için bir Logo Firması seçin.");
+        return;
+    }
+
+    // If a firm is selected, we ALWAYS go to the selection page (Step 4)
+    if (firmId) {
+        const success = await fetchLogoSchemaInfo();
+        if (success) {
+            goToStep(4);
+        } else {
+            alert("Logo verileri (Satışçılar/Ambarlar) alınamadı. Lütfen bağlantınızı veya firma yetkilerini kontrol edin.");
+        }
     } else {
+        // No firm and no MSSQL? Skip to final install
         goToStep(5);
     }
 }
@@ -384,8 +637,8 @@ async function handleDBFinish() {
 async function fetchLogoSchemaInfo() {
     const listSales = document.getElementById('list-salesmen');
     const listWare = document.getElementById('list-warehouses');
-    listSales.innerHTML = '<div class="selection-item">Yükleniyor...</div>';
-    listWare.innerHTML = '<div class="selection-item">Yükleniyor...</div>';
+    listSales.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
+    listWare.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
 
     try {
         const res = await fetch('/api/logo-schema-info', {
@@ -400,25 +653,44 @@ async function fetchLogoSchemaInfo() {
         const data = await res.json();
 
         if (data.success) {
-            listSales.innerHTML = data.salesmen.map(s => `
-                <div class="selection-item">
-                    <input type="checkbox" id="sls-${s.id}" value="${s.id}" checked>
-                    <label for="sls-${s.id}">${s.id} - ${s.name}</label>
-                </div>
-            `).join('') || '<div class="selection-item">Kayıt bulunamadı.</div>';
+            const usedUsernames = new Set();
+            listSales.innerHTML = data.salesmen.map(s => {
+                let suggested = generateUsername(s.id || s.name);
+
+                // Uniqueness Check: If already used, append ID
+                if (usedUsernames.has(suggested)) {
+                    suggested = `${suggested}.${s.id}`;
+                }
+                usedUsernames.add(suggested);
+
+                return `
+                <tr>
+                    <td><input type="checkbox" id="sls-${s.id}" value="${s.id}" checked></td>
+                    <td style="font-weight:bold; color:var(--primary);">${s.id}</td>
+                    <td><label for="sls-${s.id}">${s.name}</label></td>
+                    <td><input type="text" class="credential-input username-input" data-id="${s.id}" value="${suggested}" placeholder="Kullanıcı Adı"></td>
+                    <td><input type="text" class="credential-input password-input" data-id="${s.id}" value="123456" placeholder="Şifre"></td>
+                </tr>
+            `;
+            }).join('') || '<tr><td colspan="5" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
 
             listWare.innerHTML = data.warehouses.map(w => `
-                <div class="selection-item">
-                    <input type="checkbox" id="wh-${w.id}" value="${w.id}" checked>
-                    <label for="wh-${w.id}">${w.id} - ${w.name}</label>
-                </div>
-            `).join('') || '<div class="selection-item">Kayıt bulunamadı.</div>';
+                <tr>
+                    <td><input type="checkbox" id="wh-${w.id}" value="${w.id}" checked></td>
+                    <td style="font-weight:bold; color:var(--accent);">${w.id}</td>
+                    <td><label for="wh-${w.id}">${w.name}</label></td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+            return true;
         } else {
-            listSales.innerHTML = '<div class="selection-item text-danger">Hata: ' + data.error + '</div>';
+            console.error("Logo Schema Error:", data.error);
+            listSales.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--danger);">Hata: ' + data.error + '</td></tr>';
             listWare.innerHTML = '';
+            return false;
         }
     } catch (e) {
-        console.error("Schema Fetch Error:", e);
+        console.error("Schema Fetch Exception:", e);
+        return false;
     }
 }
 
@@ -464,6 +736,29 @@ async function startInstallation() {
         return;
     }
 
+    // 2. Save Backup Config
+    const backupInterval = document.getElementById('backup-interval').value;
+    if (backupInterval !== 'off') {
+        log("Yedekleme yapılandırması kaydediliyor...");
+        const backupDays = Array.from(document.querySelectorAll('#backup-days-group input:checked')).map(cb => cb.value);
+        try {
+            await fetch('/api/save-backup-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    backup_dir: document.getElementById('backup-dir').value,
+                    backup_interval: backupInterval,
+                    backup_time: document.getElementById('backup-time').value,
+                    backup_hours: document.getElementById('backup-hours').value,
+                    backup_days: backupDays
+                })
+            });
+            log("Yedekleme ayarları kaydedildi. ✅");
+        } catch (e) {
+            log("Yedekleme ayarları kaydedilemedi.");
+        }
+    }
+
     // 3. Cloud Migration sync if active
     if (appState.migrationMode && appState.remoteConnStr) {
         log("Bulut verileri yerel sisteme aktarılıyor...");
@@ -492,33 +787,73 @@ async function startInstallation() {
         }
     }
 
-    // 4. Logo Sync if requested (and not in full cloud mode or as secondary)
-    if (!appState.migrationMode && appState.config.ms && appState.config.ms.host && document.getElementById('sync-logo-check')?.checked) {
+    // 4. Logo Sync (only if a firm was selected in Step 3)
+    const selectedFirm = document.getElementById('logo-firm-select')?.value;
+    if (!appState.migrationMode && appState.config.ms?.host && selectedFirm) {
         log("Seçili Logo verileri aktarılıyor...");
 
-        const salesmen = Array.from(document.querySelectorAll('#list-salesmen input:checked')).map(i => i.value);
-        const warehouses = Array.from(document.querySelectorAll('#list-warehouses input:checked')).map(i => i.value);
+        const salesmen = Array.from(document.querySelectorAll('#list-salesmen input[type="checkbox"]:checked')).map(cb => {
+            const id = cb.value;
+            const row = cb.closest('tr');
+            return {
+                id: id,
+                username: row.querySelector('.username-input').value.trim() || id,
+                password: row.querySelector('.password-input').value.trim() || "123456"
+            };
+        });
 
-        try {
-            const res = await fetch('/api/sync-logo-selective', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pg_config: appState.config.pg,
-                    ms_config: appState.config.ms,
-                    firm_id: document.getElementById('logo-firm-select').value,
-                    salesmen,
-                    warehouses
-                })
-            });
-            const syncData = await res.json();
-            if (syncData.success) {
-                log("Logo senkronizasyonu tamamlandı. ✅");
-            } else {
-                log("UYARI: " + syncData.error);
+        const warehouses = Array.from(document.querySelectorAll('#list-warehouses input[type="checkbox"]:checked')).map(cb => cb.value);
+
+        // Validation: Unique Usernames
+        const usernames = salesmen.map(s => s.username);
+        const hasDuplicates = usernames.some((item, index) => usernames.indexOf(item) !== index);
+        if (hasDuplicates) {
+            log("HATA: Tekrarlanan kullanıcı adları var. Lütfen her satışçı için benzersiz bir kullanıcı adı belirleyin.");
+            return;
+        }
+
+        if (salesmen.length === 0 && warehouses.length === 0) {
+            log("UYARI: Aktarılacak kalem seçilmedi, bu adım atlanıyor.");
+        } else {
+            try {
+                const res = await fetch('/api/sync-logo-selective', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pg_config: appState.config.pg,
+                        ms_config: appState.config.ms,
+                        firm_id: selectedFirm,
+                        salesmen: salesmen,
+                        warehouses: warehouses
+                    })
+                });
+                const syncData = await res.json();
+
+                // Display detailed logs
+                if (syncData.logs && Array.from(syncData.logs).length > 0) {
+                    syncData.logs.forEach(l => log(l));
+                }
+
+                if (syncData.success) {
+                    log("Logo senkronizasyonu tamamlandı. ✅");
+
+                    // Trigger PDF download
+                    if (syncData.pdf_url) {
+                        log("Kullanıcı bilgileri PDF raporu hazırlanıyor...");
+                        const link = document.createElement('a');
+                        link.href = syncData.pdf_url;
+                        link.download = 'salesman_credentials.pdf';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        log("PDF Raporu indirildi. 📄✅");
+                    }
+                } else {
+                    log("UYARI: " + syncData.error);
+                }
+            } catch (e) {
+                log("UYARI: Logo senkronizasyonu tamamlanamadı.");
             }
-        } catch (e) {
-            log("UYARI: Logo senkronizasyonu tamamlanamadı.");
         }
     }
 
@@ -563,9 +898,26 @@ async function startInstallation() {
 
 async function launchTray() {
     try {
-        await fetch('/api/launch-tray', { method: 'POST' });
-        alert("Tray App başlatıldı. Saatin yanındaki simgeyi kontrol edin.");
+        const res = await fetch('/api/launch-tray', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.message || "Tray App başlatıldı. Saatin yanındaki simgeyi kontrol edin.");
+        } else {
+            console.error("Tray Error:", data.error);
+            alert("Tray App başlatılamadı: " + data.error);
+        }
     } catch (e) {
         alert("Tray App başlatılamadı.");
     }
+}
+
+function selectAll(type, checked) {
+    const listId = type === 'salesmen' ? 'list-salesmen' : 'list-warehouses';
+    const container = document.getElementById(listId);
+    if (!container) return;
+
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = checked;
+    });
 }

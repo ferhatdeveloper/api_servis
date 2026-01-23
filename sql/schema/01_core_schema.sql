@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS companies (
     code VARCHAR(20) NOT NULL,
     name VARCHAR(200) NOT NULL,
     is_default BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
     tax_office VARCHAR(100),
     tax_number VARCHAR(20),
     address TEXT,

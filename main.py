@@ -58,6 +58,10 @@ async def root():
         "status": "online"
     }
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "msg": "Servis aktif ve çalışıyor."}
+
 
 
 

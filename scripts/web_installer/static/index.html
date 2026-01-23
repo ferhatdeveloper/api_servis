@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EXFIN OPS Setup</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.0.4">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 
@@ -123,6 +123,8 @@
             <div class="chk-list">
                 <div class="chk-item" id="chk-admin">
                     <span class="icon">⚪</span> Yönetici Yetkisi (Admin)
+                    <button class="btn-refresh" onclick="runPrerequisiteChecks()" title="Yeniden Kontrol Et"
+                        style="margin-left: 10px; background: transparent; border: none; cursor: pointer; color: var(--primary); font-size: 14px;">🔄</button>
                 </div>
                 <div class="chk-item" id="chk-python">
                     <span class="icon">⚪</span> Python Sürümü (3.10+)
@@ -172,7 +174,10 @@
                         </div>
                         <div class="input-group">
                             <label>Şifre</label>
-                            <input type="password" id="pg-pass">
+                            <div class="password-wrapper">
+                                <input type="password" id="pg-pass">
+                                <span class="toggle-password" onclick="togglePassword('pg-pass')">👁️</span>
+                            </div>
                         </div>
                         <div class="input-group">
                             <label>DB Adı</label>
@@ -182,7 +187,49 @@
                             <input type="checkbox" id="load-demo">
                             <label for="load-demo">Örnek Demo Verileri Yükle</label>
                         </div>
-                        <button class="btn btn-secondary" onclick="testDB('postgres')">Test Et</button>
+
+                        <div class="backup-section">
+                            <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px; color: var(--accent);">
+                                🔄 Otomatik Yedekleme</div>
+                            <div class="input-group">
+                                <label>Yedekleme Dizini</label>
+                                <input type="text" id="backup-dir" value="C:\EXFIN_Backups">
+                            </div>
+                            <div class="backup-grid">
+                                <div class="input-group">
+                                    <label>Sıklık</label>
+                                    <select id="backup-interval" class="custom-select" onchange="toggleBackupOptions()">
+                                        <option value="off">Kapalı</option>
+                                        <option value="hourly">Saatlik</option>
+                                        <option value="daily" selected>Günlük</option>
+                                        <option value="weekly">Haftalık</option>
+                                    </select>
+                                </div>
+                                <div class="input-group" id="backup-time-group">
+                                    <label>Saat</label>
+                                    <input type="text" id="backup-time" value="23:00">
+                                </div>
+                                <div class="input-group hidden" id="backup-hour-group">
+                                    <label>Saat Aralığı</label>
+                                    <input type="number" id="backup-hours" value="1" min="1" max="24">
+                                </div>
+                            </div>
+                            <div id="backup-days-group" class="hidden">
+                                <label style="font-size: 12px; color: var(--text-muted);">Günler</label>
+                                <div class="day-selector">
+                                    <div class="day-item"><input type="checkbox" value="mon"> Pzt</div>
+                                    <div class="day-item"><input type="checkbox" value="tue"> Sal</div>
+                                    <div class="day-item"><input type="checkbox" value="wed"> Çar</div>
+                                    <div class="day-item"><input type="checkbox" value="thu"> Per</div>
+                                    <div class="day-item"><input type="checkbox" value="fri"> Cum</div>
+                                    <div class="day-item"><input type="checkbox" value="sat"> Cmt</div>
+                                    <div class="day-item"><input type="checkbox" value="sun"> Paz</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-secondary" onclick="testDB('postgres')" style="margin-top: 15px;">Test
+                            Et</button>
                     </div>
 
                     <!-- MSSQL / Logo -->
@@ -196,12 +243,19 @@
                             <input type="text" id="ms-host" value=".">
                         </div>
                         <div class="input-group">
+                            <label>Port</label>
+                            <input type="text" id="ms-port" value="1433">
+                        </div>
+                        <div class="input-group">
                             <label>Kullanıcı</label>
                             <input type="text" id="ms-user" value="sa">
                         </div>
                         <div class="input-group">
                             <label>Şifre</label>
-                            <input type="password" id="ms-pass">
+                            <div class="password-wrapper">
+                                <input type="password" id="ms-pass">
+                                <span class="toggle-password" onclick="togglePassword('ms-pass')">👁️</span>
+                            </div>
                         </div>
                         <div class="input-group">
                             <label>DB Adı</label>
@@ -216,10 +270,8 @@
                             <select id="logo-firm-select" class="custom-select">
                                 <option value="">Firma Seçin...</option>
                             </select>
-                            <div class="input-group checkbox-group" style="margin-top: 15px;">
-                                <input type="checkbox" id="sync-logo-check" checked>
-                                <label for="sync-logo-check" style="font-size: 11px;">Master Verileri Aktar</label>
-                            </div>
+                            <button class="btn-preview" onclick="openPreview('companies')"
+                                style="margin-top: 10px; width: 100%;">Firmaları Önizle</button>
                         </div>
                     </div>
                 </div>
@@ -253,8 +305,12 @@
                                         ↗</a>
                                 </label>
                                 <div style="display: flex; gap: 10px;">
-                                    <input type="password" id="supabase-token" placeholder="sbp_xxxxxxxxxxxx"
-                                        style="flex: 1;">
+                                    <div class="password-wrapper" style="flex: 1;">
+                                        <input type="password" id="supabase-token" placeholder="sbp_xxxxxxxxxxxx"
+                                            style="width: 100%;">
+                                        <span class="toggle-password"
+                                            onclick="togglePassword('supabase-token')">👁️</span>
+                                    </div>
                                     <button class="btn btn-secondary" onclick="fillMigrationDefaults()"
                                         style="padding: 8px 15px; background: rgba(var(--primary-rgb), 0.1); border-color: var(--primary);">Varsayılan</button>
                                     <button class="btn btn-secondary" onclick="fetchSupabaseProjects()"
@@ -334,18 +390,54 @@
             </div>
 
             <div id="logo-selection-container"
-                style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
+                style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 20px; margin-top: 10px;">
                 <div class="selection-panel">
-                    <div class="selection-header">👤 Satış Elemanları</div>
-                    <div class="data-selection-list" id="list-salesmen">
-                        <div class="selection-item">Veriler bekleniyor...</div>
+                    <div class="selection-header">
+                        <span>👤 Satış Elemanları (Satışçı Girişi)</span>
+                        <button class="btn-preview" onclick="openPreview('salesmen')">Önizle</button>
+                    </div>
+                    <div class="data-selection-list" style="padding:0;">
+                        <table class="selection-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="sel-all-salesmen"
+                                            onchange="selectAll('salesmen', this.checked)" title="Tümünü Seç"></th>
+                                    <th style="width: 80px;">Kod</th>
+                                    <th>İsim / Açıklama</th>
+                                    <th style="width: 120px;">Kullanıcı Adı</th>
+                                    <th style="width: 120px;">Şifre</th>
+                                </tr>
+                            </thead>
+                            <tbody id="list-salesmen">
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding:20px;">Veriler bekleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
                 <div class="selection-panel">
-                    <div class="selection-header">🏠 Ambarlar / Depolar</div>
-                    <div class="data-selection-list" id="list-warehouses">
-                        <div class="selection-item">Veriler bekleniyor...</div>
+                    <div class="selection-header">
+                        <span>🏠 Ambarlar / Depolar</span>
+                        <button class="btn-preview" onclick="openPreview('warehouses')">Önizle</button>
+                    </div>
+                    <div class="data-selection-list" style="padding:0;">
+                        <table class="selection-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="sel-all-warehouses"
+                                            onchange="selectAll('warehouses', this.checked)" title="Tümünü Seç"></th>
+                                    <th style="width: 80px;">No</th>
+                                    <th>Ambar Adı</th>
+                                </tr>
+                            </thead>
+                            <tbody id="list-warehouses">
+                                <tr>
+                                    <td colspan="3" style="text-align:center; padding:20px;">Veriler bekleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -378,14 +470,32 @@
                 <p>EXFIN <span id="success-app-name"></span> Servisi arka planda çalışıyor.</p>
                 <div class="dashboard-link">
                     <button class="btn btn-primary" onclick="launchTray()">Tepsiyi (Tray) Başlat</button>
+                    <button class="btn btn-secondary" id="btn-ssl" onclick="generateSSL()">SSL Sertifikası
+                        Oluştur</button>
                     <a href="http://localhost:8000/docs" target="_blank" class="btn btn-secondary">Swagger API Aç</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Previews -->
+        <div id="preview-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-title">Veri Önizleme</h2>
+                    <span class="close-btn" onclick="closeModal()">×</span>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- Preview content loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=1.0.4"></script>
 </body>
 
 </html>

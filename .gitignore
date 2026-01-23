@@ -30,10 +30,12 @@ ENV/
 .idea/
 *.swp
 *.swo
+.antigravity/
 
-# Environment Variables
+# Environment Variables & Config
 .env
 db_config.json
+backup_config.json
 
 # Logs
 logs/
@@ -43,11 +45,25 @@ logs/
 backups/
 *.bak
 *.rar
+*.zip
 
 # Databases
 *.db
+!api.db # Keep the main config database if it's small/essential
+
+# Certificates
+Certifica/
+*.pem
+*.crt
+*.key
+
+# Application Data
+uploads/
+reports/
+!reports/.gitkeep
 
 # System
 thumbs.db
 desktop.ini
 .DS_Store
+
