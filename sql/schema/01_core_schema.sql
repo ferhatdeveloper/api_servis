@@ -94,7 +94,31 @@ CREATE TABLE IF NOT EXISTS salesmen (
     email VARCHAR(100),
     tel_number VARCHAR(20),
     logo_ref INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(company_id, code)
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    code VARCHAR(50) NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    tax_office VARCHAR(100),
+    tax_number VARCHAR(20),
+    address TEXT,
+    city VARCHAR(100),
+    district VARCHAR(100),
+    phone VARCHAR(50),
+    email VARCHAR(100),
+    logo_ref INTEGER,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    altitude DECIMAL(7, 2),
+    google_maps_link TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(company_id, code)
 );
 
 CREATE TABLE IF NOT EXISTS brands (

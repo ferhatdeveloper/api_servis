@@ -60,9 +60,9 @@
                 
                 # Insert into salesmen table
                 pg_cur.execute("""
-                    INSERT INTO salesmen (company_id, logo_code, name, email, is_active)
-                    VALUES (%s, %s, %s, %s, true)
-                    ON CONFLICT (company_id, logo_code) DO UPDATE 
+                    INSERT INTO salesmen (company_id, code, name, email)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (company_id, code) DO UPDATE 
                     SET name=EXCLUDED.name, email=EXCLUDED.email
                     RETURNING id
                 """, (company_id, s['CODE'], s['DEFINITION_'], s.get('EMAILADDR')))
@@ -71,12 +71,12 @@
                 # Create user account
                 hashed_password = pwd_context.hash(password)
                 pg_cur.execute("""
-                    INSERT INTO users (username, password_hash, full_name, email, role, salesman_id, is_active)
-                    VALUES (%s, %s, %s, %s, 'salesman', %s, true)
+                    INSERT INTO users (username, password_hash, full_name, email, role, is_active)
+                    VALUES (%s, %s, %s, %s, 'salesman', true)
                     ON CONFLICT (username) DO UPDATE 
-                    SET password_hash=EXCLUDED.password_hash, salesman_id=EXCLUDED.salesman_id
+                    SET password_hash=EXCLUDED.password_hash
                     RETURNING id
-                """, (username, hashed_password, s['DEFINITION_'], s.get('EMAILADDR'), salesman_db_id))
+                """, (username, hashed_password, s['DEFINITION_'], s.get('EMAILADDR')))
                 
                 user_credentials.append({
                     'code': s['CODE'],
@@ -97,11 +97,43 @@
                     continue
                 
                 pg_cur.execute("""
-                    INSERT INTO warehouses (company_id, logo_nr, name, is_active)
-                    VALUES (%s, %s, %s, true)
-                    ON CONFLICT (company_id, logo_nr) DO UPDATE 
+                    INSERT INTO warehouses (company_id, code, name, logo_ref)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (company_id, code) DO UPDATE 
                     SET name=EXCLUDED.name
-                """, (company_id, w['NR'], w['NAME']))
+                """, (company_id, str(w['NR']).zfill(2), w['NAME'], w['NR']))
+
+            # 4. Sync Customers (Logo CLCARD)
+            # Default to fetching top 500 customers if not specified, or all
+            ms_cur.execute(f"""
+                SELECT CODE, DEFINITION_, TAXOFFICE, TAXNR, ADDR1, ADDR2, CITY, TOWN, TELNRS1, EMAILADDR, LOGICALREF
+                FROM LG_{firm_id}_CLCARD
+                WHERE ACTIVE=0 AND CARDTYPE<>22
+            """)
+            logo_customers = ms_cur.fetchall()
+            for c in logo_customers:
+                full_address = f"{c.get('ADDR1', '')} {c.get('ADDR2', '')}".strip()
+                pg_cur.execute("""
+                    INSERT INTO customers (
+                        company_id, code, name, tax_office, tax_number, 
+                        address, city, district, phone, email, logo_ref
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (company_id, code) DO UPDATE SET
+                        name=EXCLUDED.name,
+                        tax_office=EXCLUDED.tax_office,
+                        tax_number=EXCLUDED.tax_number,
+                        address=EXCLUDED.address,
+                        city=EXCLUDED.city,
+                        district=EXCLUDED.district,
+                        phone=EXCLUDED.phone,
+                        email=EXCLUDED.email,
+                        logo_ref=EXCLUDED.logo_ref,
+                        updated_at=CURRENT_TIMESTAMP
+                """, (
+                    company_id, c['CODE'], c['DEFINITION_'], c.get('TAXOFFICE'), c.get('TAXNR'),
+                    full_address, c.get('CITY'), c.get('TOWN'), c.get('TELNRS1'), c.get('EMAILADDR'), c['LOGICALREF']
+                ))
             
             pg_conn.commit()
             pg_cur.close()

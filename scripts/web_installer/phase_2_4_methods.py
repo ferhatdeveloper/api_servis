@@ -40,6 +40,15 @@
                         "name": row.get('NAME')
                     })
             
+            elif data_type == "customers":
+                ms_cur.execute(f"SELECT TOP 50 CODE, DEFINITION_, CITY FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+                for row in ms_cur.fetchall():
+                    results.append({
+                        "code": row['CODE'],
+                        "name": row.get('DEFINITION_'),
+                        "city": row.get('CITY')
+                    })
+            
             ms_conn.close()
             return {"success": True, "data": results}
             
