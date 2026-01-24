@@ -89,17 +89,43 @@ Write-Host "[BİLGİ] Bağımlılıklar kontrol ediliyor..." -ForegroundColor Ye
 & ".\venv\Scripts\python.exe" -m pip install --upgrade pip | Out-Null
 & ".\venv\Scripts\python.exe" -m pip install -r requirements.txt | Out-Null
 
-# 6. Sihirbazı Başlat
+# 6. Kurulum Tercihi
+Write-Host "`n[SEÇİM] Uygulama çalışma modunu seçin:" -ForegroundColor White
+Write-Host "1) Windows Servisi (Önerilen: Bilgisayar açılınca otomatik başlar, arka planda çalışır)" -ForegroundColor Cyan
+Write-Host "2) Tray Uygulaması (Manuel: Saatin yanındaki simge üzerinden kontrol edilir)" -ForegroundColor Cyan
+$choice = Read-Host "`nSeçiminiz (1 veya 2, Varsayılan: 1)"
+
+if ($null -eq $choice -or $choice -eq "") { $choice = "1" }
+
+# 7. Başlatma
 if (Test-Path "start_setup.py") {
-    Write-Host "[BAŞARILI] Kurulum dosyaları hazır. Uygulama başlatılıyor..." -ForegroundColor Green
-    Start-Sleep -Seconds 1
-    
-    # Launch start_setup.py using venv python with absolute paths
     $PythonPath = Join-Path $TargetDir "venv\Scripts\python.exe"
     $SetupScript = Join-Path $TargetDir "start_setup.py"
+    $ServiceScript = Join-Path $TargetDir "scripts\windows_service.py"
     
-    # This will handle its own elevation check and hiding console
-    Start-Process -FilePath $PythonPath -ArgumentList "`"$SetupScript`"" -WorkingDirectory $TargetDir -WindowStyle Hidden
+    # Ensure Branded Runner exists
+    $BrandedRunner = Join-Path $TargetDir "venv\Scripts\ExfinOpsService.exe"
+    if (!(Test-Path $BrandedRunner)) {
+        Copy-Item $PythonPath $BrandedRunner -Force
+    }
+
+    if ($choice -eq "1") {
+        Write-Host "[BİLGİ] Windows Servisi kuruluyor..." -ForegroundColor Yellow
+        # Install and Start Service
+        & $BrandedRunner $ServiceScript --startup auto install
+        & $BrandedRunner $ServiceScript start
+        Write-Host "[BAŞARILI] Servis yüklendi ve başlatıldı." -ForegroundColor Green
+        
+        # Optional: Still launch Tray for management but with --force --no-password
+        Write-Host "[BİLGİ] Yönetim paneli (Tray) başlatılıyor..." -ForegroundColor Yellow
+        $TrayRunner = Join-Path $TargetDir "venv\Scripts\ExfinOpsTray.exe"
+        if (!(Test-Path $TrayRunner)) { Copy-Item (Join-Path $TargetDir "venv\Scripts\pythonw.exe") $TrayRunner -Force }
+        Start-Process -FilePath $TrayRunner -ArgumentList "`"$TargetDir\tray_app.py`" --force --no-password" -WorkingDirectory $TargetDir -WindowStyle Hidden
+    }
+    else {
+        Write-Host "[BAŞARILI] Tray Uygulaması başlatılıyor..." -ForegroundColor Green
+        Start-Process -FilePath $PythonPath -ArgumentList "`"$SetupScript`"" -WorkingDirectory $TargetDir -WindowStyle Hidden
+    }
 }
 else {
     Write-Host "[HATA] start_setup.py bulunamadı!" -ForegroundColor Red
