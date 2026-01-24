@@ -132,7 +132,10 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
             # --- DLL/PATH HARDENING ---
             # Logo object.dll etc. may need python in PATH
             py_root = os.path.dirname(venv_python)
-            os.environ["PATH"] = py_root + os.pathsep + os.path.join(py_root, "Scripts") + os.pathsep + os.environ.get("PATH", "")
+            pywin32_path = os.path.join(py_root, "Lib", "site-packages", "pywin32_system32")
+            
+            new_paths = [py_root, os.path.join(py_root, "Scripts"), pywin32_path]
+            os.environ["PATH"] = os.pathsep.join(new_paths) + os.pathsep + os.environ.get("PATH", "")
             os.environ["PYTHONHOME"] = py_root
             # --------------------------
             
