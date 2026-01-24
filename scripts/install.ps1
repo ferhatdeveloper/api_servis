@@ -2,7 +2,14 @@
 # Kullanım: irm bit.ly/opsapi | iex
 
 $ErrorActionPreference = "Stop"
+
+# UTF-8 Encoding for Turkish Characters
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+
 $RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
+
 $DefaultDir = "C:\ExfinApi"
 
 Write-Host "`n==========================================" -ForegroundColor Cyan
