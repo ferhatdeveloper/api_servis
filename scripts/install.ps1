@@ -25,22 +25,20 @@ $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
 
 if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Host "`n[MENÜ] Lütfen yapmak istediğiniz işlemi seçin:" -ForegroundColor White
-    Write-Host "1) Standart Kurulum / Güncelleme (Önerilen)" -ForegroundColor Green
-    Write-Host "2) Python Temizleme Aracı (Bağımlılık Sorunlarını Çözer)" -ForegroundColor Yellow
-    Write-Host "3) Sistem Politikası Düzeltici (0x80070659 / 0x80070643 Fix)" -ForegroundColor Magenta
-    Write-Host "4) SADECE MASAÜSTÜ KURTAR (Ekran donduysa veya UAC kapandıysa)" -ForegroundColor Red
-    Write-Host "5) Sadece Windows Servisi Kur/Yönet" -ForegroundColor Cyan
-    Write-Host "6) Çıkış" -ForegroundColor White
+    Write-Host "1) Güvenli Kurulum (Portable Python - Hiçbir Ayarı Değiştirmez)" -ForegroundColor Green
+    Write-Host "2) Python Temizleme Aracı (Eski Kalıntıları Kaldırır)" -ForegroundColor Yellow
+    Write-Host "3) Fabrika Ayarlarına Dön (Bypass İşlemlerini Geri Al - Masaüstü Fix)" -ForegroundColor Red
+    Write-Host "4) Servis Kontrolü / Güncelleme" -ForegroundColor Cyan
+    Write-Host "5) Çıkış" -ForegroundColor White
     
-    $MainChoice = Read-Host "`nSeçiminiz (1-6)"
+    $MainChoice = Read-Host "`nSeçiminiz (1-5)"
     
     switch ($MainChoice) {
         "1" { $OPS_MODE = "install" }
         "2" { $OPS_MODE = "cleanup" }
-        "3" { $OPS_MODE = "fix-policy" }
-        "4" { $OPS_MODE = "safe-mode" }
-        "5" { $OPS_MODE = "service-only" }
-        "6" { return }
+        "3" { $OPS_MODE = "safe-mode" }
+        "4" { $OPS_MODE = "service-only" }
+        "5" { return }
         default { $OPS_MODE = "install" }
     }
 }
@@ -132,66 +130,44 @@ else {
     }
 }
 
-# 4. Python Kontrolü
-if (!(Get-Command python -ErrorAction SilentlyContinue)) {
-    Write-Host "[HATA] Python bulunamadı!" -ForegroundColor Red
-    
-    $Arch = $env:PROCESSOR_ARCHITECTURE
-    $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
-    if ($Arch -eq "ARM64") {
-        $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-arm64.exe"
-    }
+# 4. Python Kontrolü (Portable Python Stratejisi)
+$PortablePyDir = Join-Path $TargetDir "python"
+$PythonExe = Join-Path $PortablePyDir "python.exe"
 
-    Write-Host "[BİLGİ] Sistem Mimarisi: $Arch" -ForegroundColor Yellow
-    Write-Host "[BİLGİ] Önerilen Sürüm: Python 3.12.8 ($Arch)" -ForegroundColor Cyan
-    Write-Host "[BİLGİ] İndirme Linki: $PyUrl" -ForegroundColor Cyan
+if (!(Test-Path $PythonExe)) {
+    Write-Host "[BİLGİ] Taşınabilir (Portable) Python hazırlanıyor... (Hiçbir sistem ayarı değiştirilmez)" -ForegroundColor Cyan
     
-    Start-Process $PyUrl
-    return
+    $PyZip = Join-Path $env:TEMP "python_portable.zip"
+    $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip"
+    
+    Write-Host "[İŞLEM] Python dosyaları indiriliyor..." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $PyUrl -OutFile $PyZip
+    
+    Write-Host "[İŞLEM] Dosyalar çıkartılıyor..." -ForegroundColor Yellow
+    if (!(Test-Path $PortablePyDir)) { New-Item -Path $PortablePyDir -ItemType Directory }
+    Expand-Archive -Path $PyZip -DestinationPath $PortablePyDir -Force
+    
+    # 4.1 Bootstrap PIP (Portable Python'da pip yüklü gelmez)
+    Write-Host "[İŞLEM] Paket yöneticisi (pip) kuruluyor..." -ForegroundColor Yellow
+    $PthFile = Join-Path $PortablePyDir "python312._pth"
+    # Uncomment 'import site' in .pth file to allow site-packages
+    (Get-Content $PthFile) -replace "#import site", "import site" | Set-Content $PthFile
+    
+    $GetPip = Join-Path $PortablePyDir "get-pip.py"
+    Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $GetPip
+    & $PythonExe $GetPip | Out-Null
+    
+    Remove-Item $PyZip -Force
+    Write-Host "[BAŞARILI] Taşınabilir Python hazır." -ForegroundColor Green
+}
+else {
+    Write-Host "[BİLGİ] Taşınabilir Python zaten hazır." -ForegroundColor Yellow
 }
 
-
-$PyVer = python --version 2>&1
-Write-Host "[BİLGİ] Mevcut $PyVer tespit edildi." -ForegroundColor Yellow
-
-# Parse version (e.g. "Python 3.7.7" -> 307)
-$VerClean = $PyVer -replace '[^0-9.]', ''
-$VerParts = $VerClean.Split('.')
-$Major = [int]$VerParts[0]
-$Minor = [int]$VerParts[1]
-
-if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
-    Write-Host "[HATA] Mevcut Python sürümünüz ($VerClean) çok eski!" -ForegroundColor Red
-    Write-Host "[BİLGİ] Bu uygulama için en az Python 3.10 gereklidir." -ForegroundColor Cyan
-    Write-Host "[ÖNERİ] Eğer kurulum 'Sistem Politikası' hatasıyla (0x80070659) engellenirse şu komutu çalıştırın:" -ForegroundColor Yellow
-    Write-Host ">>> `$env:OPS_ARG='fix-policy'; irm bit.ly/opsapi | iex" -ForegroundColor Magenta
-    Write-Host "[BİLGİ] Lütfen Python 3.12.8 yükleyin (Otomatik kurulum başlatılıyor...)" -ForegroundColor Cyan
-    
-    $Arch = $env:PROCESSOR_ARCHITECTURE
-    $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
-    if ($Arch -eq "ARM64") { $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-arm64.exe" }
-    
-    $DownloadedInstaller = Join-Path $env:TEMP "python_installer.exe"
-    Invoke-WebRequest -Uri $PyUrl -OutFile $DownloadedInstaller
-    
-    # 4.1 Enterprise Bypass: Move to trusted root and unblock
-    $TrustedInstaller = Join-Path $TargetDir "python_setup.exe"
-    Move-Item -Path $DownloadedInstaller -Destination $TrustedInstaller -Force -ErrorAction SilentlyContinue
-    Unblock-File -Path $TrustedInstaller -ErrorAction SilentlyContinue
-    
-    Write-Host "[İŞLEM] Python kuruluyor (Ultimate Enterprise Bypass Aktif)..." -ForegroundColor Yellow
-    
-    # Precise arguments for silent install
-    $SimpleArgs = "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0 TargetDir=""C:\Python312"""
-    
-    # Aggressive execution via CMD to bypass PowerShell specific blockades
-    $cmdBatch = "start /wait `"`" `"$TrustedInstaller`" $SimpleArgs"
-    cmd /c $cmdBatch
-    
-    Write-Host "[BİLGİ] Kurulum denendi. Eğer hata almadıysanız Python kurulmuş olmalı." -ForegroundColor Green
-    Remove-Item -Path $TrustedInstaller -Force -ErrorAction SilentlyContinue
-    return
-}
+# 5. Bağımlılıklar (Portable Python üzerine kurulur)
+Write-Host "[BİLGİ] Bağımlılıklar kontrol ediliyor..." -ForegroundColor Yellow
+& $PythonExe -m pip install --upgrade pip | Out-Null
+& $PythonExe -m pip install -r requirements.txt | Out-Null
 
 if ($PyVer -like "*3.13*") {
     Write-Host "[UYARI] Python 3.13 kullanıyorsunuz. Bu sürüm bazı kütüphanelerde derleme (build) hatalarına neden olabilir." -ForegroundColor Yellow
@@ -200,15 +176,7 @@ if ($PyVer -like "*3.13*") {
 
 
 
-# 5. Sanal Ortam ve Bağımlılıklar
-if (!(Test-Path "venv")) {
-    Write-Host "[BİLGİ] Sanal ortam oluşturuluyor..." -ForegroundColor Yellow
-    python -m venv venv
-}
-
-Write-Host "[BİLGİ] Bağımlılıklar kontrol ediliyor..." -ForegroundColor Yellow
-& ".\venv\Scripts\python.exe" -m pip install --upgrade pip | Out-Null
-& ".\venv\Scripts\python.exe" -m pip install -r requirements.txt | Out-Null
+# 5. Sanal Ortam (Pas geçildi, Portable Python doğrudan kullanılır)
 
 # 6. Kurulum Tercihi
 Write-Host "`n[SEÇİM] Uygulama çalışma modunu seçin:" -ForegroundColor White
@@ -220,10 +188,10 @@ if ($null -eq $choice -or $choice -eq "") { $choice = "1" }
 
 # 7. Başlatma
 if (Test-Path "start_setup.py") {
-    $PythonPath = Join-Path $TargetDir "venv\Scripts\python.exe"
+    $PythonPath = $PythonExe
     $SetupScript = Join-Path $TargetDir "start_setup.py"
     
-    # 7.1 Servis Adı Kontrolü (Sadece Servis modu seçildiyse)
+    # 7.1 Servis Adı Kontrolü
     if ($choice -eq "1") {
         Write-Host "[BİLGİ] Windows Servisi kontrol ediliyor..." -ForegroundColor Yellow
         $SvcName = "Exfin_ApiService"
@@ -232,15 +200,12 @@ if (Test-Path "start_setup.py") {
             $NewName = Read-Host "Yeni servis adını girin (Boş bırakırsanız mevcut servis güncellenir)"
             if ($null -ne $NewName -and $NewName -ne "") {
                 $SvcName = $NewName
-                Write-Host "[BİLGİ] Yeni servis adı belirlendi: $SvcName" -ForegroundColor Cyan
-                # Persist to api.db so the service knows its own name
-                & $PythonPath -c "import sqlite3,os; db='api.db'; conn=sqlite3.connect(db); conn.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)'); conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (''ServiceName'', ?)', ('$SvcName',)); conn.commit(); conn.close()"
             }
         }
     }
 
     Write-Host "[BAŞARILI] Kurulum sihirbazı başlatılıyor..." -ForegroundColor Green
-    # Launch start_setup.py with the choice parameter
+    # Launch start_setup.py via portable python
     Start-Process -FilePath $PythonPath -ArgumentList "`"$SetupScript`" --mode $choice" -WorkingDirectory $TargetDir -WindowStyle Hidden
 }
 else {
