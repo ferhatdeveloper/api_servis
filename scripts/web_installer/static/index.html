@@ -390,17 +390,21 @@
             </div>
 
             <div id="logo-selection-container" style="margin-top: 10px;">
-                <!-- Accordion 1: Salesmen -->
-                <div class="selection-panel accordion-item">
-                    <div class="selection-header accordion-header" onclick="toggleAccordion('acc-salesmen')">
-                        <span>👤 Satış Elemanları (Satışçı Girişi)</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <button class="btn-preview" onclick="event.stopPropagation(); openPreview('salesmen')">Büyük
-                                Önizle</button>
-                            <span class="acc-icon">▼</span>
-                        </div>
+
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="switchDataTab('tab-salesmen', this)">👤 Satışçılar</button>
+                    <button class="tab-btn" onclick="switchDataTab('tab-warehouses', this)">🏠 Ambarlar</button>
+                    <button class="tab-btn" onclick="switchDataTab('tab-customers', this)">🤝 Müşteriler</button>
+                </div>
+
+                <!-- Tab 1: Salesmen -->
+                <div id="tab-salesmen" class="tab-pane active">
+                    <div class="selection-header" style="margin-bottom: 10px;">
+                        <span>Satış Elemanları (Satışçı Girişi)</span>
+                        <button class="btn-preview" onclick="openPreview('salesmen')">Önizle</button>
                     </div>
-                    <div class="data-selection-list accordion-content" id="acc-salesmen">
+                    <div class="data-selection-list">
                         <table class="selection-table">
                             <thead>
                                 <tr>
@@ -422,17 +426,13 @@
                     </div>
                 </div>
 
-                <!-- Accordion 2: Warehouses -->
-                <div class="selection-panel accordion-item" style="margin-top: 10px;">
-                    <div class="selection-header accordion-header" onclick="toggleAccordion('acc-warehouses')">
-                        <span>🏠 Ambarlar / Depolar</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <button class="btn-preview"
-                                onclick="event.stopPropagation(); openPreview('warehouses')">Büyük Önizle</button>
-                            <span class="acc-icon">▼</span>
-                        </div>
+                <!-- Tab 2: Warehouses -->
+                <div id="tab-warehouses" class="tab-pane">
+                    <div class="selection-header" style="margin-bottom: 10px;">
+                        <span>Ambarlar / Depolar</span>
+                        <button class="btn-preview" onclick="openPreview('warehouses')">Önizle</button>
                     </div>
-                    <div class="data-selection-list accordion-content" id="acc-warehouses">
+                    <div class="data-selection-list">
                         <table class="selection-table">
                             <thead>
                                 <tr>
@@ -452,21 +452,16 @@
                     </div>
                 </div>
 
-                <!-- Accordion 3: Customers (NEW) -->
-                <div class="selection-panel accordion-item" style="margin-top: 10px;">
-                    <div class="selection-header accordion-header" onclick="toggleAccordion('acc-customers')">
-                        <span>🤝 Müşteriler (Cari Hesaplar)</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <button class="btn-preview"
-                                onclick="event.stopPropagation(); openPreview('customers')">Büyük Önizle</button>
-                            <span class="acc-icon">▼</span>
-                        </div>
+                <!-- Tab 3: Customers -->
+                <div id="tab-customers" class="tab-pane">
+                    <div class="selection-header" style="margin-bottom: 10px;">
+                        <span>Müşteriler (Cari Hesaplar)</span>
+                        <button class="btn-preview" onclick="openPreview('customers')">Önizle</button>
                     </div>
-                    <div class="data-selection-list accordion-content" id="acc-customers">
+                    <div class="data-selection-list">
                         <div
-                            style="padding: 10px; background: rgba(0,0,0,0.2); font-size: 11px; color: var(--text-muted);">
-                            * Logo sistemindeki tüm aktif cari hesaplar listelenir. Rota planlama için koordinat
-                            alanları otomatik eklenir.
+                            style="padding: 10px; background: rgba(0,0,0,0.2); font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+                            * Rota planlama için koordinat alanları otomatik eklenir (Lat/Lng).
                         </div>
                         <table class="selection-table">
                             <thead>

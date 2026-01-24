@@ -12,23 +12,16 @@ const appState = {
     deploymentMode: "1" // 1=Service, 2=Tray
 };
 
-function toggleAccordion(id) {
-    const content = document.getElementById(id);
-    const header = content.previousElementSibling;
-    const icon = header.querySelector('.acc-icon');
+function switchDataTab(tabId, btn) {
+    // 1. Hide all panes
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
 
-    const isOpen = content.classList.contains('active');
+    // 2. Deactivate all buttons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 
-    // Smooth Close others (Optional, but let's keep it simple)
-    // document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('active'));
-
-    if (isOpen) {
-        content.classList.remove('active');
-        if (icon) icon.style.transform = 'rotate(0deg)';
-    } else {
-        content.classList.add('active');
-        if (icon) icon.style.transform = 'rotate(180deg)';
-    }
+    // 3. Activate target
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
 }
 
 function getVal(id, fallback = "") {
