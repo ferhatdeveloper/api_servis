@@ -682,7 +682,7 @@ async function fetchLogoFirms() {
 
         if (data.success && data.firms && data.firms.length > 0) {
             firmSelect.innerHTML = '<option value="">Firma Seçin...</option>' +
-                data.firms.map(f => `<option value="${f.nr}">Firma ${f.nr} - ${f.name}</option>`).join('');
+                data.firms.map(f => `<option value="${f.id}">Firma ${f.id} - ${f.name}</option>`).join('');
 
             if (firmArea) firmArea.classList.remove('hidden');
         } else {
