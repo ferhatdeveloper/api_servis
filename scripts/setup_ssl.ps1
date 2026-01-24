@@ -52,7 +52,16 @@ Write-Host "  Key:  $KeyFile" -ForegroundColor Gray
 $CertDir = Split-Path $CertFile
 $PfxFile = Join-Path $CertDir "cert.pfx"
 if (Test-Path $PfxFile) {
-    Write-Host "  PFX:  $PfxFile (For IIS, Pass: 123456)" -ForegroundColor Cyan
+    Write-Host "  PFX Found: $PfxFile" -ForegroundColor Cyan
+    try {
+        $Password = ConvertTo-SecureString -String "123456" -AsPlainText -Force
+        Import-PfxCertificate -FilePath $PfxFile -CertStoreLocation Cert:\LocalMachine\My -Password $Password | Out-Null
+        Write-Host "  SUCCESS: Certificate imported to Windows Store (LocalMachine\My). Ready for IIS." -ForegroundColor Green
+    }
+    catch {
+        Write-Host "  WARNING: Failed to auto-import PFX. You may need to import '$PfxFile' manually (Pass: 123456)." -ForegroundColor Yellow
+        Write-Host "  Error: $_" -ForegroundColor Red
+    }
 }
 
 # 4. Configure PostgreSQL
