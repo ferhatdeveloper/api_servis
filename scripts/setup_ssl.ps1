@@ -48,6 +48,13 @@ if (-not $CertFile -or -not $KeyFile) {
 Write-Host "  Cert: $CertFile" -ForegroundColor Gray
 Write-Host "  Key:  $KeyFile" -ForegroundColor Gray
 
+# Check for PFX (IIS)
+$CertDir = Split-Path $CertFile
+$PfxFile = Join-Path $CertDir "cert.pfx"
+if (Test-Path $PfxFile) {
+    Write-Host "  PFX:  $PfxFile (For IIS, Pass: 123456)" -ForegroundColor Cyan
+}
+
 # 4. Configure PostgreSQL
 Write-Host "> Configuring PostgreSQL..." -ForegroundColor Yellow
 $PostgresService = Get-Service -Name "postgresql-x64-16" -ErrorAction SilentlyContinue

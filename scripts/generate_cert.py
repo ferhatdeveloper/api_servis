@@ -61,8 +61,21 @@ def generate_self_signed_cert():
     with open(cert_path, "wb") as f:
         f.write(cert.public_bytes(serialization.Encoding.PEM))
 
+    # Write PFX (IIS Support)
+    pfx_path = cert_dir / "cert.pfx"
+    pfx_data = serialization.pkcs12.serialize_key_and_certificates(
+        name=b"EXFIN_OPS",
+        key=key,
+        cert=cert,
+        cas=None,
+        encryption_algorithm=serialization.BestAvailableEncryption(b"123456") # Default password for import
+    )
+    with open(pfx_path, "wb") as f:
+        f.write(pfx_data)
+
     print(f"SUCCESS: Certificate generated at {cert_path}")
-    return str(cert_path), str(key_path)
+    print(f"PFX (IIS): {pfx_path} (Password: 123456)")
+    return str(cert_path), str(key_path), str(pfx_path)
 
 if __name__ == "__main__":
     try:
