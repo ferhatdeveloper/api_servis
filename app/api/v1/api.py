@@ -47,18 +47,24 @@ from app.api.v1.endpoints.pdks import (
     database as pdks_database
 )
 
+# --- SYSTEM & INFRASTRUCTURE ---
+# Consolidated system-wide utilities
+api_router.include_router(retail_vpn.router, tags=["VPN Manager"]) # Internal prefix: /vpn
+api_router.include_router(file_upload.router, prefix="/upload", tags=["File Upload"])
+api_router.include_router(email_settings.router, prefix="/email-settings", tags=["Email Settings"])
+api_router.include_router(auto_index.router, prefix="/auto-index", tags=["Auto Index"])
+
+# --- HEALTH & MONITORING ---
+api_router.include_router(pdks_health.router, tags=["System Health"]) # Internal prefix: /health
+api_router.include_router(pdks_database.router, prefix="/pdks-database", tags=["PDKS Database Config"])
+
+# --- PDKS (Core Modules) ---
 api_router.include_router(departments.router, prefix="/departments", tags=["Departments"])
 api_router.include_router(performance.router, prefix="/performance", tags=["Performance"])
-api_router.include_router(auto_index.router, prefix="/auto-index", tags=["Auto Index"])
-api_router.include_router(file_upload.router, prefix="/upload", tags=["File Upload"])
 api_router.include_router(hikvision.router, prefix="/hikvision", tags=["Hikvision"])
-api_router.include_router(email_settings.router, prefix="/email-settings", tags=["Email Settings"])
 api_router.include_router(realtime.router, prefix="/realtime", tags=["Realtime"])
-api_router.include_router(pdks_health.router, prefix="/device-health", tags=["Device Health"])
-api_router.include_router(pdks_database.router, prefix="/pdks-database", tags=["PDKS Database"])
 
-# --- RETAIL (Flattened) ---
-# Formerly under /retail prefix, now unified.
+# --- RETAIL (Core Modules) ---
 api_router.include_router(retail_products.router, prefix="/products", tags=["Retail Products"])
 api_router.include_router(retail_sales.router, prefix="/sales", tags=["Retail Sales"])
 api_router.include_router(retail_customers.router, prefix="/retail-customers", tags=["Retail Customers"])
@@ -71,7 +77,7 @@ api_router.include_router(retail_duplicate_check.router, prefix="/duplicate-chec
 api_router.include_router(retail_ai.router, prefix="/ai-analysis", tags=["Retail AI"])
 api_router.include_router(retail_cost.router, prefix="/cost-accounting", tags=["Retail Cost Accounting"])
 api_router.include_router(retail_notifications.router, prefix="/notifications", tags=["Retail Notifications"])
-api_router.include_router(retail_vpn.router, prefix="/vpn", tags=["Retail VPN"])
+# VPN moved to System
 api_router.include_router(retail_whatsapp.router, prefix="/whatsapp", tags=["Retail WhatsApp"])
 
 
