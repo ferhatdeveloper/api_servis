@@ -319,7 +319,14 @@
             <!-- Tab 1: Salesmen -->
             <div id="tab-salesmen" class="tab-pane active">
                 <div class="selection-header">
-                    <span>Satış Elemanları</span>
+                    <div class="header-left">
+                        <span>Satış Elemanları</span>
+                        <div class="search-box">
+                            <input type="text" placeholder="Satışçı ara..."
+                                onkeyup="filterTable('list-salesmen', this.value)">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                    </div>
                     <button class="btn-preview" onclick="openPreview('salesmen')">Önizle</button>
                 </div>
                 <div class="data-selection-list">
@@ -341,7 +348,14 @@
             <!-- Tab 2: Warehouses -->
             <div id="tab-warehouses" class="tab-pane hidden">
                 <div class="selection-header">
-                    <span>Ambarlar / Depolar</span>
+                    <div class="header-left">
+                        <span>Ambarlar / Depolar</span>
+                        <div class="search-box">
+                            <input type="text" placeholder="Ambar ara..."
+                                onkeyup="filterTable('list-warehouses', this.value)">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                    </div>
                     <button class="btn-preview" onclick="openPreview('warehouses')">Önizle</button>
                 </div>
                 <div class="data-selection-list">
@@ -362,7 +376,14 @@
             <!-- Tab 3: Customers -->
             <div id="tab-customers" class="tab-pane hidden">
                 <div class="selection-header">
-                    <span>Müşteriler (Cari Hesaplar)</span>
+                    <div class="header-left">
+                        <span>Müşteriler (Cari Hesaplar)</span>
+                        <div class="search-box">
+                            <input type="text" placeholder="Müşteri ara..."
+                                onkeyup="filterTable('list-customers', this.value)">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                    </div>
                     <button class="btn-preview" onclick="openPreview('customers')">Önizle</button>
                 </div>
                 <div class="data-selection-list">

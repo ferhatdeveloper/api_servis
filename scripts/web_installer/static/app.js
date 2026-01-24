@@ -491,9 +491,29 @@ function goToStep(step) {
     if (card) card.classList.add('active');
 
     // Light up indicators
-    for (let i = 1; i <= step; i++) {
+    for (let i = 1; i <= 5; i++) {
         const sEl = document.getElementById(`s${i}`);
-        if (sEl) sEl.classList.add('active');
+        if (!sEl) continue;
+
+        if (i <= step) {
+            sEl.classList.add('active');
+        } else {
+            sEl.classList.remove('active');
+        }
+
+        // Make previous steps clickable
+        if (i < appState.step) {
+            sEl.classList.add('clickable');
+            sEl.onclick = () => goToStep(i);
+        } else {
+            sEl.classList.remove('clickable');
+            sEl.onclick = null;
+        }
+    }
+
+    // Mark global state
+    if (step > appState.step) {
+        appState.step = step;
     }
 
     // Update Migration Panel Info whenever we go back/forth
