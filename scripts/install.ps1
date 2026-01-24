@@ -6,7 +6,6 @@ $ErrorActionPreference = "Stop"
 # CRITICAL: Force UTF-8 Terminal (CLM-Safe)
 Try {
     chcp 65001 >$null
-    $OutputEncoding = [Console]::OutputEncoding
 }
 Catch { }
 
@@ -48,7 +47,7 @@ if ($OPS_MODE -eq "safe-mode") {
     $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1?v=$Id"
     $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
     Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
-    if (Test-Path $FixPath) { & $FixPath }
+    if (Test-Path $FixPath) { powershell -ExecutionPolicy Bypass -File $FixPath }
     return
 }
 if ($OPS_MODE -eq "cleanup") {
@@ -57,7 +56,7 @@ if ($OPS_MODE -eq "cleanup") {
     $CleanupUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/cleanup_python.ps1?v=$Id"
     $CleanupPath = Join-Path $env:TEMP "cleanup_python.ps1"
     Invoke-WebRequest -Uri $CleanupUrl -OutFile $CleanupPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
-    if (Test-Path $CleanupPath) { & $CleanupPath }
+    if (Test-Path $CleanupPath) { powershell -ExecutionPolicy Bypass -File $CleanupPath }
     else { Write-Host "[HATA] Temizleme araci indirilemedi." -ForegroundColor Red }
     return
 }
@@ -68,7 +67,7 @@ if ($OPS_MODE -eq "fix-policy") {
     $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1?v=$Id"
     $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
     Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
-    if (Test-Path $FixPath) { & $FixPath }
+    if (Test-Path $FixPath) { powershell -ExecutionPolicy Bypass -File $FixPath }
     else { Write-Host "[HATA] Duzeltme araci indirilemedi." -ForegroundColor Red }
     return
 }
@@ -91,10 +90,7 @@ try {
     net session >$null 2>&1
     if ($LASTEXITCODE -eq 0) { $IsAdmin = $true }
 }
-catch {
-    # Fallback if net session is not allowed
-    if ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent().IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { $IsAdmin = $true }
-}
+catch { }
 
 if (-not $IsAdmin) {
     Write-Host "`n[HATA] Lutfen PowerShell'i 'YONETICI OLARAK' calistirin!" -ForegroundColor Red
@@ -116,7 +112,10 @@ if (!(Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "[UYARI] Git bulunamadi! Repo ZIP olarak indiriliyor..." -ForegroundColor Yellow
     $ZipPath = Join-Path $TargetDir "repo.zip"
     Invoke-WebRequest -Uri "$RepoUrl/archive/refs/heads/main.zip" -OutFile $ZipPath
-    Expand-Archive -Path $ZipPath -DestinationPath $TargetDir -Force
+    
+    # CLM-Safe Extraction via TAR
+    tar -xf $ZipPath -C $TargetDir
+    
     # Move files from subdirectory to root if needed
     $SubDir = Get-ChildItem -Path $TargetDir -Directory | Where-Object { $_.Name -like "*-main" }
     if ($SubDir) {
@@ -156,18 +155,21 @@ if (!(Test-Path $PythonExe)) {
     
     Write-Host "[ISLEM] Dosyalar cikartiliyor..." -ForegroundColor Yellow
     if (!(Test-Path $PortablePyDir)) { New-Item -Path $PortablePyDir -ItemType Directory | Out-Null }
-    Expand-Archive -Path $PyZip -DestinationPath $PortablePyDir -Force
+    
+    # CLM-Safe Extraction via native tar.exe (Windows 10/Server 2019+)
+    tar -xf $PyZip -C $PortablePyDir
     
     $ProgressPreference = $OldProgress
     
     # 4.1 Bootstrap PIP (Portable Python'da pip yuklu gelmez)
     Write-Host "[ISLEM] Paket yoneticisi (pip) kuruluyor..." -ForegroundColor Yellow
     $PthFile = Join-Path $PortablePyDir "python312._pth"
-    # Uncomment 'import site' in .pth file to allow site-packages
-    $pthContent = Get-Content $PthFile -Raw
-    if ($pthContent -like "*#import site*") {
-        $pthContent -replace "#import site", "import site" | Set-Content $PthFile
+    # Uncomment 'import site'
+    $pthLines = Get-Content $PthFile
+    $newPth = foreach ($line in $pthLines) {
+        if ($line -like "*#import site*") { "import site" } else { $line }
     }
+    $newPth | Set-Content $PthFile
     
     $GetPip = Join-Path $PortablePyDir "get-pip.py"
     Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $GetPip -ErrorAction SilentlyContinue

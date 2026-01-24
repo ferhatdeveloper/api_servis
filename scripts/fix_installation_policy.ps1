@@ -6,7 +6,6 @@ $ErrorActionPreference = "SilentlyContinue"
 # UTF-8 Zorlamasi
 Try {
     chcp 65001 >$null
-    $OutputEncoding = [Console]::OutputEncoding
 }
 Catch {}
 
@@ -14,7 +13,15 @@ Write-Host "`n==========================================" -ForegroundColor Cyan
 Write-Host "    MASAUSTU KURTARMA VE GUVENLIK MODU" -ForegroundColor Green
 Write-Host "==========================================`n" -ForegroundColor Cyan
 
-if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+# Yönetici Kontrolu (CLM-Safe)
+$IsAdmin = $false
+try {
+    net session >$null 2>&1
+    if ($LASTEXITCODE -eq 0) { $IsAdmin = $true }
+}
+catch { }
+
+if (-not $IsAdmin) {
     Write-Host "[HATA] Lutfen bu scripti 'YONETICI OLARAK' calistirin!" -ForegroundColor Red
     pause
     return
