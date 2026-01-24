@@ -339,3 +339,139 @@ async def get_database_query(database_type: str, query: str):
     except Exception as e:
         logger.error(f"Database query error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Connection Management ---
+
+from pydantic import BaseModel, Field
+import sqlite3
+import os
+
+class DBConnection(BaseModel):
+    Name: str = Field(..., description="Unique name for the connection")
+    Type: str = Field(..., description="PostgreSQL, MSSQL, MySQL, etc.")
+    Server: str
+    Port: int
+    Database: str
+    Username: str
+    Password: str
+
+def get_api_db_path():
+    # api.db is at project root
+    return os.path.join(os.getcwd(), "api.db")
+
+def ensure_connections_table():
+    try:
+        with sqlite3.connect(get_api_db_path()) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS db_connections (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    type TEXT NOT NULL,
+                    host TEXT NOT NULL,
+                    port INTEGER,
+                    database TEXT,
+                    username TEXT,
+                    password TEXT
+                )
+            """)
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Failed to ensure db_connections table: {e}")
+
+@router.get("/connections")
+async def list_connections():
+    """List all saved database connections"""
+    ensure_connections_table()
+    try:
+        with sqlite3.connect(get_api_db_path()) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT * FROM db_connections ORDER BY name").fetchall()
+            return {
+                "success": True,
+                "connections": [dict(r) for r in rows]
+            }
+    except Exception as e:
+        logger.error(f"List connections error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/connections")
+async def save_connection(conn_data: DBConnection):
+    """Save or Update a database connection"""
+    ensure_connections_table()
+    try:
+        with sqlite3.connect(get_api_db_path()) as conn:
+            # Upsert logic (replace if name exists)
+            conn.execute("""
+                INSERT OR REPLACE INTO db_connections (name, type, host, port, database, username, password)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                conn_data.Name, conn_data.Type, conn_data.Server, conn_data.Port, 
+                conn_data.Database, conn_data.Username, conn_data.Password
+            ))
+            conn.commit()
+            
+            # Reload settings to apply immediately
+            settings.load_db_config()
+            
+            return {"success": True, "message": f"Connection '{conn_data.Name}' saved successfully."}
+    except Exception as e:
+        logger.error(f"Save connection error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/connections/{name}")
+async def delete_connection(name: str):
+    """Delete a database connection"""
+    ensure_connections_table()
+    try:
+        with sqlite3.connect(get_api_db_path()) as conn:
+            cursor = conn.execute("DELETE FROM db_connections WHERE name = ?", (name,))
+            conn.commit()
+            
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Connection not found")
+
+            # Reload settings
+            settings.load_db_config()
+            
+            return {"success": True, "message": f"Connection '{name}' deleted."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete connection error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/connections/test")
+async def test_connection(conn_data: DBConnection):
+    """Test a database connection without saving"""
+    try:
+        if "postgres" in conn_data.Type.lower():
+            import psycopg2
+            conn = psycopg2.connect(
+                host=conn_data.Server,
+                port=conn_data.Port,
+                database=conn_data.Database,
+                user=conn_data.Username,
+                password=conn_data.Password,
+                connect_timeout=3
+            )
+            conn.close()
+            return {"success": True, "message": "PostgreSQL connection successful!"}
+            
+        elif "mssql" in conn_data.Type.lower():
+            import pymssql
+            conn = pymssql.connect(
+                server=conn_data.Server,
+                user=conn_data.Username,
+                password=conn_data.Password,
+                database=conn_data.Database,
+                port=conn_data.Port,
+                timeout=3
+            )
+            conn.close()
+            return {"success": True, "message": "MSSQL connection successful!"}
+            
+        else:
+            return {"success": False, "message": f"Driver for {conn_data.Type} not implemented yet."}
+            
+    except Exception as e:
+        return {"success": False, "message": f"Connection failed: {str(e)}"}
