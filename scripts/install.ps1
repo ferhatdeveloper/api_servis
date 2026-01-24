@@ -8,13 +8,12 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
-# 0. Cleanup Argument Handling
-if ($args[0] -eq "cleanup") {
+# 0. Cleanup / Policy Fix Argument Handling
+# Fallback support for Invoke-Expression (iex) which doesn't support -Arguments
+$OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
+
+if ($OPS_MODE -eq "cleanup") {
     Write-Host "[BİLGİ] Python Temizleme Aracı başlatılıyor..." -ForegroundColor Yellow
-    # We clone/pull first to get the latest cleanup script if in repo context, 
-    # but for irm | iex we might not have it yet. 
-    # For now, let's assume the user runs it from a context where we can download it.
-    
     # Download and run cleanup_python.ps1 directly
     $CleanupUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/cleanup_python.ps1"
     $CleanupPath = Join-Path $env:TEMP "cleanup_python.ps1"
@@ -28,8 +27,7 @@ if ($args[0] -eq "cleanup") {
     return
 }
 
-# 0.1 Policy Fix Argument Handling
-if ($args[0] -eq "fix-policy") {
+if ($OPS_MODE -eq "fix-policy") {
     Write-Host "[BİLGİ] Kurulum Politikası Düzeltici başlatılıyor..." -ForegroundColor Yellow
     $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1"
     $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
@@ -125,7 +123,7 @@ if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
     Write-Host "[HATA] Mevcut Python sürümünüz ($VerClean) çok eski!" -ForegroundColor Red
     Write-Host "[BİLGİ] Bu uygulama için en az Python 3.10 gereklidir." -ForegroundColor Cyan
     Write-Host "[ÖNERİ] Eğer kurulum 'Sistem Politikası' hatasıyla (0x80070659) engellenirse şu komutu çalıştırın:" -ForegroundColor Yellow
-    Write-Host ">>> irm bit.ly/opsapi | iex -Arguments 'fix-policy'" -ForegroundColor White
+    Write-Host ">>> `$env:OPS_ARG='fix-policy'; irm bit.ly/opsapi | iex" -ForegroundColor White
     Write-Host "`n[İŞLEM] Lütfen Python 3.12.8 yükleyin (İndirme başlatılıyor...)" -ForegroundColor Cyan
     
     $Arch = $env:PROCESSOR_ARCHITECTURE
