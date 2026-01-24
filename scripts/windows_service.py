@@ -36,8 +36,23 @@ try:
 except Exception as e:
     boot_trace(f"Directory change failed: {e}")
 
+# Default names
 SERVICE_NAME = "Exfin_ApiService"
 SERVICE_DISPLAY_NAME = "EXFIN OPS API Service"
+
+# Try to load custom names from api.db (Set by installer if conflict occurs)
+try:
+    import sqlite3
+    _db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "api.db")
+    if os.path.exists(_db_path):
+        _conn = sqlite3.connect(_db_path)
+        _row = _conn.execute("SELECT value FROM settings WHERE key = 'ServiceName'").fetchone()
+        if _row:
+            SERVICE_NAME = str(_row[0])
+            SERVICE_DISPLAY_NAME = f"EXFIN OPS API ({SERVICE_NAME})"
+        _conn.close()
+except: 
+    pass
 
 class ExfinApiService(win32serviceutil.ServiceFramework):
     _svc_name_ = SERVICE_NAME

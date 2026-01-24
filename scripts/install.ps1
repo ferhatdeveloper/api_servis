@@ -151,6 +151,22 @@ if (Test-Path "start_setup.py") {
     $PythonPath = Join-Path $TargetDir "venv\Scripts\python.exe"
     $SetupScript = Join-Path $TargetDir "start_setup.py"
     
+    # 7.1 Servis Adı Kontrolü (Sadece Servis modu seçildiyse)
+    if ($choice -eq "1") {
+        Write-Host "[BİLGİ] Windows Servisi kontrol ediliyor..." -ForegroundColor Yellow
+        $SvcName = "Exfin_ApiService"
+        if (Get-Service $SvcName -ErrorAction SilentlyContinue) {
+            Write-Host "[UYARI] '$SvcName' adında bir servis zaten mevcut!" -ForegroundColor Yellow
+            $NewName = Read-Host "Yeni servis adını girin (Boş bırakırsanız mevcut servis güncellenir)"
+            if ($null -ne $NewName -and $NewName -ne "") {
+                $SvcName = $NewName
+                Write-Host "[BİLGİ] Yeni servis adı belirlendi: $SvcName" -ForegroundColor Cyan
+                # Persist to api.db so the service knows its own name
+                & $PythonPath -c "import sqlite3,os; db='api.db'; conn=sqlite3.connect(db); conn.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)'); conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (''ServiceName'', ?)', ('$SvcName',)); conn.commit(); conn.close()"
+            }
+        }
+    }
+
     Write-Host "[BAŞARILI] Kurulum sihirbazı başlatılıyor..." -ForegroundColor Green
     # Launch start_setup.py with the choice parameter
     Start-Process -FilePath $PythonPath -ArgumentList "`"$SetupScript`" --mode $choice" -WorkingDirectory $TargetDir -WindowStyle Hidden

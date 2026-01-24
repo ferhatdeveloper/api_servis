@@ -872,6 +872,15 @@ class InstallerService:
     def install_windows_service(self):
         """Installs and starts the EXFIN API Windows Service"""
         try:
+            import sqlite3
+            db_path = os.path.join(self.project_dir, "api.db")
+            svc_name = "Exfin_ApiService"
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                row = conn.execute("SELECT value FROM settings WHERE key = 'ServiceName'").fetchone()
+                if row: svc_name = str(row[0])
+                conn.close()
+
             venv_python = os.path.join(self.project_dir, "venv", "Scripts", "python.exe")
             if not os.path.exists(venv_python):
                 venv_python = sys.executable
@@ -880,7 +889,7 @@ class InstallerService:
             
             # Use subprocess to run service commands
             # Step 1: Remove existing if any
-            subprocess.run([venv_python, service_script, "remove"], capture_output=True)
+            subprocess.run([venv_python, service_script, "--name", svc_name, "remove"], capture_output=True)
             
             # Step 2: Install
             res = subprocess.run([venv_python, service_script, "--startup", "delayed", "install"], capture_output=True, text=True)
@@ -890,7 +899,7 @@ class InstallerService:
             # Step 3: Start
             subprocess.run([venv_python, service_script, "start"], capture_output=True)
             
-            return {"success": True, "message": "Windows Servisi başarıyla kuruldu ve başlatıldı. ✅"}
+            return {"success": True, "message": f"Windows Servisi ({svc_name}) başarıyla kuruldu ve başlatıldı. ✅"}
         except Exception as e:
             return {"success": False, "error": f"Servis kurulumunda kritik hata: {str(e)}"}
 

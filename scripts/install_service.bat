@@ -33,15 +33,28 @@ if not exist "scripts\windows_service.py" (
     exit /b 1
 )
 
-:: 3. Servisi yükle
-echo [BILGI] Servis kaydediliyor...
+:: 3. Servis Adı Belirle
+set SVC_NAME=Exfin_ApiService
+sc query !SVC_NAME! >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [UYARI] '!SVC_NAME!' adinda bir servis zaten mevcut!
+    set /p NEW_NAME="Yeni servis adini girin (Bos birakirsa mevcut guncellenir): "
+    if not "!NEW_NAME!"=="" (
+        set SVC_NAME=!NEW_NAME!
+        echo [BILGI] Yeni servis adi: !SVC_NAME!
+        "venv\Scripts\python.exe" -c "import sqlite3; db='api.db'; conn=sqlite3.connect(db); conn.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)'); conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (''ServiceName'', ?)', ('!SVC_NAME!',)); conn.commit(); conn.close()"
+    )
+)
+
+:: 4. Servisi yukle
+echo [BILGI] Servis kaydediliyor (!SVC_NAME!)...
 "venv\Scripts\ExfinOpsService.exe" "scripts\windows_service.py" --startup auto install
 
 if %errorlevel% neq 0 (
-    echo [HATA] Servis yüklenemedi. (Belki zaten yüklüdür? --update deneyebilirsiniz)
+    echo [HATA] Servis yuklenemedi. (Belki zaten yukludur? --update deneyebilirsiniz)
 ) else (
-    echo [BASARILI] Servis başarıyla yüklendi.
-    echo [BILGI] Servis başlatılıyor...
+    echo [BASARILI] Servis basariyla yuklendi.
+    echo [BILGI] Servis baslatiliyor...
     "venv\Scripts\ExfinOpsService.exe" "scripts\windows_service.py" start
 )
 
