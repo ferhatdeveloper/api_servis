@@ -3,12 +3,13 @@
 
 $ErrorActionPreference = "Stop"
 
-# CRITICAL: Force UTF-8 Terminal and Session Encoding
+# CRITICAL: Force UTF-8 Terminal and Environment
 Try {
     chcp 65001 >$null
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     [Console]::InputEncoding = [System.Text.Encoding]::UTF8
     $OutputEncoding = [System.Text.Encoding]::UTF8
+    $env:PYTHONIOENCODING = "utf-8"
 }
 Catch { }
 
@@ -140,11 +141,27 @@ if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
     $PyInstallerPath = Join-Path $env:TEMP "python_installer.exe"
     Invoke-WebRequest -Uri $PyUrl -OutFile $PyInstallerPath
     
+    # 4.1 Unblock and Install
+    Unblock-File -Path $PyInstallerPath -ErrorAction SilentlyContinue
     Write-Host "[İŞLEM] Python kuruluyor... Lütfen bekleyin." -ForegroundColor Yellow
-    # Explicitly use /quiet and TargetDir to bypass system policy/targetdir errors
-    Start-Process -FilePath $PyInstallerPath -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0" -Wait
     
-    Write-Host "[TAMAM] Kurulum denendi. Lütfen terminali kapatıp tekrar açın veya bir sonraki adıma geçin." -ForegroundColor Green
+    # Precise arguments for silent install to bypass TARGETDIR and Policy errors
+    $InstallArgs = @(
+        "/quiet",
+        "InstallAllUsers=1",
+        "PrependPath=1",
+        "Include_test=0"
+    )
+    
+    $proc = Start-Process -FilePath $PyInstallerPath -ArgumentList $InstallArgs -Wait -PassThru
+    
+    if ($proc.ExitCode -eq 0) {
+        Write-Host "[BAŞARILI] Python kuruldu. Terminali yenilemeniz gerekebilir." -ForegroundColor Green
+    }
+    else {
+        Write-Host "[HATA] Python kurulumu hata koduyla bitti: $($proc.ExitCode)" -ForegroundColor Red
+        Write-Host "[BİLGİ] Eğer sorun devam ediyorsa lütfen 'Politika Düzeltici'yi tekrar çalıştırın (Güncellendi v2.2)." -ForegroundColor Yellow
+    }
     return
 }
 

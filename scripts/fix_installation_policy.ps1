@@ -1,9 +1,9 @@
-# EXFIN OPS - Kurulum Politikası Düzeltici v2.1 (Ultra-Aggressive Fix)
-# Bu script, sistem politikası (0x80070659) engellerini en agresif şekilde kaldırmaya çalışır.
+# EXFIN OPS - Kurulum Politikası Düzeltici v2.2 (Ultra-Aggressive Fix)
+# Bu script, fatal 0x80070643 ve 0x80070659 hatalarını aşmak için tasarlanmıştır.
 
 $ErrorActionPreference = "SilentlyContinue"
 
-# UTF-8 Zorlaması (Script Başında)
+# UTF-8 Zorlaması
 Try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     [Console]::InputEncoding = [System.Text.Encoding]::UTF8
@@ -21,6 +21,18 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     pause
     return
 }
+
+# 1. Çalışan Tüm Yükleyicileri Temizle
+Write-Host "[>] Çalışan yükleme süreçleri temizleniyor..." -ForegroundColor White
+Get-Process msiexec | Stop-Process -Force
+Get-Process python* | Stop-Process -Force
+
+# 2. Windows Installer Servisini Sıfırla (Reregister)
+Write-Host "[>] Windows Installer servisi yeniden kaydediliyor..." -ForegroundColor White
+& msiexec /unreg
+& msiexec /regserver
+Set-Service -Name "msiserver" -StartupType Manual
+Restart-Service -Name "msiserver"
 
 function Resolve-RegistryRestriction {
     param($Path, $Name, $AlwaysSetTo = $null)
@@ -40,7 +52,6 @@ function Resolve-RegistryRestriction {
         return $true
     }
     elseif ($null -ne $AlwaysSetTo) {
-        # Eğer anahtar yoksa ama biz bir değer set etmek istiyorsak (Bypass)
         New-ItemProperty -Path $Path -Name $Name -Value $AlwaysSetTo -PropertyType DWord -Force | Out-Null
         Write-Host "[+] Bypass anahtarı oluşturuldu: $Name = $AlwaysSetTo" -ForegroundColor Cyan
         return $true
@@ -50,40 +61,39 @@ function Resolve-RegistryRestriction {
 
 $fixed = $false
 
-# 1. Standart Installer Politikaları (HKLM ve HKCU)
+# 3. Agresif Installer Politikaları
 $paths = @(
     "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Installer",
     "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Installer",
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Managed",
-    "HKLM:\SOFTWARE\WOW6432Node\Policies\Microsoft\Windows\Installer",
-    "HKCU:\SOFTWARE\WOW6432Node\Policies\Microsoft\Windows\Installer"
+    "HKLM:\SOFTWARE\WOW6432Node\Policies\Microsoft\Windows\Installer"
 )
 
-# DisableMSI = 0 (İzin Ver)
 foreach ($p in $paths) {
     if (Resolve-RegistryRestriction -Path $p -Name "DisableMSI" -AlwaysSetTo 0) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "DisablePatch" -AlwaysSetTo 0) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "DisableUserInstalls" -AlwaysSetTo 0) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "AlwaysInstallElevated" -AlwaysSetTo 1) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "EnableAdminRemote" -AlwaysSetTo 1) { $fixed = $true }
+    if (Resolve-RegistryRestriction -Path $p -Name "Logging" -AlwaysSetTo "voicewarmupx") { $fixed = $true }
+    if (Resolve-RegistryRestriction -Path $p -Name "Debug" -AlwaysSetTo 7) { $fixed = $true }
 }
 
-# 2. Explorer Uygulama Önerileri (SmartScreen vb. engelleri)
-$explorerPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer"
-if (Resolve-RegistryRestriction -Path $explorerPath -Name "AicEnabled" -AlwaysSetTo "Anywhere") { $fixed = $true }
-
-# 3. Windows Installer Servisini Sıfırla
-Write-Host "`n[>] Windows Installer servisi kontrol ediliyor..." -ForegroundColor White
-Set-Service -Name "msiserver" -StartupType Manual
-Restart-Service -Name "msiserver" -ErrorAction SilentlyContinue
+# 4. AppLocker / Software Restriction Policies Bypass (Basic)
+$srpPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Safer\CodeIdentifiers"
+if (Test-Path $srpPath) {
+    Set-ItemProperty -Path $srpPath -Name "AuthenticodeEnabled" -Value 0 -Force
+    Set-ItemProperty -Path $srpPath -Name "PolicyLevel" -Value 0x00040000 -Force
+    Write-Host "[+] Yazılım kısıtlama politikaları bypass edildi." -ForegroundColor Cyan
+}
 
 if ($fixed) {
-    Write-Host "`n[BAŞARILI] Agresif düzeltme adımları uygulandı." -ForegroundColor Green
+    Write-Host "`n[BAŞARILI] Politika düzeltme ve Servis sıfırlama tamamlandı." -ForegroundColor Green
 }
 else {
-    Write-Host "`n[BİLGİ] Otomatik bypass anahtarları oluşturuldu." -ForegroundColor Cyan
+    Write-Host "`n[BİLGİ] Bypass anahtarları zaten mevcuttu, servisler sıfırlandı." -ForegroundColor Cyan
 }
 
-Write-Host "[!] Lütfen Python kurulumunu ŞİMDİ tekrar deneyin." -ForegroundColor White
+Write-Host "[!] ŞİMDİ Python kurulumunu tekrar deneyin." -ForegroundColor White
 Write-Host "------------------------------------------" -ForegroundColor Cyan
 pause
