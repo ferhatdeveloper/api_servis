@@ -542,7 +542,7 @@ class InstallerService:
                     seen_wh.add(wid)
 
             # 3. Fetch Customers (CLCARD)
-            cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1 FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+            cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
             customers = []
             seen_cust = set()
             for r in cur.fetchall():
@@ -553,7 +553,9 @@ class InstallerService:
                         "id": cid, 
                         "name": name, 
                         "city": str(r['CITY'] or "").strip(),
-                        "phone": str(r['TELNRS1'] or "").strip()
+                        "phone": str(r['TELNRS1'] or "").strip(),
+                        "specode": str(r['SPECODE'] or "").strip(),
+                        "cyphcode": str(r['CYPHCODE'] or "").strip()
                     })
                     seen_cust.add(cid)
             
@@ -572,8 +574,8 @@ class InstallerService:
                 cur.execute(f"SELECT DISTINCT NR, NAME FROM L_CAPIWHOUSE WHERE FIRMNR={int(firm_id)} ORDER BY NR")
                 warehouses = [{"id": str(r['NR']).strip(), "name": str(r['NAME']).strip()} for r in cur.fetchall() if str(r['NR']).strip() != '0']
                 
-                cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1 FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
-                customers = [{"id": str(r['CODE']).strip(), "name": str(r['DEFINITION_']).strip(), "city": str(r['CITY']).strip(), "phone": str(r['TELNRS1']).strip()} for r in cur.fetchall()]
+                cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+                customers = [{"id": str(r['CODE']).strip(), "name": str(r['DEFINITION_']).strip(), "city": str(r['CITY']).strip(), "phone": str(r['TELNRS1']).strip(), "specode": str(r['SPECODE'] or "").strip(), "cyphcode": str(r['CYPHCODE'] or "").strip()} for r in cur.fetchall()]
                 
                 conn.close()
                 return {"success": True, "salesmen": salesmen, "warehouses": warehouses, "customers": customers}
@@ -1076,9 +1078,22 @@ class InstallerService:
             # 4. Sync Customers (CLCARD)
             if customers:
                 logs.append(f"{len(customers)} Müşteri (Cari) aktarılıyor...")
-                for cust_id in customers:
+                # customers listesi artık objelerden oluşabilir: [{id: 'C01', map_link: '...'}]
+                # Eğer string listesi gelirse (eski yapı), objeye çevirelim
+                
+                clean_customers = []
+                for c_item in customers:
+                    if isinstance(c_item, dict):
+                        clean_customers.append(c_item)
+                    else:
+                        clean_customers.append({"id": c_item, "map_link": None})
+
+                for cust_obj in clean_customers:
+                    cust_id = cust_obj['id']
+                    map_link = cust_obj.get('map_link')
+                    
                     ms_cur.execute(f"""
-                        SELECT CODE, DEFINITION_, TAXOFFICE, TAXNR, ADDR1, ADDR2, CITY, TOWN, TELNRS1, EMAILADDR, LOGICALREF
+                        SELECT CODE, DEFINITION_, TAXOFFICE, TAXNR, ADDR1, ADDR2, CITY, TOWN, TELNRS1, EMAILADDR, LOGICALREF, SPECODE, CYPHCODE
                         FROM LG_{firm_id}_CLCARD
                         WHERE CODE=%s AND ACTIVE=0 AND CARDTYPE<>22
                     """, (cust_id,))
@@ -1091,10 +1106,11 @@ class InstallerService:
                     
                     pg_cur.execute("""
                         INSERT INTO customers (
-                            company_id, code, name, tax_office, tax_number, 
-                            address, city, district, phone, email, logo_ref
+                            server_name, company_id, code, name, tax_office, tax_number, 
+                            address, city, district, phone, email, logo_ref,
+                            google_maps_link, special_code, group_code
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (company_id, code) DO UPDATE SET
                             name=EXCLUDED.name,
                             tax_office=EXCLUDED.tax_office,
@@ -1105,10 +1121,14 @@ class InstallerService:
                             phone=EXCLUDED.phone,
                             email=EXCLUDED.email,
                             logo_ref=EXCLUDED.logo_ref,
+                            special_code=EXCLUDED.special_code,
+                            group_code=EXCLUDED.group_code,
+                            google_maps_link=COALESCE(EXCLUDED.google_maps_link, customers.google_maps_link),
                             updated_at=CURRENT_TIMESTAMP
                     """, (
-                        company_id, c['CODE'], c['DEFINITION_'], c.get('TAXOFFICE'), c.get('TAXNR'),
-                        full_address, c.get('CITY'), c.get('TOWN'), c.get('TELNRS1'), c.get('EMAILADDR'), c['LOGICALREF']
+                        server_name, company_id, c['CODE'], c['DEFINITION_'], c.get('TAXOFFICE'), c.get('TAXNR'),
+                        full_address, c.get('CITY'), c.get('TOWN'), c.get('TELNRS1'), c.get('EMAILADDR'), c['LOGICALREF'],
+                        map_link, c.get('SPECODE'), c.get('CYPHCODE')
                     ))
                 logs.append(f"  OK: {len(customers)} müşteri aktarıldı.")
             
@@ -1243,12 +1263,14 @@ class InstallerService:
                     })
             
             elif data_type == "customers":
-                ms_cur.execute(f"SELECT TOP 100 CODE, DEFINITION_, CITY FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+                ms_cur.execute(f"SELECT TOP 100 CODE, DEFINITION_, CITY, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
                 for row in ms_cur.fetchall():
                     results.append({
                         "code": row['CODE'],
                         "name": row.get('DEFINITION_'),
-                        "city": row.get('CITY')
+                        "city": row.get('CITY'),
+                        "specode": row.get('SPECODE'),
+                        "cyphcode": row.get('CYPHCODE')
                     })
             
             ms_conn.close()

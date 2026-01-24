@@ -59,19 +59,27 @@ function generateUsername(str) {
 
     let cleaned = str.trim().split('').map(c => trMap[c] || arMap[c] || c).join('').toLowerCase();
 
-    // Split into parts and take only the first two parts for a shorter username
-    // Split by any non-alphanumeric char
-    let parts = cleaned.split(/[^a-z0-9]+/).filter(p => p.length > 0).slice(0, 2);
+    // Replace non-alphanumeric with space to separate words
+    cleaned = cleaned.replace(/[^a-z0-9]/g, ' ');
 
-    let result = parts.join('.');
+    // Split into parts by space
+    let parts = cleaned.split(/\s+/).filter(p => p.length > 0);
 
-    // Fallback: If result is empty (e.g. unknown characters), return a numeric or default name if original has length
-    if (!result && str.length > 0) {
-        // Just take alphanumeric from original or a placeholder
-        result = str.replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10);
+    // Strategy: Take first part + first letter of last part (if exists)
+    // Avoid repeating name if it's already in the code or description
+
+    let result = "user";
+
+    if (parts.length > 0) {
+        if (parts.length === 1) {
+            result = parts[0];
+        } else {
+            // e.g. "abu zaenab" -> "abu.z"
+            result = `${parts[0]}.${parts[parts.length - 1][0]}`;
+        }
     }
 
-    return result || "user";
+    return result.slice(0, 15); // Limit length
 }
 
 function updateMigrationTargetInfo() {
@@ -711,11 +719,19 @@ async function fetchLogoSchemaInfo() {
                     <tr>
                         <td><input type="checkbox" id="cust-${c.id}" value="${c.id}" checked></td>
                         <td style="font-weight:bold; color:var(--success);">${c.id}</td>
-                        <td title="${c.name}">${c.name.length > 50 ? c.name.substring(0, 50) + '...' : c.name}</td>
-                        <td>${c.city || '-'}</td>
-                        <td>${c.phone || '-'}</td>
+                        <td title="${c.name}">${c.name.length > 40 ? c.name.substring(0, 40) + '...' : c.name}</td>
+                        <td>${c.specode || '-'}</td>
+                        <td>${c.cyphcode || '-'}</td>
+                        <td>
+                            <input type="text" 
+                                class="map-link-input" 
+                                data-id="${c.id}" 
+                                placeholder="https://maps.google.com/..."
+                                style="width:100%; font-size:11px; padding:5px; background:var(--input-bg); border:1px solid var(--input-border); color:white; border-radius:4px;"
+                            >
+                        </td>
                     </tr>
-                `).join('') || '<tr><td colspan="5" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+                `).join('') || '<tr><td colspan="6" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
             }
             return true;
         } else {
@@ -824,9 +840,17 @@ async function startInstallation() {
     }
 
     // 4. Logo Sync (only if a firm was selected in Step 3)
-    const selectedFirm = document.getElementById('logo-firm-select')?.value;
-    if (!appState.migrationMode && appState.config.ms?.host && selectedFirm) {
-        log("Seçili Logo verileri aktarılıyor...");
+    const firmId = document.getElementById('logo-firm-select')?.value;
+    if (!appState.migrationMode && appState.config.ms?.host && firmId) {
+        log("Logo veri aktarımı başlatılıyor...");
+
+        // Collect MAP LINKS for customers
+        const customerInputs = Array.from(document.querySelectorAll('.map-link-input'));
+        const customerMap = {};
+        customerInputs.forEach(inp => {
+            const val = inp.value.trim();
+            if (val) customerMap[inp.getAttribute('data-id')] = val;
+        });
 
         const salesmen = Array.from(document.querySelectorAll('#list-salesmen input[type="checkbox"]:checked')).map(cb => {
             const id = cb.value;
@@ -838,8 +862,13 @@ async function startInstallation() {
             };
         });
 
-        const warehouses = Array.from(document.querySelectorAll('#list-warehouses input[type="checkbox"]:checked')).map(cb => cb.value);
-        const customers = Array.from(document.querySelectorAll('#list-customers input[type="checkbox"]:checked')).map(cb => cb.value);
+        // Prepare selected customers list with map links
+        const selectedCustomers = Array.from(document.querySelectorAll('#list-customers input[type="checkbox"]:checked')).map(cb => {
+            return {
+                id: cb.value,
+                map_link: customerMap[cb.value] || null
+            };
+        });
 
         // Validation: Unique Usernames
         const usernames = salesmen.map(s => s.username);

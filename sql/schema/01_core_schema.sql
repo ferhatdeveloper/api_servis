@@ -117,6 +117,8 @@ CREATE TABLE IF NOT EXISTS customers (
     longitude DECIMAL(11, 8),
     altitude DECIMAL(7, 2),
     google_maps_link TEXT,
+    special_code VARCHAR(50),
+    group_code VARCHAR(50),
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
