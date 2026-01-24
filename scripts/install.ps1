@@ -13,53 +13,74 @@ Try {
 }
 Catch { }
 
-# 0. Cleanup / Policy Fix Argument Handling
-# Fallback support for Invoke-Expression (iex) which doesn't support -Arguments
+$RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
+$DefaultDir = "C:\ExfinApi"
+
+# --- INTERACTIVE MAIN MENU ---
+Write-Host "`n==========================================" -ForegroundColor Cyan
+Write-Host "   EXFIN OPS API - AKILLI KURULUM SİSTEMİ" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
 
+if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
+    Write-Host "`n[MENÜ] Lütfen yapmak istediğiniz işlemi seçin:" -ForegroundColor White
+    Write-Host "1) Standart Kurulum / Güncelleme (Önerilen)" -ForegroundColor Green
+    Write-Host "2) Python Temizleme Aracı (Bağımlılık Sorunlarını Çözer)" -ForegroundColor Yellow
+    Write-Host "3) Sistem Politikası Düzeltici (0x80070659 / 0x80070643 Fix)" -ForegroundColor Magenta
+    Write-Host "4) Sadece Windows Servisi Kur/Yönet" -ForegroundColor Cyan
+    Write-Host "5) Çıkış" -ForegroundColor White
+    
+    $MainChoice = Read-Host "`nSeçiminiz (1-5)"
+    
+    switch ($MainChoice) {
+        "1" { $OPS_MODE = "install" }
+        "2" { $OPS_MODE = "cleanup" }
+        "3" { $OPS_MODE = "fix-policy" }
+        "4" { $OPS_MODE = "service-only" }
+        "5" { return }
+        default { $OPS_MODE = "install" }
+    }
+}
+
+# 0. Argument / Menu Action Handling
 if ($OPS_MODE -eq "cleanup") {
-    Write-Host "[BİLGİ] Python Temizleme Aracı başlatılıyor..." -ForegroundColor Yellow
-    # Cache-busting download
+    Write-Host "`n[BİLGİ] Python Temizleme Aracı başlatılıyor..." -ForegroundColor Yellow
     $Id = Get-Random
     $CleanupUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/cleanup_python.ps1?v=$Id"
     $CleanupPath = Join-Path $env:TEMP "cleanup_python.ps1"
     Invoke-WebRequest -Uri $CleanupUrl -OutFile $CleanupPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
-    if (Test-Path $CleanupPath) {
-        & $CleanupPath
-    }
-    else {
-        Write-Host "[HATA] Temizleme aracı indirilemedi." -ForegroundColor Red
-    }
+    if (Test-Path $CleanupPath) { & $CleanupPath }
+    else { Write-Host "[HATA] Temizleme aracı indirilemedi." -ForegroundColor Red }
     return
 }
 
 if ($OPS_MODE -eq "fix-policy") {
-    Write-Host "[BİLGİ] Kurulum Politikası Düzeltici başlatılıyor..." -ForegroundColor Yellow
-    # Cache-busting download
+    Write-Host "`n[BİLGİ] Kurulum Politikası Düzeltici başlatılıyor..." -ForegroundColor Yellow
     $Id = Get-Random
     $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1?v=$Id"
     $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
     Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
-    if (Test-Path $FixPath) {
-        & $FixPath
+    if (Test-Path $FixPath) { & $FixPath }
+    else { Write-Host "[HATA] Düzeltme aracı indirilemedi." -ForegroundColor Red }
+    return
+}
+
+if ($OPS_MODE -eq "service-only") {
+    Write-Host "`n[BİLGİ] Servis Yönetimi başlatılıyor..." -ForegroundColor Cyan
+    # If already cloned, run local bat
+    if (Test-Path "$DefaultDir\scripts\install_service.bat") {
+        Start-Process -FilePath "$DefaultDir\scripts\install_service.bat" -Verb RunAs
     }
     else {
-        Write-Host "[HATA] Düzeltme aracı indirilemedi." -ForegroundColor Red
+        Write-Host "[HATA] Uygulama henüz kurulu değil. Lütfen önce '1' seçeneği ile kurulum yapın." -ForegroundColor Red
     }
     return
 }
 
-$RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
-
-$DefaultDir = "C:\ExfinApi"
-
-Write-Host "`n==========================================" -ForegroundColor Cyan
-Write-Host "   EXFIN OPS API - ONE-LINE INSTALLER v5.5" -ForegroundColor Cyan
-Write-Host "==========================================`n" -ForegroundColor Cyan
-
 # 1. Yönetici Kontrolü
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "[HATA] Lütfen PowerShell'i 'Yönetici Olarak' çalıştırın!" -ForegroundColor Red
+    Write-Host "`n[HATA] Lütfen PowerShell'i 'YÖNETİCİ OLARAK' çalıştırın!" -ForegroundColor Red
     return
 }
 
