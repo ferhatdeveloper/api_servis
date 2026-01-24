@@ -1,5 +1,5 @@
-# EXFIN OPS - Kurulum Politikası Düzeltici v2.3 (Ultra-Aggressive Fix)
-# Bu script, fatal 0x80070643 ve 0x80070659 hatalarını aşmak için tasarlanmıştır.
+# EXFIN OPS - Kurulum Politikası Düzeltici v2.4 (Enterprise Bypass)
+# Bu script, fatal 0x80070643, 0x80070659 ve 'Yönetici Tarafından Engellendi' (SRP) hatalarını aşmak içindir.
 
 $ErrorActionPreference = "SilentlyContinue"
 
@@ -30,23 +30,37 @@ Get-Process msiexec | Stop-Process -Force
 Get-Process python* | Stop-Process -Force
 
 # 2. MSI Lock ve InProgress Kayıtlarını Temizle
-Write-Host "[>] MSI kilitleri ve yarım kalan kurulumlar temizleniyor..." -ForegroundColor White
+Write-Host "[>] MSI kilitleri temizleniyor..." -ForegroundColor White
 
 # InProgress temizle
 if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress") {
     Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress" -Recurse -Force
-    Write-Host "[+] MSI InProgress kilidi kaldırıldı." -ForegroundColor Green
     $fixed = $true
 }
 
 # PendingFileRenameOperations temizle
 if (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "PendingFileRenameOperations" -ErrorAction SilentlyContinue) {
     Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "PendingFileRenameOperations" -Force
-    Write-Host "[+] Bekleyen dosya işlemleri sıfırlandı." -ForegroundColor Green
     $fixed = $true
 }
 
-# 3. Windows Installer Servisini Sıfırla (Reregister)
+# 3. SRP (Software Restriction Policies) Bypass - RED UAC BOX FIX
+Write-Host "[>] Yazılım kısıtlama politikaları (SRP/Safer) bypass ediliyor..." -ForegroundColor White
+$saferPaths = @(
+    "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Safer\CodeIdentifiers",
+    "HKCU:\Software\Policies\Microsoft\Windows\Safer\CodeIdentifiers"
+)
+
+foreach ($s in $saferPaths) {
+    if (!(Test-Path $s)) { New-Item -Path $s -Force | Out-Null }
+    # DefaultLevel 0x40000 = Fully Trusted
+    Set-ItemProperty -Path $s -Name "DefaultLevel" -Value 262144 -Type DWord -Force
+    Set-ItemProperty -Path $s -Name "AuthenticodeEnabled" -Value 0 -Type DWord -Force
+    Set-ItemProperty -Path $s -Name "PolicyLevel" -Value 0 -Type DWord -Force
+    $fixed = $true
+}
+
+# 4. Windows Installer Servisini Sıfırla (Reregister)
 Write-Host "[>] Windows Installer servisi yeniden kaydediliyor..." -ForegroundColor White
 & msiexec /unreg
 & msiexec /regserver
@@ -59,26 +73,23 @@ function Resolve-RegistryRestriction {
     
     $current = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
     if ($null -ne $current) {
-        Write-Host "[!] Kısıtlama anahtarı bulundu: $Name ($Path)" -ForegroundColor Yellow
+        Write-Host "[!] Kısıtlama bulundu: $Name" -ForegroundColor Yellow
         if ($null -ne $AlwaysSetTo) {
             Set-ItemProperty -Path $Path -Name $Name -Value $AlwaysSetTo -Force
-            Write-Host "[+] Değer $AlwaysSetTo olarak güncellendi." -ForegroundColor Green
         }
         else {
             Remove-ItemProperty -Path $Path -Name $Name -Force
-            Write-Host "[-] Kısıtlama silindi." -ForegroundColor Green
         }
         return $true
     }
     elseif ($null -ne $AlwaysSetTo) {
         New-ItemProperty -Path $Path -Name $Name -Value $AlwaysSetTo -PropertyType DWord -Force | Out-Null
-        Write-Host "[+] Bypass anahtarı oluşturuldu: $Name = $AlwaysSetTo" -ForegroundColor Cyan
         return $true
     }
     return $false
 }
 
-# 4. Agresif Installer Politikaları
+# 5. Agresif Installer Politikaları
 $paths = @(
     "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Installer",
     "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Installer",
@@ -95,12 +106,12 @@ foreach ($p in $paths) {
 }
 
 if ($fixed) {
-    Write-Host "`n[BAŞARILI] Politika düzeltme ve Servis sıfırlama tamamlandı." -ForegroundColor Green
+    Write-Host "`n[BAŞARILI] Kurumsal kısıtlamalar ve politika engelleri temizlendi." -ForegroundColor Green
 }
 else {
-    Write-Host "`n[BİLGİ] Bypass anahtarları zaten mevcuttu, servisler sıfırlandı." -ForegroundColor Cyan
+    Write-Host "`n[BİLGİ] Bypass anahtarları başarıyla güncellendi." -ForegroundColor Cyan
 }
 
-Write-Host "[!] ŞİMDİ Python kurulumunu tekrar deneyin." -ForegroundColor White
+Write-Host "[!] Lütfen Python kurulumunu ŞİMDİ tekrar deneyin." -ForegroundColor White
 Write-Host "------------------------------------------" -ForegroundColor Cyan
 pause

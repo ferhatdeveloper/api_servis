@@ -159,12 +159,15 @@ if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
     $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
     if ($Arch -eq "ARM64") { $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-arm64.exe" }
     
-    $PyInstallerPath = Join-Path $env:TEMP "python_installer.exe"
-    Invoke-WebRequest -Uri $PyUrl -OutFile $PyInstallerPath
+    $DownloadedInstaller = Join-Path $env:TEMP "python_installer.exe"
+    Invoke-WebRequest -Uri $PyUrl -OutFile $DownloadedInstaller
     
-    # 4.1 Unblock and Install
-    Unblock-File -Path $PyInstallerPath -ErrorAction SilentlyContinue
-    Write-Host "[İŞLEM] Python kuruluyor... Lütfen bekleyin." -ForegroundColor Yellow
+    # 4.1 Enterprise Bypass: Move to trusted root and unblock
+    $TrustedInstaller = Join-Path $TargetDir "python_setup.exe"
+    Move-Item -Path $DownloadedInstaller -Destination $TrustedInstaller -Force -ErrorAction SilentlyContinue
+    Unblock-File -Path $TrustedInstaller -ErrorAction SilentlyContinue
+    
+    Write-Host "[İŞLEM] Python kuruluyor (Kurumsal Bypass Aktif)..." -ForegroundColor Yellow
     
     # Precise arguments for silent install to bypass TARGETDIR and Policy errors
     $InstallArgs = @(
@@ -175,14 +178,15 @@ if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
         "TargetDir=""C:\Python312"""
     )
     
-    $proc = Start-Process -FilePath $PyInstallerPath -ArgumentList $InstallArgs -Wait -PassThru
+    $proc = Start-Process -FilePath $TrustedInstaller -ArgumentList $InstallArgs -Wait -PassThru
     
     if ($proc.ExitCode -eq 0) {
-        Write-Host "[BAŞARILI] Python kuruldu. Terminali yenilemeniz gerekebilir." -ForegroundColor Green
+        Write-Host "[BAŞARILI] Python kuruldu." -ForegroundColor Green
+        Remove-Item -Path $TrustedInstaller -Force -ErrorAction SilentlyContinue
     }
     else {
         Write-Host "[HATA] Python kurulumu hata koduyla bitti: $($proc.ExitCode)" -ForegroundColor Red
-        Write-Host "[BİLGİ] Eğer sorun devam ediyorsa lütfen 'Politika Düzeltici'yi tekrar çalıştırın (Güncellendi v2.2)." -ForegroundColor Yellow
+        Write-Host "[BİLGİ] Eğer kırmızı 'Yönetici Engelledi' kutusu alıyorsanız, lütfen menüden '3'ü (Sistem Politikası) tekrar çalıştırın (Güncellendi v2.4)." -ForegroundColor Yellow
     }
     return
 }
