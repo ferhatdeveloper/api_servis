@@ -666,6 +666,35 @@ async function testDB(type) {
     }
 }
 
+async function fetchLogoFirms() {
+    const firmArea = document.getElementById('logo-firm-area');
+    const firmSelect = document.getElementById('logo-firm-select');
+
+    if (!firmSelect || !appState.config.ms) return;
+
+    try {
+        const res = await fetch('/api/logo-firms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(appState.config.ms)
+        });
+        const data = await res.json();
+
+        if (data.success && data.firms && data.firms.length > 0) {
+            firmSelect.innerHTML = '<option value="">Firma Seçin...</option>' +
+                data.firms.map(f => `<option value="${f.nr}">${f.nr} - ${f.name}</option>`).join('');
+
+            if (firmArea) firmArea.classList.remove('hidden');
+        } else {
+            firmSelect.innerHTML = '<option value="">Firma bulunamadı</option>';
+            if (firmArea) firmArea.classList.add('hidden');
+        }
+    } catch (e) {
+        console.error('Logo firmalar alınamadı:', e);
+        firmSelect.innerHTML = '<option value="">Hata: Firmalar yüklenemedi</option>';
+    }
+}
+
 async function handleDBFinish() {
     const firmId = document.getElementById('logo-firm-select')?.value;
     const msHost = appState.config.ms?.host;
