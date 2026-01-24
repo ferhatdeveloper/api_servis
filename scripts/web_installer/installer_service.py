@@ -58,6 +58,20 @@ class InstallerService:
         except Exception:
             checks["ram_gb"] = 0
 
+        # Check Deployment Mode (from start_setup)
+        deployment_mode = "1" # Default to Service
+        try:
+            import sqlite3
+            db_path = os.path.join(self.project_dir, "api.db")
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                row = conn.execute("SELECT value FROM settings WHERE key = 'DeploymentMode'").fetchone()
+                if row:
+                    deployment_mode = row[0]
+                conn.close()
+        except: pass
+
+        checks["deployment_mode"] = deployment_mode
         return checks
             
     def setup_postgresql(self, host, port, user, pwd, dbname, app_type="OPS", load_demo=False):

@@ -8,7 +8,8 @@ const appState = {
     },
     migrationMode: false,
     remoteConnStr: null,
-    targetDB: 'postgres'
+    targetDB: 'postgres',
+    deploymentMode: "1" // 1=Service, 2=Tray
 };
 
 function getVal(id, fallback = "") {
@@ -383,6 +384,10 @@ async function runPrerequisiteChecks() {
         updateCheck('chk-admin', data.is_admin);
         updateCheck('chk-python', parseFloat(data.python_version) >= 3.1);
         updateCheck('chk-ram', data.ram_gb >= 2);
+
+        if (data.deployment_mode) {
+            appState.deploymentMode = data.deployment_mode;
+        }
 
         // Always enable start for exploration, but can warn later
         const startBtn = document.getElementById('btn-start');
@@ -857,43 +862,52 @@ async function startInstallation() {
         }
     }
 
-    // 5. Install Service
-    log("Windows Servisi kuruluyor...");
+    // 5. Deployment Step
+    if (appState.deploymentMode === "1") {
+        log("Windows Servisi kuruluyor...");
+        try {
+            const instRes = await fetch('/api/install-service', { method: 'POST' });
+            const instData = await instRes.json();
 
-    try {
-        const instRes = await fetch('/api/install-service', { method: 'POST' });
-        const instData = await instRes.json();
-
-        if (instData.success) {
-            log(instData.message);
-
-            // 6. Create Shortcuts
-            try {
-                await fetch('/api/create-shortcuts', { method: 'POST' });
-                log("Masaüstü kısayolu oluşturuldu. 🖥️");
-            } catch (shortE) {
-                log("UYARI: Kısayol oluşturulamadı.");
+            if (instData.success) {
+                log(instData.message);
+                // 6. Create Shortcuts
+                try {
+                    await fetch('/api/create-shortcuts', { method: 'POST' });
+                    log("Masaüstü kısayolu oluşturuldu. 🖥️");
+                } catch (shortE) {
+                    log("UYARI: Kısayol oluşturulamadı.");
+                }
+                finishAndShowSuccess();
+            } else {
+                log("HATA: Servis kurulamadı.");
+                log(instData.error);
             }
-
-            log("Lütfen bekleyin...");
-
-            setTimeout(() => {
-                document.querySelector('.progress-container').style.display = 'none';
-                document.getElementById('install-logs').style.display = 'none';
-
-                const appNameSpan = document.getElementById('success-app-name');
-                if (appNameSpan) appNameSpan.innerText = appState.selectedApp || "OPS";
-
-                document.getElementById('success-screen').classList.remove('hidden');
-            }, 2000);
-
-        } else {
-            log("HATA: Servis kurulamadı.");
-            log(instData.error);
+        } catch (e) {
+            log("Kritik sunucu hatası (Install).");
         }
-    } catch (e) {
-        log("Kritik sunucu hatası (Install).");
+    } else {
+        log("Hızlı başlatma (Tray) modu seçildi.");
+        try {
+            const res = await fetch('/api/launch-tray', { method: 'POST' });
+            log("Yönetim paneli (Tray) başlatılıyor...");
+            finishAndShowSuccess();
+        } catch (e) {
+            log("Tray başlatma hatası.");
+        }
     }
+}
+
+function finishAndShowSuccess() {
+    setTimeout(() => {
+        document.querySelector('.progress-container').style.display = 'none';
+        document.getElementById('install-logs').style.display = 'none';
+
+        const appNameSpan = document.getElementById('success-app-name');
+        if (appNameSpan) appNameSpan.innerText = appState.selectedApp || "OPS";
+
+        document.getElementById('success-screen').classList.remove('hidden');
+    }, 2000);
 }
 
 async function launchTray() {

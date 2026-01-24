@@ -143,6 +143,27 @@ def main():
     
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
+    # Parse deployment mode (1=Service, 2=Tray)
+    deployment_mode = "1"
+    if "--mode" in sys.argv:
+        try:
+            m_idx = sys.argv.index("--mode")
+            if len(sys.argv) > m_idx + 1:
+                deployment_mode = sys.argv[m_idx + 1]
+        except: pass
+
+    # Persist choice for wizard
+    try:
+        import sqlite3
+        db_path = os.path.join(base_dir, "api.db")
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('DeploymentMode', ?)", (deployment_mode,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Error saving deployment mode: {e}")
+
     # 1. Check/Install Dependencies
     try:
         install_dependencies()
