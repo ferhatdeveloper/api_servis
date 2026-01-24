@@ -54,11 +54,21 @@ else {
 # 4. Python Kontrolü
 if (!(Get-Command python -ErrorAction SilentlyContinue)) {
     Write-Host "[HATA] Python bulunamadı!" -ForegroundColor Red
-    Write-Host "[BİLGİ] Önerilen Sürüm: Python 3.12.8 (64-bit)" -ForegroundColor Cyan
-    Write-Host "[BİLGİ] İndirme Linki: https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe" -ForegroundColor Cyan
-    Start-Process "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
+    
+    $Arch = $env:PROCESSOR_ARCHITECTURE
+    $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
+    if ($Arch -eq "ARM64") {
+        $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-arm64.exe"
+    }
+
+    Write-Host "[BİLGİ] Sistem Mimarisi: $Arch" -ForegroundColor Yellow
+    Write-Host "[BİLGİ] Önerilen Sürüm: Python 3.12.8 ($Arch)" -ForegroundColor Cyan
+    Write-Host "[BİLGİ] İndirme Linki: $PyUrl" -ForegroundColor Cyan
+    
+    Start-Process $PyUrl
     return
 }
+
 
 $PyVer = python --version 2>&1
 Write-Host "[BİLGİ] Mevcut $PyVer tespit edildi." -ForegroundColor Yellow
