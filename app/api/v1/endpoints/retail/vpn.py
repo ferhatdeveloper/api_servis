@@ -1,10 +1,11 @@
 ﻿"""
 ExRetailOS VPN Manager API Endpoints
-FastAPI routes for VPN management
+VPN Yönetim Modülü (WireGuard)
+Mağazalar ve merkez arası güvenli bağlantı yönetimi.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import datetime
 import sys
@@ -35,44 +36,48 @@ def get_vpn_manager():
 
 # Pydantic Models
 class VPNClientCreate(BaseModel):
-    name: str
-    type: str = "store"  # store, fieldsales, warehouse, central
-    location: Optional[str] = None
-    device_type: str = "desktop"  # desktop, mobile, server
+    name: str = Field(..., description="VPN istemci adı (Mağaza veya kişi ismi)")
+    type: str = Field("store", description="İstemci türü: 'store', 'fieldsales', 'warehouse', 'central'")
+    location: Optional[str] = Field(None, description="Fiziksel konum bilgisi")
+    device_type: str = Field("desktop", description="Cihaz tipi: 'desktop', 'mobile', 'server'")
 
 
 class VPNClientResponse(BaseModel):
-    id: str
-    name: str
-    type: str
-    public_key: str
-    ip_address: str
+    id: str = Field(..., description="Unique Client ID")
+    name: str = Field(..., description="İstemci Adı")
+    type: str = Field(..., description="Tür")
+    public_key: str = Field(..., description="WireGuard Public Key")
+    ip_address: str = Field(..., description="Atanan VPN IP Adresi")
     location: str
     device_type: str
-    status: str
+    status: str = Field(..., description="Bağlantı Durumu")
     created_at: str
-    data_transferred: Dict[str, int]
+    data_transferred: Dict[str, int] = Field(..., description="Veri transfer istatistikleri (byte)")
 
 
 class VPNServerStatus(BaseModel):
-    status: str
-    port: int
+    status: str = Field(..., description="Sunucu durumu: 'running', 'stopped'")
+    port: int = Field(..., description="Dinlenen Port (UDP)")
     public_key: Optional[str]
-    network: str
+    network: str = Field(..., description="VPN Alt Ağı (10.8.0.0/24)")
     connected_clients: int
     total_clients: int
-    interface: str
+    interface: str = Field(..., description="Ağ arayüzü (wg0)")
 
 
 class VPNConfigResponse(BaseModel):
-    config: str
-    filename: str
+    config: str = Field(..., description="İstemci konfigürasyon dosyası içeriği")
+    filename: str = Field(..., description="Dosya adı (.conf)")
 
 
 # Endpoints
 @router.get("/status", response_model=VPNServerStatus)
 async def get_server_status():
-    """Get VPN server status"""
+    """
+    **VPN Sunucu Durumu**
+
+    VPN sunucusunun anlık durumunu, çalışan portu ve bağlı istemci sayısını döner.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -83,7 +88,11 @@ async def get_server_status():
 
 @router.post("/server/start")
 async def start_server():
-    """Start VPN server"""
+    """
+    **Sunucuyu Başlat**
+
+    WireGuard servisini sunucu üzerinde başlatır.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -97,7 +106,11 @@ async def start_server():
 
 @router.post("/server/stop")
 async def stop_server():
-    """Stop VPN server"""
+    """
+    **Sunucuyu Durdur**
+
+    WireGuard servisini durdurur. Tüm bağlantılar kesilir.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -111,7 +124,11 @@ async def stop_server():
 
 @router.get("/clients", response_model=List[VPNClientResponse])
 async def list_clients():
-    """List all VPN clients"""
+    """
+    **İstemci Listesi**
+
+    Kayıtlı tüm VPN istemcilerini ve son durumlarını listeler.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -122,7 +139,11 @@ async def list_clients():
 
 @router.get("/clients/{client_id}", response_model=VPNClientResponse)
 async def get_client(client_id: str):
-    """Get specific VPN client"""
+    """
+    **İstemci Detayı**
+
+    Belirli bir istemcinin detaylı bilgilerini döner.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -136,7 +157,12 @@ async def get_client(client_id: str):
 
 @router.post("/clients", response_model=VPNClientResponse)
 async def create_client(client_data: VPNClientCreate):
-    """Create new VPN client"""
+    """
+    **Yeni İstemci Ekle**
+
+    Yeni bir VPN kullanıcısı oluşturur (Public/Private key üretir).
+    Otomatik olarak bir IP adresi atar.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -156,7 +182,11 @@ async def create_client(client_data: VPNClientCreate):
 
 @router.delete("/clients/{client_id}")
 async def delete_client(client_id: str):
-    """Delete VPN client"""
+    """
+    **İstemci Sil**
+
+    İstemciyi sistemden ve WireGuard konfigürasyonundan kaldırır.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -170,7 +200,12 @@ async def delete_client(client_id: str):
 
 @router.get("/clients/{client_id}/config", response_model=VPNConfigResponse)
 async def get_client_config(client_id: str, server_endpoint: str = "45.123.45.67:51820"):
-    """Get client configuration file"""
+    """
+    **Konfigürasyon Dosyası İndir**
+
+    İstemci (client) tarafında import edilecek .conf dosyasını oluşturur.
+    Bu dosya WireGuard istemcisine yüklenerek bağlantı sağlanır.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -190,7 +225,11 @@ async def get_client_config(client_id: str, server_endpoint: str = "45.123.45.67
 
 @router.post("/export")
 async def export_database():
-    """Export VPN database"""
+    """
+    **Veritabanı Dışa Aktar**
+
+    VPN istemci veritabanını JSON olarak yedekler.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -201,7 +240,11 @@ async def export_database():
 
 @router.post("/import")
 async def import_database(filepath: str = "./vpn_database.json"):
-    """Import VPN database"""
+    """
+    **Veritabanı İçe Aktar**
+
+    JSON yedeğinden VPN istemci listesini geri yükler.
+    """
     vpn = get_vpn_manager()
     if not vpn:
         raise HTTPException(status_code=500, detail="VPN Manager not available")
@@ -216,55 +259,36 @@ async def import_database(filepath: str = "./vpn_database.json"):
 # Demo endpoint for testing without WireGuard
 @router.get("/demo/clients")
 async def get_demo_clients():
-    """Get demo VPN clients (for testing without WireGuard)"""
+    """
+    **Demo İstemci Listesi**
+
+    WireGuard kurulumu olmayan ortamlar için örnek/mock veri döner.
+    Test amaçlıdır.
+    """
     demo_clients = [
         {
             "id": "1",
-            "name": "Merkez MaÄŸaza - Ä°stanbul",
+            "name": "Merkez Mağaza - İstanbul",
             "type": "central",
             "public_key": "CENTRAL_PUB_KEY_ABC123",
             "ip_address": "10.8.0.1",
             "status": "connected",
-            "location": "Ä°stanbul, TÃ¼rkiye",
+            "location": "İstanbul, Türkiye",
             "device_type": "server",
             "created_at": datetime.now().isoformat(),
             "data_transferred": {"upload": 157286400, "download": 335544320}
         },
         {
             "id": "2",
-            "name": "Åube 1 - Ankara",
+            "name": "Şube 1 - Ankara",
             "type": "store",
             "public_key": "STORE1_PUB_KEY_DEF456",
             "ip_address": "10.8.0.2",
             "status": "connected",
-            "location": "Ankara, TÃ¼rkiye",
+            "location": "Ankara, Türkiye",
             "device_type": "desktop",
             "created_at": datetime.now().isoformat(),
             "data_transferred": {"upload": 83886080, "download": 125829120}
-        },
-        {
-            "id": "3",
-            "name": "Depo 1 - Gebze",
-            "type": "warehouse",
-            "public_key": "WMS1_PUB_KEY_JKL012",
-            "ip_address": "10.8.0.4",
-            "status": "connected",
-            "location": "Gebze, Kocaeli",
-            "device_type": "server",
-            "created_at": datetime.now().isoformat(),
-            "data_transferred": {"upload": 209715200, "download": 524288000}
-        },
-        {
-            "id": "4",
-            "name": "Saha SatÄ±ÅŸ - Ahmet YÄ±lmaz",
-            "type": "fieldsales",
-            "public_key": "FS1_PUB_KEY_MNO345",
-            "ip_address": "10.8.0.5",
-            "status": "connected",
-            "location": "Bursa, TÃ¼rkiye",
-            "device_type": "mobile",
-            "created_at": datetime.now().isoformat(),
-            "data_transferred": {"upload": 15728640, "download": 26214400}
         }
     ]
     return demo_clients

@@ -1,5 +1,6 @@
 """
-Ana API router'ı
+PDKS Ana API Router
+Modülleri birleştiren merkezi router yapılandırması.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -27,7 +28,11 @@ router.include_router(email_settings.router)
 
 @router.get("/")
 async def root():
-    """Ana endpoint"""
+    """
+    **Kök Dizin**
+
+    Servis durumu ve versiyon bilgisini döner.
+    """
     return {
         "message": "EXFIN FastAPI Servisi",
         "version": "1.0.0",
@@ -37,7 +42,11 @@ async def root():
 
 @router.get("/info")
 async def info():
-    """Sistem bilgileri"""
+    """
+    **Sistem Bilgileri**
+
+    Aktif veritabanı, çalışma modu ve özellik durumlarını raporlar.
+    """
     from app.core import config_manager
     
     return {

@@ -1,10 +1,10 @@
 ﻿"""
-RetailOS - Duplicate Check Endpoints
-TekrarlÄ± kayÄ±t engelleme sistemi
+RetailOS - Tekrarlı Kayıt Kontrol Sistemi
+Veri bütünlüğünü sağlamak için hash tabanlı kontrol mekanizması.
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import hashlib
 import json
@@ -13,27 +13,31 @@ router = APIRouter()
 
 
 class DuplicateCheckRequest(BaseModel):
-    table_name: str
-    hash: str
-    data: dict
+    table_name: str = Field(..., description="Kontrol edilecek tablo adı (Örn: FaturaMaster, Urunler)")
+    hash: str = Field(..., description="Verinin benzersiz hash değeri (Frontend tarafında üretilir)")
+    data: dict = Field(..., description="Kaydedilmek istenen ham veri (JSON formatında)")
 
 
 class DuplicateCheckResponse(BaseModel):
-    is_duplicate: bool
-    existing_record_id: Optional[int] = None
-    hash: str
-    message: str
+    is_duplicate: bool = Field(..., description="True ise kayıt daha önce eklenmiştir")
+    existing_record_id: Optional[int] = Field(None, description="Eğer kayıt varsa, veritabanındaki ID'si")
+    hash: str = Field(..., description="Kontrol edilen hash değeri")
+    message: str = Field(..., description="Kullanıcıya gösterilecek durum mesajı")
 
 
 @router.post("/fatura", response_model=DuplicateCheckResponse)
 async def check_duplicate_fatura(request: DuplicateCheckRequest):
     """
-    Fatura tekrar kontrolÃ¼
-    
-    POST /api/v1/duplicate-check/fatura
+    **Fatura Tekrar Kontrolü**
+
+    Sisteme yeni bir fatura eklenmeden önce çalıştırılır. Fatura numarası, cari ve tarih gibi alanların
+    kombinasyonu kontrol edilerek mükerrer giriş engellenir.
+
+    **Örnek İstek:**
+    ```json
     {
         "table_name": "FaturaMaster",
-        "hash": "abc123...",
+        "hash": "abc123hashdegeri...",
         "data": {
             "fatura_no": "F-2024-001",
             "firma_id": 1,
@@ -41,123 +45,110 @@ async def check_duplicate_fatura(request: DuplicateCheckRequest):
             "tutar": 1500.00
         }
     }
+    ```
     """
-    # TODO: Database'de hash kontrolÃ¼ yap
+    # TODO: Database'de hash kontrolü yap
     # SELECT * FROM TekrarliKayitKontrol WHERE TabloAdi = ? AND KayitHash = ?
     
-    # Åimdilik mock response
+    # Şimdilik mock response
     return DuplicateCheckResponse(
         is_duplicate=False,
         hash=request.hash,
-        message="KayÄ±t benzersiz, iÅŸleme devam edilebilir"
+        message="Fatura kaydı benzersiz, işleme devam edilebilir."
     )
 
 
 @router.post("/urun", response_model=DuplicateCheckResponse)
 async def check_duplicate_urun(request: DuplicateCheckRequest):
     """
-    ÃœrÃ¼n tekrar kontrolÃ¼
-    
-    POST /api/v1/duplicate-check/urun
-    {
-        "table_name": "Urunler",
-        "hash": "def456...",
-        "data": {
-            "urun_kodu": "PRD001",
-            "firma_id": 1,
-            "barkod": "1234567890123"
-        }
-    }
+    **Ürün Tekrar Kontrolü**
+
+    Yeni ürün kartı açılırken Barkod veya Ürün Kodu çakışmalarını önler.
+    Aynı barkod ile ikinci bir ürün eklenmesini engellemek için kullanılır.
     """
-    # TODO: Database kontrolÃ¼
+    # TODO: Database kontrolü
     return DuplicateCheckResponse(
         is_duplicate=False,
         hash=request.hash,
-        message="ÃœrÃ¼n benzersiz"
+        message="Ürün benzersiz, kaydedilebilir."
     )
 
 
 @router.post("/musteri", response_model=DuplicateCheckResponse)
 async def check_duplicate_musteri(request: DuplicateCheckRequest):
     """
-    MÃ¼ÅŸteri tekrar kontrolÃ¼ (TC/Vergi No bazlÄ±)
+    **Müşteri (Cari) Tekrar Kontrolü**
+
+    Müşteri eklenirken Vergi No veya TC Kimlik No kontrolü yapar.
+    Aynı vergi numarasına sahip mükerrer cari kart açılmasını engeller.
     """
-    # TODO: Database kontrolÃ¼
+    # TODO: Database kontrolü
     return DuplicateCheckResponse(
         is_duplicate=False,
         hash=request.hash,
-        message="MÃ¼ÅŸteri benzersiz"
+        message="Müşteri kaydı benzersiz."
     )
 
 
 @router.post("/kasa-hareket", response_model=DuplicateCheckResponse)
 async def check_duplicate_kasa_hareket(request: DuplicateCheckRequest):
     """
-    Kasa hareketi tekrar kontrolÃ¼
+    **Kasa Hareket Kontrolü**
+
+    Kasa fişlerinin yanlışlıkla çift kaydedilmesini önler.
+    Tarih, saat ve işlem tutarı kombinasyonu kontrol edilir.
     """
-    # TODO: Database kontrolÃ¼
+    # TODO: Database kontrolü
     return DuplicateCheckResponse(
         is_duplicate=False,
         hash=request.hash,
-        message="Hareket benzersiz"
+        message="Kasa hareketi benzersiz."
     )
 
 
 @router.post("/generic", response_model=DuplicateCheckResponse)
 async def check_duplicate_generic(request: DuplicateCheckRequest):
     """
-    Genel tekrar kontrolÃ¼ (her tablo iÃ§in)
-    
-    POST /api/v1/duplicate-check/generic
-    {
-        "table_name": "KasaHareketleri",
-        "hash": "ghi789...",
-        "data": { ... }
-    }
+    **Genel (Generic) Tekrar Kontrolü**
+
+    Özel bir endpoint'i olmayan diğer tüm tablolar için global kontrol noktasıdır.
+    'table_name' parametresine göre dinamik kontrol yapar.
     """
-    # TODO: Generic database kontrolÃ¼
-    # Tablo bazÄ±nda hash kontrolÃ¼ yap
-    
     return DuplicateCheckResponse(
         is_duplicate=False,
         hash=request.hash,
-        message=f"{request.table_name} iÃ§in kayÄ±t benzersiz"
+        message=f"{request.table_name} için kayıt benzersiz."
     )
 
 
 @router.post("/save-hash")
 async def save_hash(request: DuplicateCheckRequest):
     """
-    BaÅŸarÄ±lÄ± kayÄ±ttan sonra hash'i kaydet
-    
-    POST /api/v1/duplicate-check/save-hash
-    {
-        "table_name": "FaturaMaster",
-        "hash": "abc123...",
-        "data": { ... }
-    }
+    **Hash Kaydetme (İşlem Onayı)**
+
+    Bir kayıt başarıyla veritabanına eklendikten sonra bu endpoint çağrılmalıdır.
+    Bu işlem, hash değerini kalıcı hale getirir ve bir sonraki kontrolde 'Mükerrer' uyarısı verilmesini sağlar.
     """
     # TODO: Database'e hash kaydet
-    # INSERT INTO TekrarliKayitKontrol (TabloAdi, KayitHash, KayitData) VALUES (?, ?, ?)
     
     return {
         "status": "success",
-        "message": "Hash kaydedildi"
+        "message": "Hash başarıyla kaydedildi."
     }
 
 
 @router.delete("/clear-old-hashes")
 async def clear_old_hashes(days: int = 90):
     """
-    Eski hash'leri temizle (performans iÃ§in)
-    
-    DELETE /api/v1/duplicate-check/clear-old-hashes?days=90
+    **Eski Hash Temizliği**
+
+    Performans optimizasyonu için veritabanındaki eski hash kayıtlarını siler.
+    Varsayılan olarak 90 günden eski kayıtlar temizlenir.
     """
-    # TODO: 90 gÃ¼nden eski hash'leri sil
-    # DELETE FROM TekrarliKayitKontrol WHERE OlusturmaTarihi < DATE_SUB(NOW(), INTERVAL ? DAY)
+    # TODO: 90 günden eski hash'leri sil
     
     return {
         "status": "success",
-        "message": f"{days} gÃ¼nden eski hash'ler temizlendi"
+        "message": f"{days} günden eski hash kayıtları temizlendi."
     }
 

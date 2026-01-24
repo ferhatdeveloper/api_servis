@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 from app.core.database import db_manager
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter()
 
@@ -11,41 +11,41 @@ router = APIRouter()
 # =====================================================
 
 class Salesman(BaseModel):
-    id: int
-    logo_ref: int
-    code: str
-    name: str
-    email: Optional[str]
-    phone: Optional[str]
-    is_active: bool
+    id: int = Field(..., description="Sistem ID")
+    logo_ref: int = Field(..., description="Logo LOGICALREF")
+    code: str = Field(..., description="Satış Elemanı Kodu")
+    name: str = Field(..., description="Satış Elemanı Adı")
+    email: Optional[str] = Field(None, description="E-posta Adresi")
+    phone: Optional[str] = Field(None, description="Telefon Numarası")
+    is_active: bool = Field(..., description="Aktiflik Durumu")
 
 class Brand(BaseModel):
-    id: int
-    logo_ref: int
-    code: str
-    name: str
-    description: Optional[str]
-    is_active: bool
+    id: int = Field(..., description="Sistem ID")
+    logo_ref: int = Field(..., description="Logo LOGICALREF")
+    code: str = Field(..., description="Marka Kodu")
+    name: str = Field(..., description="Marka Adı")
+    description: Optional[str] = Field(None, description="Açıklama")
+    is_active: bool = Field(..., description="Aktiflik Durumu")
 
 class SpecialCode(BaseModel):
-    id: int
-    specode_type: str
-    code_number: int
-    code: str
-    name: str
-    is_active: bool
+    id: int = Field(..., description="Sistem ID")
+    specode_type: str = Field(..., description="Kod Tipi: 'customer', 'item', 'invoice'")
+    code_number: int = Field(..., description="Özel Kod Sırası (1-5)")
+    code: str = Field(..., description="Özel Kod")
+    name: str = Field(..., description="Açıklama/Tanım")
+    is_active: bool = Field(..., description="Aktiflik Durumu")
 
 class Campaign(BaseModel):
-    id: int
-    logo_ref: int
-    code: str
-    name: str
-    description: Optional[str]
-    start_date: Optional[str]
-    end_date: Optional[str]
-    discount_rate: Optional[float]
-    campaign_type: Optional[str]
-    is_active: bool
+    id: int = Field(..., description="Sistem ID")
+    logo_ref: int = Field(..., description="Logo LOGICALREF")
+    code: str = Field(..., description="Kampanya Kodu")
+    name: str = Field(..., description="Kampanya Adı")
+    description: Optional[str] = Field(None, description="Kampanya Açıklaması")
+    start_date: Optional[str] = Field(None, description="Başlangıç Tarihi")
+    end_date: Optional[str] = Field(None, description="Bitiş Tarihi")
+    discount_rate: Optional[float] = Field(None, description="İndirim Oranı")
+    campaign_type: Optional[str] = Field(None, description="Kampanya Tipi")
+    is_active: bool = Field(..., description="Aktiflik Durumu")
 
 # =====================================================
 # SYNC ENDPOINTS (Logo'dan Çek)
@@ -54,9 +54,10 @@ class Campaign(BaseModel):
 @router.post("/sync/salesmen")
 async def sync_salesmen(company_id: int):
     """
-    Sync salesmen from Logo ERP
-    
-    Reads SALESMAN table and syncs to EXFIN database.
+    **Satış Elemanlarını Senkronize Et**
+
+    Logo ERP'den satış temsilcilerini (SALESMAN) çeker ve yerel veritabanına kaydeder.
+    Sadece 'Aktif' statüsündeki kayıtlar çekilir.
     """
     try:
         # Get company info
@@ -110,7 +111,7 @@ async def sync_salesmen(company_id: int):
         
         return {
             "success": True,
-            "message": f"Synced {synced_count} salesmen",
+            "message": f"{synced_count} satış elemanı başarıyla senkronize edildi.",
             "count": synced_count
         }
         
@@ -121,7 +122,11 @@ async def sync_salesmen(company_id: int):
 
 @router.post("/sync/brands")
 async def sync_brands(company_id: int):
-    """Sync brands from Logo ERP"""
+    """
+    **Markaları Senkronize Et**
+    
+    Logo ERP'den ürün markalarını (MARK) çeker ve günceller.
+    """
     try:
         company_query = f"SELECT logo_nr FROM companies WHERE id = {company_id}"
         company_result = db_manager.execute_pg_query(company_query)
@@ -163,7 +168,7 @@ async def sync_brands(company_id: int):
         
         return {
             "success": True,
-            "message": f"Synced {synced_count} brands",
+            "message": f"{synced_count} marka başarıyla senkronize edildi.",
             "count": synced_count
         }
         
@@ -175,10 +180,12 @@ async def sync_brands(company_id: int):
 @router.post("/sync/special-codes")
 async def sync_special_codes(company_id: int, specode_type: str = "customer"):
     """
-    Sync special codes from Logo ERP
+    **Özel Kodları Senkronize Et**
     
-    Parameters:
-    - specode_type: customer, item, invoice, order
+    Logo ERP'den Özel Kod (SPECODE) tanımlarını çeker.
+    
+    **Parametreler:**
+    - `specode_type`: Çekilecek kod tipi ('customer', 'item', 'invoice', 'order')
     """
     try:
         company_query = f"SELECT logo_nr FROM companies WHERE id = {company_id}"
@@ -238,7 +245,7 @@ async def sync_special_codes(company_id: int, specode_type: str = "customer"):
         
         return {
             "success": True,
-            "message": f"Synced {synced_count} special codes for {specode_type}",
+            "message": f"{specode_type} için {synced_count} özel kod senkronize edildi.",
             "count": synced_count
         }
         
@@ -249,7 +256,11 @@ async def sync_special_codes(company_id: int, specode_type: str = "customer"):
 
 @router.post("/sync/campaigns")
 async def sync_campaigns(company_id: int, period_id: int):
-    """Sync campaigns from Logo ERP"""
+    """
+    **Kampanyaları Senkronize Et**
+
+    Logo ERP üzerindeki kampanya kartlarını (CAMPAIGN) çeker.
+    """
     try:
         # Get company and period info
         query = f"""
@@ -316,7 +327,7 @@ async def sync_campaigns(company_id: int, period_id: int):
         
         return {
             "success": True,
-            "message": f"Synced {synced_count} campaigns",
+            "message": f"{synced_count} kampanya senkronize edildi.",
             "count": synced_count
         }
         
@@ -328,9 +339,13 @@ async def sync_campaigns(company_id: int, period_id: int):
 @router.post("/sync/all")
 async def sync_all_logo_data(company_id: int, period_id: int = None):
     """
-    Sync all Logo data at once
+    **Tüm Verileri Senkronize Et**
     
-    Syncs: salesmen, brands, special codes, campaigns
+    Logo ERP'den tüm yardımcı verileri tek seferde çeker:
+    - Satış Elemanları
+    - Markalar
+    - Özel Kodlar (Müşteri & Malzeme)
+    - Kampanyalar (Dönem seçilirse)
     """
     try:
         results = {}
@@ -358,7 +373,7 @@ async def sync_all_logo_data(company_id: int, period_id: int = None):
         
         return {
             "success": True,
-            "message": "All Logo data synced successfully",
+            "message": "Tüm Logo verileri başarıyla senkronize edildi.",
             "results": results
         }
         
@@ -373,7 +388,11 @@ async def sync_all_logo_data(company_id: int, period_id: int = None):
 
 @router.get("/salesmen", response_model=List[Salesman])
 async def get_salesmen(company_id: int):
-    """Get all salesmen for a company"""
+    """
+    **Satış Elemanlarını Listele**
+
+    Yerel veritabanındaki satış temsilcilerini döner.
+    """
     try:
         query = f"""
             SELECT id, logo_ref, code, name, email, phone, is_active
@@ -390,7 +409,11 @@ async def get_salesmen(company_id: int):
 
 @router.get("/brands", response_model=List[Brand])
 async def get_brands(company_id: int):
-    """Get all brands for a company"""
+    """
+    **Markaları Listele**
+
+    Yerel veritabanındaki markaları döner.
+    """
     try:
         query = f"""
             SELECT id, logo_ref, code, name, description, is_active
@@ -407,7 +430,11 @@ async def get_brands(company_id: int):
 
 @router.get("/special-codes", response_model=List[SpecialCode])
 async def get_special_codes(company_id: int, specode_type: str = "customer"):
-    """Get special codes for a company"""
+    """
+    **Özel Kodları Listele**
+
+    Belirtilen tipteki özel kodları listeler.
+    """
     try:
         query = f"""
             SELECT id, specode_type, code_number, code, name, is_active
@@ -426,7 +453,11 @@ async def get_special_codes(company_id: int, specode_type: str = "customer"):
 
 @router.get("/campaigns", response_model=List[Campaign])
 async def get_campaigns(company_id: int, period_id: int):
-    """Get campaigns for a company/period"""
+    """
+    **Kampanyaları Listele**
+
+    Aktif kampanyaları listeler.
+    """
     try:
         query = f"""
             SELECT id, logo_ref, code, name, description, 

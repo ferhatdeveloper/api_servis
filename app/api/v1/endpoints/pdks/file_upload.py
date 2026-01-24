@@ -1,5 +1,6 @@
 """
-Dosya yükleme/indirme endpoints
+Dosya Yükleme ve Yönetim API
+PDKS ve diğer modüller için merkezi dosya yönetim sistemi.
 """
 import os
 import shutil
@@ -30,17 +31,20 @@ for dir_path in UPLOAD_DIRS.values():
 
 @router.post("/upload")
 async def upload_file(
-    file: UploadFile = File(...),
-    category: Optional[str] = Query("general", description="Dosya kategorisi"),
-    employee_id: Optional[str] = Query(None, description="Çalışan ID'si"),
+    file: UploadFile = File(..., description="Yüklenecek dosya"),
+    category: Optional[str] = Query("general", description="Dosya kategorisi: 'employee_documents', 'profile_photos', 'general'"),
+    employee_id: Optional[str] = Query(None, description="Çalışan dosyası ise Çalışan ID"),
 ):
     """
-    Dosya yükle
+    **Dosya Yükle**
+
+    Sunucuya dosya yükler ve erişim URL'i döner.
+    Belirtilen 'category' parametresine göre uygun klasöre kayıt yapar.
     
-    Kategoriler:
-    - employee_documents: Çalışan dökümanları
-    - profile_photos: Profil fotoğrafları
-    - general: Genel dosyalar
+    **Kategoriler:**
+    - `employee_documents`: Personel evrakları (Özlük dosyaları vb.)
+    - `profile_photos`: Çalışan profil resimleri
+    - `general`: Genel amaçlı dosyalar
     """
     try:
         # Kategori kontrolü
@@ -97,7 +101,10 @@ async def upload_file(
 @router.get("/download/{file_path:path}")
 async def download_file(file_path: str):
     """
-    Dosya indir
+    **Dosya İndir/Görüntüle**
+
+    Yüklenen dosyaya erişim sağlar.
+    URL, upload işleminden dönen `url` alanındaki yoldur.
     """
     try:
         # Güvenlik kontrolü - path traversal saldırısını önle
@@ -122,7 +129,9 @@ async def download_file(file_path: str):
 @router.delete("/delete/{file_path:path}")
 async def delete_file(file_path: str):
     """
-    Dosya sil
+    **Dosya Sil**
+
+    Sunucudan belirtilen dosyayı kalıcı olarak siler.
     """
     try:
         # Güvenlik kontrolü
@@ -149,11 +158,13 @@ async def delete_file(file_path: str):
 
 @router.get("/list")
 async def list_files(
-    category: Optional[str] = Query("general", description="Dosya kategorisi"),
+    category: Optional[str] = Query("general", description="Dosya kategorisi: 'employee_documents', 'general' vb."),
     employee_id: Optional[str] = Query(None, description="Çalışan ID'si"),
 ):
     """
-    Dosya listesi
+    **Dosya Listesi**
+
+    Belirli bir kategori veya çalışana ait dosyaları listeler.
     """
     try:
         if category not in UPLOAD_DIRS:

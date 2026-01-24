@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Response
 from loguru import logger
 from app.services.system_service import system_service
 from app.services.scheduler_service import scheduler_service
@@ -190,3 +190,23 @@ async def configure_database(req: DBConfigRequest):
         return {"status": "success", "message": "Configuration saved. Please restart the service."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save config: {e}")
+@router.get("/postman-collection")
+async def download_postman_collection(request: Request):
+    """
+    **Postman Koleksiyonunu İndir**
+
+    API'nin güncel OpenAPI şemasını (Swagger) JSON formatında indirir.
+    Bu dosya Postman'e 'Import' edilerek kullanılabilir.
+    """
+    import json
+    
+    openapi_schema = request.app.openapi()
+    
+    # JSON string oluştur
+    content = json.dumps(openapi_schema, ensure_ascii=False, indent=2)
+    
+    return Response(
+        content=content, 
+        media_type="application/json", 
+        headers={"Content-Disposition": "attachment; filename=exfin_ops_openapi.json"}
+    )

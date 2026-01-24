@@ -1,16 +1,14 @@
 ﻿"""
 WhatsApp API Endpoints
 WhatsApp Business messaging integration
-
-@created: 2024-12-18
-@author: ExRetailOS Team
+Twilio veya MessageBird altyapısı ile entegre çalışır.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, date
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.async_database import get_db
 
@@ -22,31 +20,31 @@ router = APIRouter()
 # ============================================================================
 
 class WhatsAppMessageCreate(BaseModel):
-    contact_phone: str
-    message_type: str  # text, image, document, template
-    message_content: str
-    template_id: Optional[str] = None
-    template_variables: Optional[dict] = None
-    media_url: Optional[str] = None
-    transaction_type: Optional[str] = None
-    transaction_id: Optional[str] = None
+    contact_phone: str = Field(..., description="Alıcı Telefon Numarası (Örn: 905xxxxxxxxx)")
+    message_type: str = Field(..., description="Mesaj tipi: 'text', 'image', 'document', 'template'")
+    message_content: str = Field(..., description="Mesaj içeriği")
+    template_id: Optional[str] = Field(None, description="Şablon gönderimi ise Şablon ID")
+    template_variables: Optional[dict] = Field(None, description="Şablon değişkenleri (JSON)")
+    media_url: Optional[str] = Field(None, description="Medya gönderimi için URL")
+    transaction_type: Optional[str] = Field(None, description="İşlem tipi (Sipariş vb.)")
+    transaction_id: Optional[str] = Field(None, description="İşlem ID")
 
 
 class WhatsAppContactCreate(BaseModel):
-    name: str
-    phone: str
-    customer_id: Optional[str] = None
-    tags: Optional[list] = []
+    name: str = Field(..., description="Kişi Adı Soyadı")
+    phone: str = Field(..., description="Telefon Numarası")
+    customer_id: Optional[str] = Field(None, description="Varsa Müşteri ID")
+    tags: Optional[list] = Field([], description="Etiketler (VIP, Tedarikçi vb.)")
 
 
 class WhatsAppTemplateCreate(BaseModel):
-    id: str
-    name: str
-    description: Optional[str] = None
-    content: str
-    category: str  # marketing, transactional, service, utility
-    variables: Optional[list] = []
-    language: str = 'en'
+    id: str = Field(..., description="Şablon ID (Provider tarafındaki ID)")
+    name: str = Field(..., description="Şablon Adı")
+    description: Optional[str] = Field(None, description="Açıklama")
+    content: str = Field(..., description="Şablon İçeriği")
+    category: str = Field(..., description="Kategori: 'marketing', 'elastic', 'utility'")
+    variables: Optional[list] = Field([], description="Değişkenler listesi")
+    language: str = Field('en', description="Dil kodu (tr, en)")
 
 
 # ============================================================================
@@ -56,11 +54,15 @@ class WhatsAppTemplateCreate(BaseModel):
 @router.post("/send")
 async def send_whatsapp_message(
     message: WhatsAppMessageCreate,
-    firma_id: str = Query(...),
+    firma_id: str = Query(..., description="Firma ID"),
     db: Session = Depends(get_db)
 ):
     """
-    Send WhatsApp message
+    **WhatsApp Mesajı Gönder**
+
+    Belirtilen kişiye WhatsApp mesajı gönderir.
+    Eğer kişi rehberde yoksa otomatik oluşturur.
+    Mesajı veritabanına kaydeder ve 'pending' durumuna çeker.
     """
     try:
         import json
@@ -126,13 +128,12 @@ async def send_whatsapp_message(
         
         # TODO: Trigger actual WhatsApp API call
         # await send_via_twilio(message_id)
-        # await send_via_messagebird(message_id)
         
         return {
             "success": True,
             "message_id": message_id,
             "status": "pending",
-            "message": "WhatsApp message queued for sending"
+            "message": "Mesaj gönderim kuyruğuna alındı."
         }
         
     except Exception as e:
@@ -142,17 +143,19 @@ async def send_whatsapp_message(
 
 @router.get("/messages")
 async def list_messages(
-    firma_id: str = Query(...),
-    contact_phone: Optional[str] = None,
-    status: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    firma_id: str = Query(..., description="Firma ID"),
+    contact_phone: Optional[str] = Query(None, description="Filtre: Telefon No"),
+    status: Optional[str] = Query(None, description="Filtre: Durum (sent, read)"),
+    start_date: Optional[date] = Query(None, description="Başlangıç Tarihi"),
+    end_date: Optional[date] = Query(None, description="Bitiş Tarihi"),
     limit: int = Query(100, le=500),
     offset: int = Query(0),
     db: Session = Depends(get_db)
 ):
     """
-    List WhatsApp messages
+    **Mesaj Geçmişi**
+
+    Gönderilen ve alınan WhatsApp mesajlarını listeler.
     """
     try:
         where_clauses = ["firma_id = :firma_id", "direction = 'outbound'"]
@@ -222,14 +225,16 @@ async def list_messages(
 @router.put("/messages/{message_id}/status")
 async def update_message_status(
     message_id: int,
-    status: str = Query(...),
+    status: str = Query(..., description="Yeni durum"),
     message_sid: Optional[str] = None,
     error_code: Optional[str] = None,
     error_message: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Update WhatsApp message status (webhook callback)
+    **Mesaj Durumu Güncelle (Callback)**
+
+    Webhook tarafından çağrılır. Mesajın iletildi/okundu bilgisini işler.
     """
     try:
         query = """
@@ -275,7 +280,9 @@ async def create_contact(
     db: Session = Depends(get_db)
 ):
     """
-    Create WhatsApp contact
+    **Yeni Kişi Ekle**
+
+    WhatsApp rehberine yeni bir kişi kaydeder.
     """
     try:
         import json
@@ -311,13 +318,16 @@ async def create_contact(
 
 @router.get("/contacts")
 async def list_contacts(
-    search: Optional[str] = None,
+    search: Optional[str] = Query(None, description="İsim veya telefon ile arama"),
     limit: int = Query(100, le=500),
     offset: int = Query(0),
     db: Session = Depends(get_db)
 ):
     """
-    List WhatsApp contacts
+    **Kişileri Listele**
+
+    WhatsApp rehberindeki kişileri listeler.
+    Mesaj sayısına göre sıralama yapar.
     """
     try:
         where_clause = "is_active = TRUE"
@@ -376,7 +386,10 @@ async def create_template(
     db: Session = Depends(get_db)
 ):
     """
-    Create WhatsApp template
+    **Şablon Oluştur**
+
+    Yeni bir mesaj şablonu (HSM) kaydeder.
+    WhatsApp tarafından onaylanan şablonlar burada saklanır.
     """
     try:
         import json
@@ -416,12 +429,14 @@ async def create_template(
 
 @router.get("/templates")
 async def list_templates(
-    category: Optional[str] = None,
-    status: Optional[str] = None,
+    category: Optional[str] = Query(None, description="Kategori filtresi"),
+    status: Optional[str] = Query(None, description="Durum filtresi"),
     db: Session = Depends(get_db)
 ):
     """
-    List WhatsApp templates
+    **Şablonları Listele**
+
+    Kayıtlı mesaj şablonlarını listeler.
     """
     try:
         where_clauses = []
@@ -479,13 +494,16 @@ async def list_templates(
 
 @router.get("/stats")
 async def get_whatsapp_stats(
-    firma_id: str = Query(...),
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    firma_id: str = Query(..., description="Firma ID"),
+    start_date: Optional[date] = Query(None, description="Başlangıç"),
+    end_date: Optional[date] = Query(None, description="Bitiş"),
     db: Session = Depends(get_db)
 ):
     """
-    Get WhatsApp statistics
+    **WhatsApp İstatistikleri**
+
+    Mesaj gönderim istatistiklerini raporlar.
+    Gün bazlı gruplama yapar.
     """
     try:
         where_clauses = ["firma_id = :firma_id", "direction = 'outbound'"]

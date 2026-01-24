@@ -25,7 +25,12 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    """Kullanıcı girişi"""
+    """
+    **Kullanıcı Girişi (Login)**
+
+    Kullanıcı adı ve şifre ile sisteme giriş yapar.
+    Başarılı giriş durumunda, diğer endpoint'lerde yetkilendirme için kullanılacak bir **JWT (Bearer)** token döner.
+    """
     # Kullanıcıyı bul
     result = await db.execute(
         select(User).where(User.username == form_data.username)
@@ -61,5 +66,9 @@ async def login(
 async def read_users_me(
     current_user: User = Depends(get_current_active_user)
 ):
-    """Mevcut kullanıcı bilgisi"""
+    """
+    **Mevcut Kullanıcı Bilgisi**
+
+    Token ile giriş yapmış olan kullanıcının profil bilgilerini döner.
+    """
     return current_user

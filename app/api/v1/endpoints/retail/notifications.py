@@ -1,16 +1,14 @@
 ﻿"""
 Notifications API Endpoints
-Multi-channel notification system
-
-@created: 2024-12-18
-@author: ExRetailOS Team
+Çok kanallı (Multi-channel) bildirim sistemi (Push, Email, SMS, In-App).
+OneSignal ve SMTP entegrasyonlarını içerir.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, date
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.async_database import get_db
 
@@ -22,45 +20,48 @@ router = APIRouter()
 # ============================================================================
 
 class NotificationCreate(BaseModel):
-    type: str  # info, success, warning, error
-    channel: str  # push, email, sms, in-app
-    title: str
-    message: str
-    user_id: Optional[str] = None
-    customer_id: Optional[str] = None
-    role_id: Optional[str] = None
-    action_url: Optional[str] = None
-    action_label: Optional[str] = None
-    metadata: Optional[dict] = None
+    type: str = Field(..., description="Bildirim tipi: 'info', 'success', 'warning', 'error'")
+    channel: str = Field(..., description="Gönderim kanalı: 'push', 'email', 'sms', 'in-app' veya 'all'")
+    title: str = Field(..., description="Bildirim başlığı")
+    message: str = Field(..., description="Bildirim içeriği")
+    user_id: Optional[str] = Field(None, description="Hedef kullanıcı ID'si (Boş bırakılırsa genel olabilir)")
+    customer_id: Optional[str] = Field(None, description="İlgili müşteri ID'si (Opsiyonel)")
+    role_id: Optional[str] = Field(None, description="Belirli bir role gönderim yapılacaksa rol ID (Opsiyonel)")
+    action_url: Optional[str] = Field(None, description="Tıklandığında gidilecek URL")
+    action_label: Optional[str] = Field(None, description="Buton üzerinde yazacak metin")
+    metadata: Optional[dict] = Field(None, description="Ekstra veri (JSON objesi)")
 
 
 class NotificationResponse(BaseModel):
-    id: int
-    type: str
-    channel: str
-    title: str
-    message: str
-    status: str
-    read_at: Optional[datetime] = None
+    id: int = Field(..., description="Bildirim ID")
+    type: str = Field(..., description="Bildirim tipi")
+    channel: str = Field(..., description="Kanal")
+    title: str = Field(..., description="Başlık")
+    message: str = Field(..., description="Mesaj")
+    status: str = Field(..., description="Durum: 'pending', 'sent', 'read', 'failed'")
+    read_at: Optional[datetime] = Field(None, description="Okunma zamanı")
     action_url: Optional[str] = None
     action_label: Optional[str] = None
-    created_at: datetime
+    created_at: datetime = Field(..., description="Oluşturulma zamanı")
 
 
 class NotificationPreferences(BaseModel):
-    push_enabled: bool = True
-    email_enabled: bool = True
-    sms_enabled: bool = False
-    in_app_enabled: bool = True
-    categories: dict = {
-        "sales": True,
-        "stock": True,
-        "finance": True,
-        "system": True,
-        "marketing": False
-    }
-    email_address: Optional[str] = None
-    phone_number: Optional[str] = None
+    push_enabled: bool = Field(True, description="Mobil bildirimler açık mı?")
+    email_enabled: bool = Field(True, description="E-posta bildirimleri açık mı?")
+    sms_enabled: bool = Field(False, description="SMS bildirimleri açık mı?")
+    in_app_enabled: bool = Field(True, description="Uygulama içi bildirimler açık mı?")
+    categories: dict = Field(
+        default={
+            "sales": True,
+            "stock": True,
+            "finance": True,
+            "system": True,
+            "marketing": False
+        },
+        description="Bildirim kategorileri ve durumları (Satış, Stok vb.)"
+    )
+    email_address: Optional[str] = Field(None, description="Alternatif e-posta adresi")
+    phone_number: Optional[str] = Field(None, description="SMS için telefon numarası")
 
 
 # ============================================================================
@@ -73,7 +74,14 @@ async def send_notification(
     db: Session = Depends(get_db)
 ):
     """
-    Send a notification
+    **Bildirim Gönder**
+
+    Kullanıcıya veya bir gruba bildirim gönderir.
+    Veritabanına kaydeder ve seçilen kanala (OneSignal Push, Email vb.) iletir.
+    
+    - **push**: OneSignal üzerinden mobil bildirim.
+    - **email**: SMTP üzerinden e-posta.
+    - **in-app**: Sadece uygulama içi paneline düşer.
     """
     try:
         query = """
@@ -117,7 +125,7 @@ async def send_notification(
         return {
             "success": True,
             "notification_id": notification_id,
-            "message": "Notification sent successfully"
+            "message": "Bildirim başarıyla kuyruğa alındı."
         }
         
     except Exception as e:
@@ -126,7 +134,9 @@ async def send_notification(
 
 async def send_push_notification(notification: NotificationCreate):
     """
-    Send Push Notification via OneSignal
+    **OneSignal Push Gönderimi**
+    
+    Arka planda çalışır. Bloklamaması için async/thread kullanır.
     """
     from app.core.config import settings
     import requests
@@ -150,12 +160,7 @@ async def send_push_notification(notification: NotificationCreate):
             "include_external_user_ids": [notification.user_id] if notification.user_id else [] 
         }
         
-        # If no user_id, maybe broadcast to all? 
-        # For safety, let's only send if user_id is present for now, 
-        # or if role_id is present (requires tags/segments implementation in OneSignal which is complex).
         if not payload["include_external_user_ids"]:
-             # Fallback: Send to all 'Active Users' segment if explicitly requested, otherwise skip
-             # payload["included_segments"] = ["Active Users"]
              return
 
         if notification.metadata:
@@ -174,15 +179,18 @@ async def send_push_notification(notification: NotificationCreate):
 
 @router.get("/list")
 async def list_notifications(
-    user_id: str = Query(...),
-    status: Optional[str] = None,
-    type: Optional[str] = None,
+    user_id: str = Query(..., description="Bildirimleri çekilecek kullanıcı ID"),
+    status: Optional[str] = Query(None, description="Filtre: 'read', 'unread' vb."),
+    type: Optional[str] = Query(None, description="Filtre: 'info', 'warning' vb."),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     db: Session = Depends(get_db)
 ):
     """
-    List notifications for a user
+    **Bildirim Listesi**
+
+    Bir kullanıcının geçmiş bildirimlerini listeler.
+    Sayfalama (pagination) ve filtreleme destekler.
     """
     try:
         where_clauses = ["user_id = :user_id"]
@@ -254,13 +262,15 @@ async def mark_as_read(
     db: Session = Depends(get_db)
 ):
     """
-    Mark notification as read
+    **Okundu Olarak İşaretle**
+
+    Tek bir bildirimi okundu (read) durumuna çeker.
     """
     try:
         query = """
             UPDATE notifications
             SET status = 'read',
-                read_at = NOW()
+            read_at = NOW()
             WHERE id = :notification_id
               AND status != 'read'
         """
@@ -280,11 +290,14 @@ async def mark_as_read(
 
 @router.post("/mark-all-read")
 async def mark_all_read(
-    user_id: str = Query(...),
+    user_id: str = Query(..., description="İşlem yapılacak kullanıcı ID"),
     db: Session = Depends(get_db)
 ):
     """
-    Mark all notifications as read for a user
+    **Tümünü Okundu Olarak İşaretle**
+
+    Kullanıcının bekleyen tüm bildirimlerini 'okundu' (read) statüsüne günceller.
+    Genellikle bildirim merkezi açıldığında veya 'Tümünü Okundu Yap' butonu ile çağrılır.
     """
     try:
         query = """
@@ -314,7 +327,9 @@ async def delete_notification(
     db: Session = Depends(get_db)
 ):
     """
-    Delete a notification
+    **Bildirim Sil**
+
+    Belirtilen ID'li bildirimi veritabanından kalıcı olarak siler.
     """
     try:
         query = "DELETE FROM notifications WHERE id = :notification_id"
@@ -323,7 +338,7 @@ async def delete_notification(
         
         return {
             "success": True,
-            "message": "Notification deleted"
+            "message": "Bildirim silindi."
         }
         
     except Exception as e:
@@ -341,7 +356,10 @@ async def get_preferences(
     db: Session = Depends(get_db)
 ):
     """
-    Get notification preferences for a user
+    **Bildirim Tercihleri (Getir)**
+
+    Kullanıcının bildirim ayarlarını döner.
+    Hangi kanalların (Push, Email, SMS) açık olduğu ve kategori bazlı izinleri içerir.
     """
     try:
         query = """
@@ -401,7 +419,10 @@ async def update_preferences(
     db: Session = Depends(get_db)
 ):
     """
-    Update notification preferences
+    **Bildirim Tercihleri (Güncelle)**
+
+    Kullanıcının bildirim ayarlarını kaydeder/günceller.
+    Kullanıcı belirli bir kanalı veya kategoriyi kapatmak isterse burası kullanılır.
     """
     try:
         import json
@@ -451,7 +472,7 @@ async def update_preferences(
         
         return {
             "success": True,
-            "message": "Preferences updated successfully"
+            "message": "Tercihler başarıyla güncellendi."
         }
         
     except Exception as e:
@@ -465,13 +486,16 @@ async def update_preferences(
 
 @router.get("/stats")
 async def get_notification_stats(
-    user_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    user_id: Optional[str] = Query(None, description="Filtre: Kullanıcı ID"),
+    start_date: Optional[date] = Query(None, description="Başlangıç Tarihi"),
+    end_date: Optional[date] = Query(None, description="Bitiş Tarihi"),
     db: Session = Depends(get_db)
 ):
     """
-    Get notification statistics
+    **Bildirim İstatistikleri**
+
+    Sistemdeki bildirimlerin gönderim durumlarını raporlar.
+    Kanal (channel), Tip (type) ve Durum (status) bazında gruplayarak sayılar döner.
     """
     try:
         where_clauses = []

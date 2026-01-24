@@ -1,8 +1,9 @@
 ﻿"""
 RetailOS - Products Endpoints
+Ürün Listeleme ve Detay API
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
@@ -16,12 +17,17 @@ router = APIRouter()
 
 @router.get("/")
 async def get_products(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, description="Atlanacak kayıt"),
+    limit: int = Query(100, description="Listelenecek kayıt sayısı"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """ÃœrÃ¼n listesi"""
+    """
+    **Ürün Listesi**
+
+    Sistemdeki aktif ürünleri listeler.
+    Sayfalama desteği (skip/limit) mevcuttur.
+    """
     result = await db.execute(
         select(Product)
         .where(Product.is_active == True)
@@ -37,7 +43,11 @@ async def get_product(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """ÃœrÃ¼n detayÄ±"""
+    """
+    **Ürün Detayı**
+
+    ID ile belirli bir ürünün detaylarını getirir.
+    """
     result = await db.execute(
         select(Product).where(Product.id == product_id)
     )
@@ -54,7 +64,11 @@ async def get_product_by_barcode(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Barkod ile Ã¼rÃ¼n ara"""
+    """
+    **Barkod ile Ürün Ara**
+
+    Barkod okuyucu veya manuel giriş ile ürün sorgular.
+    """
     result = await db.execute(
         select(Product).where(Product.barcode == barcode)
     )

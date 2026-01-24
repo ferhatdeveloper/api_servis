@@ -14,8 +14,16 @@ def get_metabase_dashboard_url(
     period: Optional[str] = None
 ):
     """
-    Generate a Signed Embedding URL for a specific Metabase Dashboard.
-    Supports filtering by company, branch, and period via parameters.
+    **Metabase Dashboard URL**
+
+    Metabase panolarını gömülü (embed) olarak göstermek için imzalı URL oluşturur.
+    
+    **Filtreler:**
+    - `company_id`: Firma bazlı filtre
+    - `branch_id`: Şube bazlı filtre
+    - `period`: Dönem filtresi
+    
+    Bu parametreler Metabase tarafında 'Locked Parameter' olarak tanımlanmalıdır.
     """
     
     if not settings.METABASE_SECRET_KEY or settings.METABASE_SECRET_KEY == "YOUR_METABASE_SECRET_KEY":

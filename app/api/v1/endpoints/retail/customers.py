@@ -1,6 +1,6 @@
 ﻿"""
 RetailOS - Customers Endpoints
-MÃ¼ÅŸteri CRUD iÅŸlemleri
+Müşteri CRUD işlemleri ve Yönetimi
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -25,15 +25,20 @@ router = APIRouter()
 
 @router.get("/", response_model=CustomerList)
 async def get_customers(
-    skip: int = Query(0, ge=0, description="Atlanacak kayÄ±t sayÄ±sÄ±"),
-    limit: int = Query(50, ge=1, le=100, description="Getirilecek kayÄ±t sayÄ±sÄ±"),
+    skip: int = Query(0, ge=0, description="Atlanacak kayıt sayısı"),
+    limit: int = Query(50, ge=1, le=100, description="Getirilecek kayıt sayısı"),
     search: Optional[str] = Query(None, description="Arama metni (kod, ad, telefon)"),
-    customer_type: Optional[str] = Query(None, description="MÃ¼ÅŸteri tipi filtresi"),
+    customer_type: Optional[str] = Query(None, description="Müşteri tipi filtresi"),
     is_active: Optional[bool] = Query(None, description="Aktif durum filtresi"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """MÃ¼ÅŸteri listesi getir"""
+    """
+    **Müşteri Listesi**
+
+    Kullanıcının firmasına ait müşterileri listeler.
+    İsim, telefon veya kod ile arama yapılabilir.
+    """
     query = db.query(Customer).filter(Customer.firma_id == current_user.firma_id)
     
     # Filtreler
@@ -52,7 +57,7 @@ async def get_customers(
     if is_active is not None:
         query = query.filter(Customer.is_active == is_active)
     
-    # Toplam sayÄ±
+    # Toplam sayı
     total = query.count()
     
     # Sayfalama
@@ -72,7 +77,11 @@ async def get_customer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """MÃ¼ÅŸteri detay getir"""
+    """
+    **Müşteri Detayı**
+    
+    ID ile detaylı müşteri bilgilerini getirir.
+    """
     customer = db.query(Customer).filter(
         Customer.customer_id == customer_id,
         Customer.firma_id == current_user.firma_id
@@ -81,7 +90,7 @@ async def get_customer(
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="MÃ¼ÅŸteri bulunamadÄ±"
+            detail="Müşteri bulunamadı"
         )
     
     return customer
@@ -93,7 +102,11 @@ async def get_customer_by_code(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """MÃ¼ÅŸteri kodu ile getir"""
+    """
+    **Müşteri Kodu ile Ara**
+    
+    Cari koduna göre müşteri getirir.
+    """
     customer = db.query(Customer).filter(
         Customer.customer_code == customer_code.upper(),
         Customer.firma_id == current_user.firma_id
@@ -102,7 +115,7 @@ async def get_customer_by_code(
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"MÃ¼ÅŸteri bulunamadÄ±: {customer_code}"
+            detail=f"Müşteri bulunamadı: {customer_code}"
         )
     
     return customer
@@ -114,7 +127,11 @@ async def get_customer_by_loyalty_card(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Sadakat kartÄ± ile mÃ¼ÅŸteri bilgisi getir"""
+    """
+    **Sadakat Kartı ile Ara**
+    
+    Sadakat kart numarası (Loyalty Card No) ile müşteri bulur.
+    """
     customer = db.query(Customer).filter(
         Customer.loyalty_card_no == card_no,
         Customer.firma_id == current_user.firma_id
@@ -123,7 +140,7 @@ async def get_customer_by_loyalty_card(
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sadakat kartÄ± bulunamadÄ±: {card_no}"
+            detail=f"Sadakat kartı bulunamadı: {card_no}"
         )
     
     return customer
@@ -135,9 +152,14 @@ async def create_customer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Yeni mÃ¼ÅŸteri oluÅŸtur"""
+    """
+    **Yeni Müşteri Ekle**
+
+    Sisteme yeni bir müşteri kaydeder.
+    Müşteri kodu ve E-posta benzersiz olmalıdır.
+    """
     
-    # MÃ¼ÅŸteri kodu kontrolÃ¼
+    # Müşteri kodu kontrolü
     existing = db.query(Customer).filter(
         Customer.customer_code == customer_data.customer_code.upper(),
         Customer.firma_id == current_user.firma_id
@@ -146,10 +168,10 @@ async def create_customer(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Bu mÃ¼ÅŸteri kodu zaten kullanÄ±lÄ±yor: {customer_data.customer_code}"
+            detail=f"Bu müşter kodu zaten kullanılıyor: {customer_data.customer_code}"
         )
     
-    # Email kontrolÃ¼
+    # Email kontrolü
     if customer_data.email:
         existing_email = db.query(Customer).filter(
             Customer.email == customer_data.email,
@@ -159,10 +181,10 @@ async def create_customer(
         if existing_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Bu e-posta adresi zaten kullanÄ±lÄ±yor: {customer_data.email}"
+                detail=f"Bu e-posta adresi zaten kullanılıyor: {customer_data.email}"
             )
     
-    # Yeni mÃ¼ÅŸteri oluÅŸtur
+    # Yeni müşteri oluştur
     customer = Customer(
         **customer_data.dict(),
         created_by=current_user.id
@@ -182,7 +204,11 @@ async def update_customer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """MÃ¼ÅŸteri gÃ¼ncelle"""
+    """
+    **Müşteri Güncelle**
+
+    Mevcut müşteri bilgilerini günceller.
+    """
     customer = db.query(Customer).filter(
         Customer.customer_id == customer_id,
         Customer.firma_id == current_user.firma_id
@@ -191,10 +217,10 @@ async def update_customer(
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="MÃ¼ÅŸteri bulunamadÄ±"
+            detail="Müşteri bulunamadı"
         )
     
-    # GÃ¼ncellemeleri uygula
+    # Güncellemeleri uygula
     update_data = customer_data.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(customer, field, value)
@@ -211,7 +237,12 @@ async def delete_customer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """MÃ¼ÅŸteri sil"""
+    """
+    **Müşteri Sil**
+
+    Müşteri kaydını siler.
+    (Dikkat: İlişkili veriler varsa silme işlemi kısıtlanabilir)
+    """
     customer = db.query(Customer).filter(
         Customer.customer_id == customer_id,
         Customer.firma_id == current_user.firma_id
@@ -220,7 +251,7 @@ async def delete_customer(
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="MÃ¼ÅŸteri bulunamadÄ±"
+            detail="Müşteri bulunamadı"
         )
     
     db.delete(customer)
@@ -236,7 +267,11 @@ async def block_customer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """MÃ¼ÅŸteriyi bloke et"""
+    """
+    **Müşteriyi Bloke Et**
+    
+    Müşteriyi işleme kapatır (Blacklist). Neden belirtmek zorunludur.
+    """
     customer = db.query(Customer).filter(
         Customer.customer_id == customer_id,
         Customer.firma_id == current_user.firma_id
@@ -245,7 +280,7 @@ async def block_customer(
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="MÃ¼ÅŸteri bulunamadÄ±"
+            detail="Müşteri bulunamadı"
         )
     
     customer.is_blocked = True
@@ -253,7 +288,7 @@ async def block_customer(
     
     db.commit()
     
-    return {"message": "MÃ¼ÅŸteri baÅŸarÄ±yla bloke edildi"}
+    return {"message": "Müşteri başarıyla bloke edildi"}
 
 
 @router.post("/{customer_id}/unblock")
@@ -262,7 +297,11 @@ async def unblock_customer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """MÃ¼ÅŸteri blokeyi kaldÄ±r"""
+    """
+    **Müşteri Blokesini Kaldır**
+
+    Bloke edilmiş müşteriyi tekrar aktif hale getirir.
+    """
     customer = db.query(Customer).filter(
         Customer.customer_id == customer_id,
         Customer.firma_id == current_user.firma_id
@@ -271,7 +310,7 @@ async def unblock_customer(
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="MÃ¼ÅŸteri bulunamadÄ±"
+            detail="Müşteri bulunamadı"
         )
     
     customer.is_blocked = False
@@ -279,4 +318,4 @@ async def unblock_customer(
     
     db.commit()
     
-    return {"message": "MÃ¼ÅŸteri blokesi kaldÄ±rÄ±ldÄ±"}
+    return {"message": "Müşteri blokesi kaldırıldı"}
