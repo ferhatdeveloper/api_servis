@@ -277,7 +277,9 @@ class InstallerService:
         port = int(config.get("port", 0) or (5432 if "postgres" in db_type else 1433))
         username = config.get("username")
         password = config.get("password")
+
         target_dbname = config.get("database")
+        method = config.get("method", "direct")
         
         if "postgres" in db_type:
             import psycopg2
@@ -363,7 +365,10 @@ class InstallerService:
                 try:
                     conn = pymssql.connect(server=host, user=username, password=password, database=target_dbname, timeout=3, charset='UTF-8')
                     conn.close()
-                    return {"success": True, "message": "Logo (MSSQL) Bağlantısı Başarılı! 🏢✅"}
+                    msg = "Logo (MSSQL) Bağlantısı Başarılı! 🏢✅"
+                    if method == "object":
+                        msg += " (Mod: Object DLL)"
+                    return {"success": True, "message": msg}
                 except Exception as e:
                     err_msg = self._extract_error(e)
                     # If it's a login failure or connection failure, we might want to check if the server is even there
@@ -872,8 +877,18 @@ class InstallerService:
                              host TEXT, 
                              port INTEGER, 
                              database TEXT, 
+
                              username TEXT, 
-                             password TEXT)''')
+                             password TEXT,
+                             method TEXT)''')
+            
+            # Check if method column exists (migration)
+            try:
+                cur.execute("SELECT method FROM db_connections LIMIT 1")
+            except:
+                try:
+                    cur.execute("ALTER TABLE db_connections ADD COLUMN method TEXT")
+                except: pass
 
             # 1. Save Global Settings
             settings = config.get("settings", {})
@@ -884,8 +899,8 @@ class InstallerService:
             connections = config.get("connections", [])
             for conn_data in connections:
                  cur.execute("""
-                    INSERT OR REPLACE INTO db_connections (id, name, type, host, port, database, username, password) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO db_connections (id, name, type, host, port, database, username, password, method) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     conn_data.get("id"),
                     conn_data.get("name"),
@@ -894,7 +909,8 @@ class InstallerService:
                     conn_data.get("port"),
                     conn_data.get("database"),
                     conn_data.get("username"),
-                    conn_data.get("password")
+                    conn_data.get("password"),
+                    conn_data.get("method", "direct")
                 ))
 
             conn.commit()

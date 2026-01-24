@@ -33,6 +33,7 @@ class DBTestRequest(BaseModel):
     database: str
     load_demo: Optional[bool] = False
     app_type: Optional[str] = "OPS"
+    method: Optional[str] = "direct"
 
 @app.post("/api/test-db")
 async def test_db(request: DBTestRequest):

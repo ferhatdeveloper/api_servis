@@ -536,7 +536,9 @@ async function fetchLogoFirms() {
         port: parseInt(getVal('ms-port', "1433")),
         username: getVal('ms-user'),
         password: getVal('ms-pass'),
+        password: getVal('ms-pass'),
         database: getVal('ms-db'),
+        method: getVal('ms-method', 'direct'),
         app_type: appState.selectedApp || "OPS"
     };
 
@@ -591,6 +593,7 @@ async function testDB(type) {
         username: getVal(`${prefix}-user`),
         password: getVal(`${prefix}-pass`),
         database: getVal(`${prefix}-db`),
+        method: type === 'mssql' ? getVal('ms-method', 'direct') : 'direct',
         app_type: appState.selectedApp || "OPS",
         load_demo: document.getElementById('load-demo')?.checked || false
     };
