@@ -3,11 +3,30 @@
 
 $ErrorActionPreference = "Stop"
 
-# Force UTF-8 Terminal and Output
-chcp 65001 >$null
+# UTF-8 Encoding for Turkish Characters
+$OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
+
+# 0. Cleanup Argument Handling
+if ($args[0] -eq "cleanup") {
+    Write-Host "[BİLGİ] Python Temizleme Aracı başlatılıyor..." -ForegroundColor Yellow
+    # We clone/pull first to get the latest cleanup script if in repo context, 
+    # but for irm | iex we might not have it yet. 
+    # For now, let's assume the user runs it from a context where we can download it.
+    
+    # Download and run cleanup_python.ps1 directly
+    $CleanupUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/cleanup_python.ps1"
+    $CleanupPath = Join-Path $env:TEMP "cleanup_python.ps1"
+    Invoke-WebRequest -Uri $CleanupUrl -OutFile $CleanupPath -ErrorAction SilentlyContinue
+    if (Test-Path $CleanupPath) {
+        & $CleanupPath
+    }
+    else {
+        Write-Host "[HATA] Temizleme aracı indirilemedi." -ForegroundColor Red
+    }
+    return
+}
 
 $RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
 
@@ -90,7 +109,9 @@ $Minor = [int]$VerParts[1]
 if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
     Write-Host "[HATA] Mevcut Python sürümünüz ($VerClean) çok eski!" -ForegroundColor Red
     Write-Host "[BİLGİ] Bu uygulama için en az Python 3.10 gereklidir." -ForegroundColor Cyan
-    Write-Host "[BİLGİ] Lütfen Python 3.12.8 yükleyin (İndirme başlatılıyor...)" -ForegroundColor Cyan
+    Write-Host "[ÖNERİ] Temiz bir kurulum için önce tüm eski Python sürümlerini kaldırmanızı öneririz." -ForegroundColor Yellow
+    Write-Host "[BİLGİ] Bunun için şu komutu çalıştırabilirsiniz: irm bit.ly/opsapi | iex -Arguments 'cleanup'" -ForegroundColor White
+    Write-Host "`n[İŞLEM] Lütfen Python 3.12.8 yükleyin (İndirme başlatılıyor...)" -ForegroundColor Cyan
     
     $Arch = $env:PROCESSOR_ARCHITECTURE
     $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
