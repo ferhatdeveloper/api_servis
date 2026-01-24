@@ -62,11 +62,21 @@ api_router.include_router(auto_index.router, prefix="/auto-index", tags=["Auto I
 api_router.include_router(pdks_health.router, tags=["System Health"]) # Internal prefix: /health
 api_router.include_router(pdks_database.router, prefix="/pdks-database", tags=["PDKS Database Config"])
 
+# --- COMMUNICATION ---
+# Consolidated Realtime & Messaging
+comm_router = APIRouter(prefix="/communication", tags=["Communication"])
+comm_router.include_router(realtime.router, prefix="/realtime", tags=["System Broadcasts"]) # /api/v1/communication/realtime
+comm_router.include_router(retail_websocket.router, prefix="/sync", tags=["Data Sync (WS)"]) # /api/v1/communication/sync
+comm_router.include_router(retail_notifications.router, prefix="/notifications", tags=["Notifications"]) # /api/v1/communication/notifications
+comm_router.include_router(retail_whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"]) # /api/v1/communication/whatsapp
+
+api_router.include_router(comm_router)
+
 # --- PDKS (Core Modules) ---
 api_router.include_router(departments.router, prefix="/departments", tags=["Departments"])
 api_router.include_router(performance.router, prefix="/performance", tags=["Performance"])
 api_router.include_router(hikvision.router, prefix="/hikvision", tags=["Hikvision"])
-api_router.include_router(realtime.router, prefix="/realtime", tags=["Realtime"])
+# realtime moved to Communication
 
 # --- RETAIL (Core Modules) ---
 api_router.include_router(retail_products.router, prefix="/products", tags=["Retail Products"])
@@ -76,12 +86,12 @@ api_router.include_router(retail_reports.router, prefix="/retail-reports", tags=
 api_router.include_router(retail_payment.router, prefix="/payment", tags=["Retail Payment"])
 api_router.include_router(retail_accounting.router, prefix="/accounting", tags=["Retail Accounting"])
 api_router.include_router(retail_ecommerce.router, prefix="/ecommerce", tags=["Retail E-commerce"])
-api_router.include_router(retail_websocket.router, prefix="/ws", tags=["Retail WebSocket"])
+# websocket moved to Communication
 api_router.include_router(retail_duplicate_check.router, prefix="/duplicate-check", tags=["Retail Checks"])
 api_router.include_router(retail_ai.router, prefix="/ai-analysis", tags=["Retail AI"])
 api_router.include_router(retail_cost.router, prefix="/cost-accounting", tags=["Retail Cost Accounting"])
-api_router.include_router(retail_notifications.router, prefix="/notifications", tags=["Retail Notifications"])
+# notifications moved to Communication
 # VPN moved to System
-api_router.include_router(retail_whatsapp.router, prefix="/whatsapp", tags=["Retail WhatsApp"])
+# whatsapp moved to Communication
 
 
