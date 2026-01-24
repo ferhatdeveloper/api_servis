@@ -117,14 +117,15 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
                 py_scripts = portable_py
             else:
                 py_scripts = os.path.join(project_dir, 'venv', 'Scripts')
-            
-            venv_python = os.path.join(py_scripts, 'ExfinOpsService.exe')
-            
-            if not os.path.exists(venv_python):
-                # Fallback to standard python.exe in the same scripts dir
-                venv_python = os.path.join(py_scripts, 'python.exe')
+            # 1. Taşınabilir (Portable) Python kontrolü
+            venv_python = os.path.join(project_dir, "python", "python.exe")
             
             if not os.path.exists(venv_python):
+                # Fallback: check if python.exe is directly in project_dir
+                venv_python = os.path.join(project_dir, "python.exe")
+                
+            if not os.path.exists(venv_python):
+                # Second Fallback: Use sys.executable (could be service host)
                 venv_python = sys.executable
             
             self.logger.info(f'Process Runner: {venv_python}')
@@ -147,7 +148,9 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
                 if os.path.exists(db_path):
                     conn = sqlite3.connect(db_path)
                     cursor = conn.cursor()
-                    cursor.execute("SELECT Val FROM Settings WHERE Key = 'Api_Port'")
+                    # SQLite is case-insensitive for table/column names usually, but let's be explicit
+                    # Schema provided in installer uses 'settings' (lowercase) and 'value' (lowercase)
+                    cursor.execute("SELECT value FROM settings WHERE key = 'Api_Port'")
                     row = cursor.fetchone()
                     if row:
                         api_port = str(row[0])
