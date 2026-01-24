@@ -35,10 +35,14 @@ api_router.include_router(crm.router, prefix="/crm", tags=["CRM"])
 api_router.include_router(operations.router, prefix="/operations", tags=["Operations"])
 api_router.include_router(invoice_pdf.router, prefix="/documents", tags=["Document Generation"])
 
-# --- LOGO ERP ---
-api_router.include_router(logo_erp.router, prefix="/logo", tags=["Logo ERP Integration"])
-api_router.include_router(logo_data.router, prefix="/logo-data", tags=["Logo Master Data"])
-api_router.include_router(sync.router, prefix="/sync", tags=["Report Sync"])
+# --- LOGO INTEGRATION ---
+# Consolidating all Logo operations under /logo
+logo_router = APIRouter(prefix="/logo", tags=["Logo Integration"])
+logo_router.include_router(logo_erp.router, prefix="/erp", tags=["Logo ERP"])   # /api/v1/logo/erp
+logo_router.include_router(logo_data.router, prefix="/data", tags=["Logo Data"]) # /api/v1/logo/data
+logo_router.include_router(sync.router, prefix="/sync", tags=["Logo Sync"])      # /api/v1/logo/sync
+
+api_router.include_router(logo_router)
 
 # --- PDKS (Flattened) ---
 from app.api.v1.endpoints.pdks import (
