@@ -14,13 +14,20 @@ const appState = {
 
 function switchDataTab(tabId, btn) {
     // 1. Hide all panes
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => {
+        p.classList.remove('active');
+        p.classList.add('hidden');
+    });
 
     // 2. Deactivate all buttons
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 
     // 3. Activate target
-    document.getElementById(tabId).classList.add('active');
+    const target = document.getElementById(tabId);
+    if (target) {
+        target.classList.remove('hidden');
+        target.classList.add('active');
+    }
     btn.classList.add('active');
 }
 
@@ -787,31 +794,37 @@ async function fetchLogoSchemaInfo() {
                 firm_id: document.getElementById('logo-firm-select').value
             })
         });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error("Schema Fetch HTTP Error:", res.status, errText);
+            throw new Error(`HTTP ${res.status}: ${errText}`);
+        }
+
         const data = await res.json();
 
         if (data.success) {
             const usedUsernames = new Set();
-            listSales.innerHTML = data.salesmen.map(s => {
-                let suggested = generateUsername(s.id || s.name);
+            if (listSales && data.salesmen) {
+                listSales.innerHTML = data.salesmen.map(s => {
+                    let suggested = generateUsername(s.id || s.name);
+                    if (usedUsernames.has(suggested)) {
+                        suggested = `${suggested}.${s.id}`;
+                    }
+                    usedUsernames.add(suggested);
+                    return `
+                        <tr>
+                            <td><input type="checkbox" id="sls-${s.id}" value="${s.id}" checked></td>
+                            <td style="font-weight:bold; color:var(--primary);">${s.id}</td>
+                            <td><label for="sls-${s.id}">${s.name}</label></td>
+                            <td><input type="text" class="credential-input username-input" data-id="${s.id}" value="${suggested}" placeholder="Kullanıcı Adı"></td>
+                            <td><input type="text" class="credential-input password-input" data-id="${s.id}" value="123456" placeholder="Şifre"></td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="5" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+            }
 
-                // Uniqueness Check: If already used, append ID
-                if (usedUsernames.has(suggested)) {
-                    suggested = `${suggested}.${s.id}`;
-                }
-                usedUsernames.add(suggested);
-
-                return `
-                <tr>
-                    <td><input type="checkbox" id="sls-${s.id}" value="${s.id}" checked></td>
-                    <td style="font-weight:bold; color:var(--primary);">${s.id}</td>
-                    <td><label for="sls-${s.id}">${s.name}</label></td>
-                    <td><input type="text" class="credential-input username-input" data-id="${s.id}" value="${suggested}" placeholder="Kullanıcı Adı"></td>
-                    <td><input type="text" class="credential-input password-input" data-id="${s.id}" value="123456" placeholder="Şifre"></td>
-                </tr>
-            `;
-            }).join('') || '<tr><td colspan="5" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
-
-            if (listWare) {
+            if (listWare && data.warehouses) {
                 listWare.innerHTML = data.warehouses.map(w => `
                     <tr>
                         <td><input type="checkbox" id="wh-${w.id}" value="${w.id}" checked></td>
@@ -821,7 +834,7 @@ async function fetchLogoSchemaInfo() {
                 `).join('') || '<tr><td colspan="3" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
             }
 
-            if (listCust) {
+            if (listCust && data.customers) {
                 listCust.innerHTML = data.customers.map(c => `
                     <tr>
                         <td><input type="checkbox" id="cust-${c.id}" value="${c.id}" checked></td>
@@ -831,10 +844,10 @@ async function fetchLogoSchemaInfo() {
                         <td>${c.cyphcode || '-'}</td>
                         <td>
                             <input type="text" 
-                                class="map-link-input" 
+                                class="credential-input map-link-input" 
                                 data-id="${c.id}" 
-                                placeholder="https://maps.google.com/..."
-                                style="width:100%; font-size:11px; padding:5px; background:var(--input-bg); border:1px solid var(--input-border); color:white; border-radius:4px;"
+                                placeholder="Harita Linki (Opsiyonel)"
+                                style="max-width: 100%;"
                             >
                         </td>
                     </tr>
@@ -848,7 +861,8 @@ async function fetchLogoSchemaInfo() {
             return false;
         }
     } catch (e) {
-        console.error("Schema Fetch Exception:", e);
+        console.error("Schema Fetch Exception Detail:", e);
+        alert("Bağlantı Hatası: Logo verileri çekilemedi.\nDetay: " + e.message);
         return false;
     }
 }

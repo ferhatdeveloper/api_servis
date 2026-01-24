@@ -4,6 +4,7 @@ import subprocess
 import ctypes
 import shutil
 import logging
+from datetime import datetime
 
 logger = logging.getLogger("InstallerService")
 
@@ -576,14 +577,16 @@ class InstallerService:
             conn.close()
             return {"success": True, "salesmen": salesmen, "warehouses": warehouses, "customers": customers}
         except Exception as e:
-            # Fallback attempt with UTF-8 if CP1256 fails to connect
+            # Fallback attempt with UTF-8 if CP1256 fails to connect or execute
             try:
                 import pymssql
                 conn = pymssql.connect(
                     server=ms_config["host"], user=ms_config["username"], password=ms_config["password"],
-                    database=ms_config["database"], charset='UTF-8', timeout=5
+                    database=ms_config["database"], charset='UTF-8', timeout=10
                 )
-                # Fallback: Fetch Salesmen with LOGICALREF
+                cur = conn.cursor(as_dict=True)
+                
+                # Fallback: Fetch Salesmen
                 cur.execute("SELECT DISTINCT LOGICALREF, CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
                 salesmen = []
                 seen_sls = set()
@@ -592,21 +595,32 @@ class InstallerService:
                     sid = str(r['CODE'] or "").strip()
                     name = str(r['DEFINITION_'] or "").strip()
                     unique_key = lref if lref else sid
-                    
                     if sid and sid != '0' and unique_key not in seen_sls:
                         salesmen.append({"id": sid, "name": name, "logo_ref": lref})
                         seen_sls.add(unique_key)
 
+                # Fallback: Fetch Warehouses
                 cur.execute(f"SELECT DISTINCT NR, NAME FROM L_CAPIWHOUSE WHERE FIRMNR={int(firm_id)} ORDER BY NR")
                 warehouses = [{"id": str(r['NR']).strip(), "name": str(r['NAME']).strip()} for r in cur.fetchall() if str(r['NR']).strip() != '0']
                 
+                # Fallback: Fetch Customers
                 cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
-                customers = [{"id": str(r['CODE']).strip(), "name": str(r['DEFINITION_']).strip(), "city": str(r['CITY']).strip(), "phone": str(r['TELNRS1']).strip(), "specode": str(r['SPECODE'] or "").strip(), "cyphcode": str(r['CYPHCODE'] or "").strip()} for r in cur.fetchall()]
+                customers = []
+                for r in cur.fetchall():
+                    customers.append({
+                        "id": str(r['CODE']).strip(), 
+                        "name": str(r['DEFINITION_']).strip(), 
+                        "city": str(r['CITY'] or "").strip(), 
+                        "phone": str(r['TELNRS1'] or "").strip(), 
+                        "specode": str(r.get('SPECODE') or "").strip(), 
+                        "cyphcode": str(r.get('CYPHCODE') or "").strip()
+                    })
                 
                 conn.close()
                 return {"success": True, "salesmen": salesmen, "warehouses": warehouses, "customers": customers}
-            except:
-                return {"success": False, "error": self._extract_error(e)}
+            except Exception as e2:
+                logger.error(f"Logo Schema Fallback Error: {e2}")
+                return {"success": False, "error": f"Logo Veri Hatası: {self._extract_error(e)}"}
 
     def generate_credentials_pdf(self, salesmen_data):
         """Generates a PDF report for salesman credentials"""
