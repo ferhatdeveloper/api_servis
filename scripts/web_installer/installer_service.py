@@ -514,16 +514,25 @@ class InstallerService:
             )
             cur = conn.cursor(as_dict=True)
             
-            # 1. Fetch Salesmen (Deduplicated via DISTINCT and Python set)
-            cur.execute("SELECT DISTINCT CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
+            # 1. Fetch Salesmen (Deduplicated via LOGICALREF and Python set)
+            # LG_SLSMAN table might have multiple entries for same code in some versions/configs?
+            # User requested deduplication based on LOGICALREF.
+            cur.execute("SELECT DISTINCT LOGICALREF, CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
             salesmen = []
             seen_sls = set()
             for r in cur.fetchall():
+                # Use LOGICALREF for uniqueness check if available, or CODE as fallback
+                lref = str(r.get('LOGICALREF') or "")
                 sid = str(r['CODE'] or "").strip()
                 name = str(r['DEFINITION_'] or "").strip()
-                if sid and sid != '0' and sid not in seen_sls:
-                    salesmen.append({"id": sid, "name": name})
-                    seen_sls.add(sid)
+                
+                # Composite key or just LOGICALREF? User asked "filter by logicalref".
+                # If we use logicalref as unique key:
+                unique_key = lref if lref else sid
+
+                if sid and sid != '0' and unique_key not in seen_sls:
+                    salesmen.append({"id": sid, "name": name, "logo_ref": lref})
+                    seen_sls.add(unique_key)
             
             # 2. Fetch Warehouses (Deduplicated via DISTINCT and Python set)
             try:
@@ -569,8 +578,20 @@ class InstallerService:
                     server=ms_config["host"], user=ms_config["username"], password=ms_config["password"],
                     database=ms_config["database"], charset='UTF-8', timeout=5
                 )
-                cur = conn.cursor(as_dict=True)
-                salesmen = [{"id": str(r['CODE']).strip(), "name": str(r['DEFINITION_']).strip()} for r in cur.fetchall() if str(r['CODE']).strip() != '0']
+                # Fallback: Fetch Salesmen with LOGICALREF
+                cur.execute("SELECT DISTINCT LOGICALREF, CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
+                salesmen = []
+                seen_sls = set()
+                for r in cur.fetchall():
+                    lref = str(r.get('LOGICALREF') or "")
+                    sid = str(r['CODE'] or "").strip()
+                    name = str(r['DEFINITION_'] or "").strip()
+                    unique_key = lref if lref else sid
+                    
+                    if sid and sid != '0' and unique_key not in seen_sls:
+                        salesmen.append({"id": sid, "name": name, "logo_ref": lref})
+                        seen_sls.add(unique_key)
+
                 cur.execute(f"SELECT DISTINCT NR, NAME FROM L_CAPIWHOUSE WHERE FIRMNR={int(firm_id)} ORDER BY NR")
                 warehouses = [{"id": str(r['NR']).strip(), "name": str(r['NAME']).strip()} for r in cur.fetchall() if str(r['NR']).strip() != '0']
                 
