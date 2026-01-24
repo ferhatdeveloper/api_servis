@@ -46,6 +46,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for now (adjust for production)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
