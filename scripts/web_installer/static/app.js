@@ -704,6 +704,8 @@ async function fetchLogoFirms() {
 }
 
 function selectFirm(firmId, cardElement) {
+    console.log('selectFirm called with firmId:', firmId);
+
     // Remove selection from all cards
     document.querySelectorAll('.firm-card').forEach(card => card.classList.remove('selected'));
 
@@ -711,12 +713,20 @@ function selectFirm(firmId, cardElement) {
     cardElement.classList.add('selected');
 
     // Update hidden input
-    document.getElementById('logo-firm-select').value = firmId;
+    const hiddenInput = document.getElementById('logo-firm-select');
+    if (hiddenInput) {
+        hiddenInput.value = firmId;
+        console.log('Hidden input updated to:', hiddenInput.value);
+    } else {
+        console.error('Hidden input logo-firm-select not found!');
+    }
 }
 
 async function handleDBFinish() {
     const firmId = document.getElementById('logo-firm-select')?.value;
     const msHost = appState.config.ms?.host;
+
+    console.log('handleDBFinish called - firmId:', firmId, 'msHost:', msHost);
 
     // IF MSSQL is configured, we MUST have a firm selection
     if (msHost && !firmId) {
@@ -726,11 +736,12 @@ async function handleDBFinish() {
 
     // If a firm is selected, we ALWAYS go to the selection page (Step 4)
     if (firmId) {
+        console.log('Fetching Logo schema info for firm:', firmId);
         const success = await fetchLogoSchemaInfo();
         if (success) {
             goToStep(4);
         } else {
-            alert("Logo verileri (Satışçılar/Ambarlar) alınamadı. Lütfen bağlantınızı veya firma yetkilerini kontrol edin.");
+            alert("Logo verileri (Satışçılar/Ambarlar) alınamadı. Lütfen bağlantınızı veya firma yetkileri kontrol edin.");
         }
     } else {
         // No firm and no MSSQL? Skip to final install
