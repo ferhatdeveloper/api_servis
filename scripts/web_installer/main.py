@@ -83,6 +83,7 @@ async def get_logo_schema_info(request: SyncRequest):
 class SelectiveSyncRequest(SyncRequest):
     salesmen: list = []
     warehouses: list = []
+    customers: list = []
 
 @app.post("/api/sync-logo-selective")
 async def sync_logo_selective(request: SelectiveSyncRequest):

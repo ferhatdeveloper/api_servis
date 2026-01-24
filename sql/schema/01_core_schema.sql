@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
 
 CREATE TABLE IF NOT EXISTS companies (
     id SERIAL PRIMARY KEY,
+    server_name VARCHAR(50) DEFAULT 'local',
     logo_nr INTEGER NOT NULL,
     code VARCHAR(20) NOT NULL,
     name VARCHAR(200) NOT NULL,
@@ -57,7 +58,8 @@ CREATE TABLE IF NOT EXISTS companies (
     tax_number VARCHAR(20),
     address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(server_name, logo_nr)
 );
 
 CREATE TABLE IF NOT EXISTS periods (

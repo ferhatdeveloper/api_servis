@@ -12,6 +12,25 @@ const appState = {
     deploymentMode: "1" // 1=Service, 2=Tray
 };
 
+function toggleAccordion(id) {
+    const content = document.getElementById(id);
+    const header = content.previousElementSibling;
+    const icon = header.querySelector('.acc-icon');
+
+    const isOpen = content.classList.contains('active');
+
+    // Smooth Close others (Optional, but let's keep it simple)
+    // document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('active'));
+
+    if (isOpen) {
+        content.classList.remove('active');
+        if (icon) icon.style.transform = 'rotate(0deg)';
+    } else {
+        content.classList.add('active');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+    }
+}
+
 function getVal(id, fallback = "") {
     const el = document.getElementById(id);
     return el ? el.value : fallback;
@@ -126,7 +145,8 @@ async function openPreview(type) {
 
     modal.classList.remove('hidden');
     title.innerText = type === 'companies' ? 'Logo Firmaları Önizlemesi' :
-        (type === 'salesmen' ? 'Satış Elemanları Önizlemesi' : 'Ambarlar Önizlemesi');
+        (type === 'salesmen' ? 'Satış Elemanları Önizlemesi' :
+            (type === 'warehouses' ? 'Ambarlar Önizlemesi' : 'Müşteriler (Cari Hesaplar) Önizlemesi'));
 
     body.innerHTML = '<div class="pulsing">> Veriler yükleniyor...</div>';
 
@@ -166,6 +186,8 @@ async function openPreview(type) {
                     html += `<td>${item.nr}</td><td>${item.name}</td><td>${item.tax_nr || '-'}</td>`;
                 } else if (type === 'salesmen') {
                     html += `<td>${item.code}</td><td>${item.name}</td><td>${item.email || '-'}</td>`;
+                } else if (type === 'customers') {
+                    html += `<td>${item.code}</td><td>${item.name}</td><td>${item.city || '-'}</td>`;
                 } else {
                     html += `<td>${item.nr}</td><td>${item.name}</td>`;
                 }
@@ -642,8 +664,10 @@ async function handleDBFinish() {
 async function fetchLogoSchemaInfo() {
     const listSales = document.getElementById('list-salesmen');
     const listWare = document.getElementById('list-warehouses');
-    listSales.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
-    listWare.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
+    const listCust = document.getElementById('list-customers');
+    if (listSales) listSales.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
+    if (listWare) listWare.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
+    if (listCust) listCust.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
 
     try {
         const res = await fetch('/api/logo-schema-info', {
@@ -679,13 +703,27 @@ async function fetchLogoSchemaInfo() {
             `;
             }).join('') || '<tr><td colspan="5" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
 
-            listWare.innerHTML = data.warehouses.map(w => `
-                <tr>
-                    <td><input type="checkbox" id="wh-${w.id}" value="${w.id}" checked></td>
-                    <td style="font-weight:bold; color:var(--accent);">${w.id}</td>
-                    <td><label for="wh-${w.id}">${w.name}</label></td>
-                </tr>
-            `).join('') || '<tr><td colspan="3" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+            if (listWare) {
+                listWare.innerHTML = data.warehouses.map(w => `
+                    <tr>
+                        <td><input type="checkbox" id="wh-${w.id}" value="${w.id}" checked></td>
+                        <td style="font-weight:bold; color:var(--accent);">${w.id}</td>
+                        <td><label for="wh-${w.id}">${w.name}</label></td>
+                    </tr>
+                `).join('') || '<tr><td colspan="3" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+            }
+
+            if (listCust) {
+                listCust.innerHTML = data.customers.map(c => `
+                    <tr>
+                        <td><input type="checkbox" id="cust-${c.id}" value="${c.id}" checked></td>
+                        <td style="font-weight:bold; color:var(--success);">${c.id}</td>
+                        <td title="${c.name}">${c.name.length > 50 ? c.name.substring(0, 50) + '...' : c.name}</td>
+                        <td>${c.city || '-'}</td>
+                        <td>${c.phone || '-'}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+            }
             return true;
         } else {
             console.error("Logo Schema Error:", data.error);
@@ -808,6 +846,7 @@ async function startInstallation() {
         });
 
         const warehouses = Array.from(document.querySelectorAll('#list-warehouses input[type="checkbox"]:checked')).map(cb => cb.value);
+        const customers = Array.from(document.querySelectorAll('#list-customers input[type="checkbox"]:checked')).map(cb => cb.value);
 
         // Validation: Unique Usernames
         const usernames = salesmen.map(s => s.username);
@@ -829,7 +868,8 @@ async function startInstallation() {
                         ms_config: appState.config.ms,
                         firm_id: selectedFirm,
                         salesmen: salesmen,
-                        warehouses: warehouses
+                        warehouses: warehouses,
+                        customers: customers
                     })
                 });
                 const syncData = await res.json();
@@ -926,7 +966,10 @@ async function launchTray() {
 }
 
 function selectAll(type, checked) {
-    const listId = type === 'salesmen' ? 'list-salesmen' : 'list-warehouses';
+    let listId = 'list-salesmen';
+    if (type === 'warehouses') listId = 'list-warehouses';
+    if (type === 'customers') listId = 'list-customers';
+
     const container = document.getElementById(listId);
     if (!container) return;
 

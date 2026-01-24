@@ -714,3 +714,46 @@ p {
     justify-content: space-between;
     align-items: center;
 }
+
+/* Accordion Upgrade */
+.accordion-header {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.05) !important;
+    padding: 15px 20px !important;
+    border-radius: 12px;
+    transition: background 0.3s;
+    user-select: none;
+}
+
+.accordion-header:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0, 1, 0, 1);
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 12px 12px;
+}
+
+.accordion-content.active {
+    max-height: 500px;
+    overflow-y: auto;
+    transition: max-height 0.4s ease-in;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: none;
+}
+
+.acc-icon {
+    display: inline-block;
+    transition: transform 0.3s;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.selection-panel.accordion-item {
+    background: transparent;
+    border: none;
+    padding: 0;
+}

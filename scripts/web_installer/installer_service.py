@@ -540,9 +540,25 @@ class InstallerService:
                 if wid and wid != '0' and wid not in seen_wh:
                     warehouses.append({"id": wid, "name": name})
                     seen_wh.add(wid)
+
+            # 3. Fetch Customers (CLCARD)
+            cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1 FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+            customers = []
+            seen_cust = set()
+            for r in cur.fetchall():
+                cid = str(r['CODE'] or "").strip()
+                name = str(r['DEFINITION_'] or "").strip()
+                if cid and cid not in seen_cust:
+                    customers.append({
+                        "id": cid, 
+                        "name": name, 
+                        "city": str(r['CITY'] or "").strip(),
+                        "phone": str(r['TELNRS1'] or "").strip()
+                    })
+                    seen_cust.add(cid)
             
             conn.close()
-            return {"success": True, "salesmen": salesmen, "warehouses": warehouses}
+            return {"success": True, "salesmen": salesmen, "warehouses": warehouses, "customers": customers}
         except Exception as e:
             # Fallback attempt with UTF-8 if CP1256 fails to connect
             try:
@@ -555,8 +571,12 @@ class InstallerService:
                 salesmen = [{"id": str(r['CODE']).strip(), "name": str(r['DEFINITION_']).strip()} for r in cur.fetchall() if str(r['CODE']).strip() != '0']
                 cur.execute(f"SELECT DISTINCT NR, NAME FROM L_CAPIWHOUSE WHERE FIRMNR={int(firm_id)} ORDER BY NR")
                 warehouses = [{"id": str(r['NR']).strip(), "name": str(r['NAME']).strip()} for r in cur.fetchall() if str(r['NR']).strip() != '0']
+                
+                cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1 FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+                customers = [{"id": str(r['CODE']).strip(), "name": str(r['DEFINITION_']).strip(), "city": str(r['CITY']).strip(), "phone": str(r['TELNRS1']).strip()} for r in cur.fetchall()]
+                
                 conn.close()
-                return {"success": True, "salesmen": salesmen, "warehouses": warehouses}
+                return {"success": True, "salesmen": salesmen, "warehouses": warehouses, "customers": customers}
             except:
                 return {"success": False, "error": self._extract_error(e)}
 
@@ -903,7 +923,7 @@ class InstallerService:
         except Exception as e:
             return {"success": False, "error": f"Servis kurulumunda kritik hata: {str(e)}"}
 
-    def sync_logo_data_selective(self, pg_config, ms_config, firm_id, salesmen, warehouses):
+    def sync_logo_data_selective(self, pg_config, ms_config, firm_id, salesmen, warehouses, customers=[]):
         """Syncs selected salesmen and warehouses from Logo to PostgreSQL"""
         logs = []
         try:
@@ -935,24 +955,26 @@ class InstallerService:
             )
             pg_cur = pg_conn.cursor()
             
-            # 1. Sync Firm (Enhanced with full details)
             logs.append(f"Firma bilgileri alınıyor (Logo No: {firm_id})...")
             ms_cur.execute(f"SELECT NR, NAME, TAXNR, STREET, CITY FROM L_CAPIFIRM WHERE NR={int(firm_id)}")
             firm = ms_cur.fetchone()
             if not firm:
                 return {"success": False, "error": f"Firma {firm_id} bulunamadı", "logs": logs}
             
+            # Use connection name or host as server identifier
+            server_name = ms_config.get('name', ms_config.get('host', 'local'))
+            
             # Build address
             address = f"{firm.get('STREET', '')} {firm.get('CITY', '')}".strip()
             
-            logs.append(f"Firma kaydediliyor: {firm['NAME']}")
+            logs.append(f"Firma kaydediliyor: {firm['NAME']} (Server: {server_name})")
             pg_cur.execute("""
-                INSERT INTO companies (logo_nr, code, name, tax_number, address, is_active)
-                VALUES (%s, %s, %s, %s, %s, true)
-                ON CONFLICT (logo_nr) DO UPDATE 
+                INSERT INTO companies (server_name, logo_nr, code, name, tax_number, address, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s, true)
+                ON CONFLICT (server_name, logo_nr) DO UPDATE 
                 SET name=EXCLUDED.name, tax_number=EXCLUDED.tax_number, address=EXCLUDED.address
                 RETURNING id
-            """, (firm['NR'], str(firm['NR']).zfill(3), firm['NAME'], firm.get('TAXNR'), address))
+            """, (server_name, firm['NR'], str(firm['NR']).zfill(3), firm['NAME'], firm.get('TAXNR'), address))
             company_id = pg_cur.fetchone()[0]
 
             # Update Active Company Name in api.db (SQLite)
@@ -1050,6 +1072,45 @@ class InstallerService:
                     SET name=EXCLUDED.name
                 """, (company_id, w['NR'], w['NAME']))
                 logs.append(f"  OK: {w['NAME']}")
+
+            # 4. Sync Customers (CLCARD)
+            if customers:
+                logs.append(f"{len(customers)} Müşteri (Cari) aktarılıyor...")
+                for cust_id in customers:
+                    ms_cur.execute(f"""
+                        SELECT CODE, DEFINITION_, TAXOFFICE, TAXNR, ADDR1, ADDR2, CITY, TOWN, TELNRS1, EMAILADDR, LOGICALREF
+                        FROM LG_{firm_id}_CLCARD
+                        WHERE CODE=%s AND ACTIVE=0 AND CARDTYPE<>22
+                    """, (cust_id,))
+                    c = ms_cur.fetchone()
+                    if not c:
+                        logs.append(f"  UYARI: Cari {cust_id} Logo'da bulunamadı.")
+                        continue
+                    
+                    full_address = f"{c.get('ADDR1', '')} {c.get('ADDR2', '')}".strip()
+                    
+                    pg_cur.execute("""
+                        INSERT INTO customers (
+                            company_id, code, name, tax_office, tax_number, 
+                            address, city, district, phone, email, logo_ref
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (company_id, code) DO UPDATE SET
+                            name=EXCLUDED.name,
+                            tax_office=EXCLUDED.tax_office,
+                            tax_number=EXCLUDED.tax_number,
+                            address=EXCLUDED.address,
+                            city=EXCLUDED.city,
+                            district=EXCLUDED.district,
+                            phone=EXCLUDED.phone,
+                            email=EXCLUDED.email,
+                            logo_ref=EXCLUDED.logo_ref,
+                            updated_at=CURRENT_TIMESTAMP
+                    """, (
+                        company_id, c['CODE'], c['DEFINITION_'], c.get('TAXOFFICE'), c.get('TAXNR'),
+                        full_address, c.get('CITY'), c.get('TOWN'), c.get('TELNRS1'), c.get('EMAILADDR'), c['LOGICALREF']
+                    ))
+                logs.append(f"  OK: {len(customers)} müşteri aktarıldı.")
             
             pg_conn.commit()
             pg_cur.close()
@@ -1179,6 +1240,15 @@ class InstallerService:
                     results.append({
                         "nr": row['NR'],
                         "name": row.get('NAME')
+                    })
+            
+            elif data_type == "customers":
+                ms_cur.execute(f"SELECT TOP 100 CODE, DEFINITION_, CITY FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+                for row in ms_cur.fetchall():
+                    results.append({
+                        "code": row['CODE'],
+                        "name": row.get('DEFINITION_'),
+                        "city": row.get('CITY')
                     })
             
             ms_conn.close()

@@ -117,16 +117,27 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
                 py_scripts = portable_py
             else:
                 py_scripts = os.path.join(project_dir, 'venv', 'Scripts')
-            # 1. Taşınabilir (Portable) Python kontrolü
-            venv_python = os.path.join(project_dir, "python", "python.exe")
+            # 1. Sanal Ortam (venv) kontrolü - Standart Kurulum önceliği
+            # venv genellikle project_dir\venv dizinindedir
+            venv_python_alt = os.path.join(project_dir, 'venv', 'Scripts', 'python.exe')
             
-            if not os.path.exists(venv_python):
-                # Fallback: check if python.exe is directly in project_dir
+            # 2. Taşınabilir (Portable) Python kontrolü
+            portable_python = os.path.join(project_dir, "python", "python.exe")
+            
+            if os.path.exists(venv_python_alt):
+                venv_python = venv_python_alt
+            elif os.path.exists(portable_python):
+                venv_python = portable_python
+            elif os.path.exists(os.path.join(project_dir, "python.exe")):
                 venv_python = os.path.join(project_dir, "python.exe")
-                
-            if not os.path.exists(venv_python):
-                # Second Fallback: Use sys.executable (could be service host)
-                venv_python = sys.executable
+            else:
+                # Son çare: sistem python'ı ara
+                import shutil
+                system_py = shutil.which("python")
+                if system_py and "ExfinOpsService" not in system_py:
+                    venv_python = system_py
+                else:
+                    venv_python = sys.executable
             
             self.logger.info(f'Process Runner: {venv_python}')
             

@@ -389,19 +389,24 @@
                 </div>
             </div>
 
-            <div id="logo-selection-container"
-                style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 20px; margin-top: 10px;">
-                <div class="selection-panel">
-                    <div class="selection-header">
+            <div id="logo-selection-container" style="margin-top: 10px;">
+                <!-- Accordion 1: Salesmen -->
+                <div class="selection-panel accordion-item">
+                    <div class="selection-header accordion-header" onclick="toggleAccordion('acc-salesmen')">
                         <span>👤 Satış Elemanları (Satışçı Girişi)</span>
-                        <button class="btn-preview" onclick="openPreview('salesmen')">Önizle</button>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn-preview" onclick="event.stopPropagation(); openPreview('salesmen')">Büyük
+                                Önizle</button>
+                            <span class="acc-icon">▼</span>
+                        </div>
                     </div>
-                    <div class="data-selection-list" style="padding:0;">
+                    <div class="data-selection-list accordion-content" id="acc-salesmen">
                         <table class="selection-table">
                             <thead>
                                 <tr>
                                     <th style="width: 40px;"><input type="checkbox" id="sel-all-salesmen"
-                                            onchange="selectAll('salesmen', this.checked)" title="Tümünü Seç"></th>
+                                            onchange="selectAll('salesmen', this.checked)" title="Tümünü Seç" checked>
+                                    </th>
                                     <th style="width: 80px;">Kod</th>
                                     <th>İsim / Açıklama</th>
                                     <th style="width: 120px;">Kullanıcı Adı</th>
@@ -417,17 +422,23 @@
                     </div>
                 </div>
 
-                <div class="selection-panel">
-                    <div class="selection-header">
+                <!-- Accordion 2: Warehouses -->
+                <div class="selection-panel accordion-item" style="margin-top: 10px;">
+                    <div class="selection-header accordion-header" onclick="toggleAccordion('acc-warehouses')">
                         <span>🏠 Ambarlar / Depolar</span>
-                        <button class="btn-preview" onclick="openPreview('warehouses')">Önizle</button>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn-preview"
+                                onclick="event.stopPropagation(); openPreview('warehouses')">Büyük Önizle</button>
+                            <span class="acc-icon">▼</span>
+                        </div>
                     </div>
-                    <div class="data-selection-list" style="padding:0;">
+                    <div class="data-selection-list accordion-content" id="acc-warehouses">
                         <table class="selection-table">
                             <thead>
                                 <tr>
                                     <th style="width: 40px;"><input type="checkbox" id="sel-all-warehouses"
-                                            onchange="selectAll('warehouses', this.checked)" title="Tümünü Seç"></th>
+                                            onchange="selectAll('warehouses', this.checked)" title="Tümünü Seç" checked>
+                                    </th>
                                     <th style="width: 80px;">No</th>
                                     <th>Ambar Adı</th>
                                 </tr>
@@ -435,6 +446,43 @@
                             <tbody id="list-warehouses">
                                 <tr>
                                     <td colspan="3" style="text-align:center; padding:20px;">Veriler bekleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Accordion 3: Customers (NEW) -->
+                <div class="selection-panel accordion-item" style="margin-top: 10px;">
+                    <div class="selection-header accordion-header" onclick="toggleAccordion('acc-customers')">
+                        <span>🤝 Müşteriler (Cari Hesaplar)</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn-preview"
+                                onclick="event.stopPropagation(); openPreview('customers')">Büyük Önizle</button>
+                            <span class="acc-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="data-selection-list accordion-content" id="acc-customers">
+                        <div
+                            style="padding: 10px; background: rgba(0,0,0,0.2); font-size: 11px; color: var(--text-muted);">
+                            * Logo sistemindeki tüm aktif cari hesaplar listelenir. Rota planlama için koordinat
+                            alanları otomatik eklenir.
+                        </div>
+                        <table class="selection-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="sel-all-customers"
+                                            onchange="selectAll('customers', this.checked)" title="Tümünü Seç" checked>
+                                    </th>
+                                    <th style="width: 120px;">Cari Kod</th>
+                                    <th>Ünvan / İsim</th>
+                                    <th style="width: 100px;">Şehir</th>
+                                    <th style="width: 120px;">Telefon</th>
+                                </tr>
+                            </thead>
+                            <tbody id="list-customers">
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding:20px;">Veriler bekleniyor...</td>
                                 </tr>
                             </tbody>
                         </table>
