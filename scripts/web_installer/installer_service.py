@@ -505,6 +505,9 @@ class InstallerService:
         """Fetches lists of salesmen and warehouses for a specific firm with Arabic support and deduplication"""
         if not firm_id or not str(firm_id).strip():
             return {"success": False, "error": "Logo Firma Numarası belirtilmedi. Lütfen bir firma seçin."}
+        
+        # Ensure 3-digit padding for firm_id
+        firm_id = str(firm_id).strip().zfill(3)
             
         try:
             import pymssql
@@ -557,7 +560,9 @@ class InstallerService:
                     seen_wh.add(wid)
 
             # 3. Fetch Customers (CLCARD) - Limit to 1000 for preview performance
-            cur.execute(f"SELECT DISTINCT TOP 1000 CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+            query = f"SELECT DISTINCT TOP 1000 CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE"
+            print(f"DEBUG SQL (Customers): {query}")
+            cur.execute(query)
             customers = []
             seen_cust = set()
             for r in cur.fetchall():
@@ -604,7 +609,10 @@ class InstallerService:
                 warehouses = [{"id": str(r['NR']).strip(), "name": str(r['NAME']).strip()} for r in cur.fetchall() if str(r['NR']).strip() != '0']
                 
                 # Fallback: Fetch Customers
-                cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+                f_pad = str(firm_id).zfill(3)
+                query = f"SELECT DISTINCT TOP 1000 CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{f_pad}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE"
+                print(f"DEBUG SQL (Fallback Customers): {query}")
+                cur.execute(query)
                 customers = []
                 for r in cur.fetchall():
                     customers.append({
@@ -978,6 +986,8 @@ class InstallerService:
 
     def sync_logo_data_selective(self, pg_config, ms_config, firm_id, salesmen, warehouses, customers=[]):
         """Syncs selected salesmen and warehouses from Logo to PostgreSQL"""
+        # Ensure 3-digit padding for firm_id
+        firm_id = str(firm_id).strip().zfill(3)
         logs = []
         try:
             import pymssql
@@ -1066,12 +1076,10 @@ class InstallerService:
                 username = salesman['username']
                 password = salesman['password']
                 
-                # Get salesman details from Logo
-                ms_cur.execute(f"""
-                    SELECT CODE, DEFINITION_, EMAILADDR 
-                    FROM LG_{firm_id}_SLSMAN 
-                    WHERE CODE='{salesman_id}' AND ACTIVE=0
-                """)
+                # Get salesman details from Logo - SLSMAN is a global table
+                query = f"SELECT CODE, DEFINITION_, EMAILADDR FROM LG_SLSMAN WHERE CODE='{salesman_id}' AND ACTIVE=0"
+                print(f"DEBUG SQL (Salesman): {query}")
+                ms_cur.execute(query)
                 s = ms_cur.fetchone()
                 if not s:
                     logs.append(f"  UYARI: Satış elemanı {salesman_id} Logo'da bulunamadı.")
@@ -1272,7 +1280,9 @@ class InstallerService:
             return None
     
     def get_logo_preview(self, ms_config, firm_id, data_type):
-        """Preview Logo data before sync"""
+        \"\"\"Preview Logo data before sync\"\"\"
+        # Ensure 3-digit padding for firm_id
+        firm_id = str(firm_id).strip().zfill(3)
         try:
             import pymssql
             
@@ -1297,7 +1307,9 @@ class InstallerService:
                     })
             
             elif data_type == "salesmen":
-                ms_cur.execute(f"SELECT TOP 50 CODE, DEFINITION_, EMAILADDR FROM LG_{firm_id}_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
+                query = f"SELECT TOP 50 CODE, DEFINITION_, EMAILADDR FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE"
+                print(f"DEBUG SQL (Preview Salesmen): {query}")
+                ms_cur.execute(query)
                 for row in ms_cur.fetchall():
                     results.append({
                         "code": row['CODE'],
