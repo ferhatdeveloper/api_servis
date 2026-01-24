@@ -26,9 +26,10 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Host "3) Python Temizleme Aracı (Eski Kalıntıları Kaldırır)" -ForegroundColor Yellow
     Write-Host "4) Fabrika Ayarlarina Don (Bypass Islemlerini Geri Al - Masaustu Fix)" -ForegroundColor Red
     Write-Host "5) Servis Kontrolu / Guncelleme" -ForegroundColor Cyan
-    Write-Host "6) Cikis" -ForegroundColor White
+    Write-Host "6) API Guncelle (Son Degisiklikleri Cek ve Uygula)" -ForegroundColor Green
+    Write-Host "7) Cikis" -ForegroundColor White
     
-    $MainChoice = Read-Host "`nSeciminiz (1-6)"
+    $MainChoice = Read-Host "`nSeciminiz (1-7)"
     
     switch ($MainChoice) {
         "1" { $OPS_MODE = "standard" }
@@ -36,7 +37,8 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
         "3" { $OPS_MODE = "cleanup" }
         "4" { $OPS_MODE = "safe-mode" }
         "5" { $OPS_MODE = "service-only" }
-        "6" { return }
+        "6" { $OPS_MODE = "update-only" }
+        "7" { return }
         default { $OPS_MODE = "standard" }
     }
 }
@@ -83,6 +85,41 @@ if ($OPS_MODE -eq "service-only") {
     else {
         Write-Host "[HATA] Uygulama henuz kurulu degil. Lutfen once '1' secenezi ile kurulum yapin." -ForegroundColor Red
     }
+    return
+}
+
+if ($OPS_MODE -eq "update-only") {
+    Write-Host "`n[BILGI] API Guncelleme Modu baslatiliyor..." -ForegroundColor Cyan
+    
+    # 1. Update Repo
+    if (Test-Path "$DefaultDir\.git") {
+        Set-Location $DefaultDir
+        Write-Host "> Git guncellemesi yapiliyor..." -ForegroundColor Yellow
+        git count-objects -v >$null 2>&1 
+        if ($LASTEXITCODE -eq 0) {
+            git fetch origin
+            git reset --hard origin/main
+            Write-Host "  > Git guncellendi." -ForegroundColor Green
+        }
+        else {
+            Write-Host "  > Git hatasi veya repo bozuk. Yine de devam ediliyor..." -ForegroundColor Red
+        }
+    }
+    else {
+        Write-Host "  > Git Reposu bulunamadi ($DefaultDir). Guncelleme atlatiliyor." -ForegroundColor Yellow
+    }
+
+    # 2. Update Service
+    Write-Host "> Servis yeniden baslatiliyor..." -ForegroundColor Yellow
+    if (Get-Service "Exfin_ApiService" -ErrorAction SilentlyContinue) {
+        Restart-Service "Exfin_ApiService" -Force
+        Write-Host "  > Servis guncellendi ve yeniden baslatildi." -ForegroundColor Green
+    }
+    else {
+        Write-Host "  > Servis kurulu degil." -ForegroundColor Gray
+    }
+    
+    Write-Host "`n[BASARILI] Guncelleme islemi tamamlandi." -ForegroundColor Green
     return
 }
 
