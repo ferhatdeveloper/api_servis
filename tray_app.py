@@ -455,7 +455,13 @@ def start_backend(icon_arg, item):
     if not os.path.exists(bat_path):
          bat_path = os.path.join(base_dir, "start_backend_fallback.bat")
          with open(bat_path, "w") as f:
-             venv_python = os.path.join(base_dir, "venv", "Scripts", "python.exe")
+             # Prioritize local portable python
+             portable_py = os.path.join(base_dir, "python", "python.exe")
+             if os.path.exists(portable_py):
+                 venv_python = portable_py
+             else:
+                 venv_python = os.path.join(base_dir, "venv", "Scripts", "python.exe")
+             
              f.write('@echo off\n')
              f.write(f'"{venv_python}" main.py\n')
     
@@ -617,10 +623,15 @@ def backup_database(icon, item):
             base_dir = os.path.dirname(os.path.abspath(__file__))
             script_path = os.path.join(base_dir, "scripts", "backup_db.py")
             
-            # We run it using the venv python
-            venv_python = os.path.join(base_dir, "venv", "Scripts", "python.exe")
+            # We run it using the isolated python
+            portable_py = os.path.join(base_dir, "python", "python.exe")
+            if os.path.exists(portable_py):
+                venv_python = portable_py
+            else:
+                venv_python = os.path.join(base_dir, "venv", "Scripts", "python.exe")
+            
             if not os.path.exists(venv_python):
-                venv_python = "python" # Fallback
+                venv_python = "python" # Global fallback
             
             result = subprocess.run([venv_python, script_path], capture_output=True, text=True)
             
@@ -722,6 +733,13 @@ def main():
     protocol = "https" if USE_HTTPS else "http"
     HEALTH_URL = f"{protocol}://localhost:{PORT}/health"
     DOCS_URL = f"{protocol}://localhost:{PORT}/docs"
+    
+    # --- PATH ISOLATION FOR DLLs ---
+    portable_py = os.path.join(base_dir, "python")
+    if os.path.exists(portable_py):
+        os.environ["PATH"] = portable_py + os.pathsep + os.path.join(portable_py, "Scripts") + os.pathsep + os.environ.get("PATH", "")
+        os.environ["PYTHONHOME"] = portable_py
+    # -------------------------------
     
     # Auto-register for startup
     try:

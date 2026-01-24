@@ -110,11 +110,19 @@ def auto_launch_tray(base_dir):
     logging.info("Attempting to auto-launch Tray App...")
     print("Tray App (Saatin yanındaki simge) başlatılıyor...")
     try:
-        venv_dir = os.path.join(base_dir, "venv", "Scripts")
+        # Prioritize local portable python dir
+        portable_py = os.path.join(base_dir, "python")
+        if os.path.exists(portable_py):
+            python_path = portable_py
+            runner_name = "pythonw.exe"
+        else:
+            python_path = os.path.join(base_dir, "venv", "Scripts")
+            runner_name = "pythonw.exe"
+
         tray_script = os.path.join(base_dir, "tray_app.py")
         
         # Ensure custom runner for Tray
-        custom_exec = ensure_custom_runner(venv_dir, "pythonw.exe", "ExfinOpsTray.exe")
+        custom_exec = ensure_custom_runner(python_path, runner_name, "ExfinOpsTray.exe")
         
         logging.info(f"Launching Tray with custom exec: {custom_exec} {tray_script} --force --no-password")
         print(f"Tray App başlatılıyor: {custom_exec}")
@@ -176,9 +184,14 @@ def main():
     port = 8888
     kill_port_owner(port)
 
-    # 3. Prepare Custom Runner for Service (used by tray_app or bats)
-    venv_scripts = os.path.join(base_dir, "venv", "Scripts")
-    ensure_custom_runner(venv_scripts, "python.exe", "ExfinOpsService.exe")
+    # 3. Prepare Custom Runner for Service
+    portable_py = os.path.join(base_dir, "python")
+    if os.path.exists(portable_py):
+        py_scripts = portable_py
+    else:
+        py_scripts = os.path.join(base_dir, "venv", "Scripts")
+        
+    ensure_custom_runner(py_scripts, "python.exe", "ExfinOpsService.exe")
 
     # 4. Auto-launch Tray App (User request: Launch immediately)
     auto_launch_tray(base_dir)

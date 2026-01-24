@@ -112,17 +112,29 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
             self.running = True
             
             # Python ve Script Yolları (Branded Runner Kullanımı)
-            venv_dir = os.path.join(project_dir, 'venv', 'Scripts')
-            venv_python = os.path.join(venv_dir, 'ExfinOpsService.exe')
+            portable_py = os.path.join(project_dir, 'python')
+            if os.path.exists(portable_py):
+                py_scripts = portable_py
+            else:
+                py_scripts = os.path.join(project_dir, 'venv', 'Scripts')
+            
+            venv_python = os.path.join(py_scripts, 'ExfinOpsService.exe')
             
             if not os.path.exists(venv_python):
-                # Fallback to standard python.exe if custom runner doesn't exist
-                venv_python = os.path.join(venv_dir, 'python.exe')
+                # Fallback to standard python.exe in the same scripts dir
+                venv_python = os.path.join(py_scripts, 'python.exe')
             
             if not os.path.exists(venv_python):
                 venv_python = sys.executable
             
             self.logger.info(f'Process Runner: {venv_python}')
+            
+            # --- DLL/PATH HARDENING ---
+            # Logo object.dll etc. may need python in PATH
+            py_root = os.path.dirname(venv_python)
+            os.environ["PATH"] = py_root + os.pathsep + os.path.join(py_root, "Scripts") + os.pathsep + os.environ.get("PATH", "")
+            os.environ["PYTHONHOME"] = py_root
+            # --------------------------
             
             # Port (api.db'den oku)
             api_port = "8000"
