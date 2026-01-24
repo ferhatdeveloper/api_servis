@@ -96,33 +96,38 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
             self.ReportServiceStatus(win32service.SERVICE_RUNNING)
             self.running = True
             
-            # Python ve Script Yolları
-            # VENV kullanımı varsayılıyor
-            venv_python = os.path.join(project_dir, 'venv', 'Scripts', 'python.exe')
+            # Python ve Script Yolları (Branded Runner Kullanımı)
+            venv_dir = os.path.join(project_dir, 'venv', 'Scripts')
+            venv_python = os.path.join(venv_dir, 'ExfinOpsService.exe')
+            
             if not os.path.exists(venv_python):
-                # Fallback to system python if venv not found (for reference project compat)
+                # Fallback to standard python.exe if custom runner doesn't exist
+                venv_python = os.path.join(venv_dir, 'python.exe')
+            
+            if not os.path.exists(venv_python):
                 venv_python = sys.executable
             
-            main_script = os.path.join(project_dir, 'windows_service.py') # Trick: run ourselves or run uvicorn direct?
-            # Kullanıcı uvicorn çalıştırmak istiyor.
+            self.logger.info(f'Process Runner: {venv_python}')
             
-            self.logger.info(f'Python Interpreter: {venv_python}')
-            
-            # Port
+            # Port (api.db'den oku)
             api_port = "8000"
             try:
-                env_path = os.path.join(project_dir, ".env")
-                if os.path.exists(env_path):
-                    with open(env_path, "r") as f:
-                        for line in f:
-                            if "API_PORT=" in line:
-                                api_port = line.split("=")[1].strip()
-            except: pass
-            
+                import sqlite3
+                db_path = os.path.join(project_dir, "api.db")
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT Val FROM Settings WHERE Key = 'Api_Port'")
+                    row = cursor.fetchone()
+                    if row:
+                        api_port = str(row[0])
+                    conn.close()
+            except Exception as db_e:
+                self.logger.warning(f"Could not read port from api.db: {db_e}")
             
             cmd = [venv_python, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", api_port]
             
-            self.logger.info(f'Komut: {" ".join(cmd)}')
+            self.logger.info(f'Startup Command: {" ".join(cmd)}')
             
             # Subprocess ile main.py (Uvicorn) çalıştır
             # stdout/stderr redirect is important for capturing valid uvicorn logging
