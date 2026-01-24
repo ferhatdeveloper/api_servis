@@ -782,7 +782,7 @@ async function fetchLogoSchemaInfo() {
     const listCust = document.getElementById('list-customers');
     if (listSales) listSales.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
     if (listWare) listWare.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
-    if (listCust) listCust.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
+    if (listCust) listCust.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>';
 
     try {
         const res = await fetch('/api/logo-schema-info', {
@@ -802,56 +802,87 @@ async function fetchLogoSchemaInfo() {
         }
 
         const data = await res.json();
+        console.log("Schema data received:", {
+            salesmen: data.salesmen?.length,
+            warehouses: data.warehouses?.length,
+            customers: data.customers?.length
+        });
 
         if (data.success) {
             const usedUsernames = new Set();
-            if (listSales && data.salesmen) {
-                listSales.innerHTML = data.salesmen.map(s => {
-                    let suggested = generateUsername(s.id || s.name);
+
+            // 1. Render Salesmen
+            if (listSales) {
+                const salesmen = data.salesmen || [];
+                listSales.innerHTML = salesmen.map(s => {
+                    const sid = s.id || '';
+                    const sname = s.name || '';
+                    let suggested = generateUsername(sid || sname);
                     if (usedUsernames.has(suggested)) {
-                        suggested = `${suggested}.${s.id}`;
+                        suggested = `${suggested}.${sid}`;
                     }
                     usedUsernames.add(suggested);
                     return `
                         <tr>
-                            <td><input type="checkbox" id="sls-${s.id}" value="${s.id}" checked></td>
-                            <td style="font-weight:bold; color:var(--primary);">${s.id}</td>
-                            <td><label for="sls-${s.id}">${s.name}</label></td>
-                            <td><input type="text" class="credential-input username-input" data-id="${s.id}" value="${suggested}" placeholder="Kullanıcı Adı"></td>
-                            <td><input type="text" class="credential-input password-input" data-id="${s.id}" value="123456" placeholder="Şifre"></td>
+                            <td><input type="checkbox" id="sls-${sid}" value="${sid}" checked></td>
+                            <td style="font-weight:bold; color:var(--primary);">${sid}</td>
+                            <td><label for="sls-${sid}">${sname}</label></td>
+                            <td><input type="text" class="credential-input username-input" data-id="${sid}" value="${suggested}" placeholder="Kullanıcı Adı"></td>
+                            <td><input type="text" class="credential-input password-input" data-id="${sid}" value="123456" placeholder="Şifre"></td>
                         </tr>
                     `;
                 }).join('') || '<tr><td colspan="5" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
             }
 
-            if (listWare && data.warehouses) {
-                listWare.innerHTML = data.warehouses.map(w => `
-                    <tr>
-                        <td><input type="checkbox" id="wh-${w.id}" value="${w.id}" checked></td>
-                        <td style="font-weight:bold; color:var(--accent);">${w.id}</td>
-                        <td><label for="wh-${w.id}">${w.name}</label></td>
-                    </tr>
-                `).join('') || '<tr><td colspan="3" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+            // 2. Render Warehouses
+            if (listWare) {
+                const warehouses = data.warehouses || [];
+                listWare.innerHTML = warehouses.map(w => {
+                    const wid = w.id || '';
+                    const wname = w.name || '';
+                    return `
+                        <tr>
+                            <td><input type="checkbox" id="wh-${wid}" value="${wid}" checked></td>
+                            <td style="font-weight:bold; color:var(--accent);">${wid}</td>
+                            <td><label for="wh-${wid}">${wname}</label></td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="3" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
             }
 
-            if (listCust && data.customers) {
-                listCust.innerHTML = data.customers.map(c => `
-                    <tr>
-                        <td><input type="checkbox" id="cust-${c.id}" value="${c.id}" checked></td>
-                        <td style="font-weight:bold; color:var(--success);">${c.id}</td>
-                        <td title="${c.name}">${c.name.length > 40 ? c.name.substring(0, 40) + '...' : c.name}</td>
-                        <td>${c.specode || '-'}</td>
-                        <td>${c.cyphcode || '-'}</td>
-                        <td>
-                            <input type="text" 
-                                class="credential-input map-link-input" 
-                                data-id="${c.id}" 
-                                placeholder="Harita Linki (Opsiyonel)"
-                                style="max-width: 100%;"
-                            >
-                        </td>
-                    </tr>
-                `).join('') || '<tr><td colspan="6" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+            // 3. Render Customers (Limited to 1000 for display performance)
+            if (listCust) {
+                const customers = data.customers || [];
+                const displayLimit = 1000;
+                const displayList = customers.slice(0, displayLimit);
+
+                listCust.innerHTML = displayList.map(c => {
+                    const cid = c.id || '';
+                    const cname = c.name || '';
+                    const specode = c.specode || '-';
+                    const cyphcode = c.cyphcode || '-';
+                    return `
+                        <tr>
+                            <td><input type="checkbox" id="cust-${cid}" value="${cid}" checked></td>
+                            <td style="font-weight:bold; color:var(--success);">${cid}</td>
+                            <td title="${cname}">${cname.length > 40 ? cname.substring(0, 40) + '...' : cname}</td>
+                            <td>${specode}</td>
+                            <td>${cyphcode}</td>
+                            <td>
+                                <input type="text" 
+                                    class="credential-input map-link-input" 
+                                    data-id="${cid}" 
+                                    placeholder="Harita Linki (Opsiyonel)"
+                                    style="max-width: 100%;"
+                                >
+                            </td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="6" style="text-align:center;">Kayıt bulunamadı.</td></tr>';
+
+                if (customers.length > displayLimit) {
+                    listCust.innerHTML += `<tr><td colspan="6" style="text-align:center; color:var(--warning); padding:10px;">Uyarı: Toplam ${customers.length} kayıt var, sadece ilk ${displayLimit} kayıt gösteriliyor. Arama kutusunu kullanın.</td></tr>`;
+                }
             }
             return true;
         } else {

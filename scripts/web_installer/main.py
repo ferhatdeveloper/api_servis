@@ -94,7 +94,8 @@ async def sync_logo_selective(request: SelectiveSyncRequest):
             request.ms_config, 
             request.firm_id,
             request.salesmen,
-            request.warehouses
+            request.warehouses,
+            request.customers
         )
     except Exception as e:
         return {"success": False, "error": installer._extract_error(e)}

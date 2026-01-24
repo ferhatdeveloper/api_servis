@@ -556,8 +556,8 @@ class InstallerService:
                     warehouses.append({"id": wid, "name": name})
                     seen_wh.add(wid)
 
-            # 3. Fetch Customers (CLCARD)
-            cur.execute(f"SELECT DISTINCT CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
+            # 3. Fetch Customers (CLCARD) - Limit to 1000 for preview performance
+            cur.execute(f"SELECT DISTINCT TOP 1000 CODE, DEFINITION_, CITY, TELNRS1, SPECODE, CYPHCODE FROM LG_{firm_id}_CLCARD WHERE ACTIVE=0 AND CARDTYPE<>22 ORDER BY CODE")
             customers = []
             seen_cust = set()
             for r in cur.fetchall():
