@@ -684,8 +684,10 @@ async function fetchLogoFirms() {
         if (data.success && data.firms && data.firms.length > 0) {
             firmCards.innerHTML = data.firms.map(f => `
                 <div class="firm-card" onclick="selectFirm('${f.id}', this)">
-                    <div class="firm-number">Firma ${f.id}</div>
-                    <div class="firm-name">${f.name}</div>
+                    <div class="firm-info">
+                        <div class="firm-number">Firma ${f.id}</div>
+                        <div class="firm-name">${f.name}</div>
+                    </div>
                     <div class="firm-check">✓</div>
                 </div>
             `).join('');
