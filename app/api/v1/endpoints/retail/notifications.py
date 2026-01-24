@@ -109,11 +109,11 @@ async def send_notification(
         notification_id = result.fetchone()[0]
         db.commit()
         
-        # TODO: Trigger actual notification (push, email, sms)
-        # await send_push_notification(notification_id)
-        # await send_email_notification(notification_id)
-        # await send_sms_notification(notification_id)
-        
+        # Trigger external notifications (Fire & Forget)
+        if notification.channel == "push" or notification.channel == "all":
+             import asyncio
+             asyncio.create_task(send_push_notification(notification))
+
         return {
             "success": True,
             "notification_id": notification_id,
@@ -123,6 +123,53 @@ async def send_notification(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+async def send_push_notification(notification: NotificationCreate):
+    """
+    Send Push Notification via OneSignal
+    """
+    from app.core.config import settings
+    import requests
+    import json
+    
+    if not settings.ONESIGNAL_APP_ID or not settings.ONESIGNAL_API_KEY:
+        print("OneSignal configuration missing, skipping push.")
+        return
+
+    try:
+        header = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Basic {settings.ONESIGNAL_API_KEY}"
+        }
+
+        payload = {
+            "app_id": settings.ONESIGNAL_APP_ID,
+            "headings": {"en": notification.title},
+            "contents": {"en": notification.message},
+            "channel_for_external_user_ids": "push",
+            "include_external_user_ids": [notification.user_id] if notification.user_id else [] 
+        }
+        
+        # If no user_id, maybe broadcast to all? 
+        # For safety, let's only send if user_id is present for now, 
+        # or if role_id is present (requires tags/segments implementation in OneSignal which is complex).
+        if not payload["include_external_user_ids"]:
+             # Fallback: Send to all 'Active Users' segment if explicitly requested, otherwise skip
+             # payload["included_segments"] = ["Active Users"]
+             return
+
+        if notification.metadata:
+            payload["data"] = notification.metadata
+            
+        if notification.action_url:
+            payload["url"] = notification.action_url
+
+        # Run blocking request in thread
+        import asyncio
+        await asyncio.to_thread(requests.post, "https://onesignal.com/api/v1/notifications", headers=header, data=json.dumps(payload))
+        
+    except Exception as e:
+        print(f"OneSignal Error: {e}")
 
 
 @router.get("/list")

@@ -99,7 +99,13 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = "noreply@exretailos.com"
+
+    # Push Notifications (OneSignal)
+    ONESIGNAL_APP_ID: str = ""
+    ONESIGNAL_API_KEY: str = ""
 
     def load_db_config(self):
         db_path = os.path.join(os.getcwd(), "api.db")
