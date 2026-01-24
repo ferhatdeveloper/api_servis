@@ -3,10 +3,11 @@
 
 $ErrorActionPreference = "Stop"
 
-# UTF-8 Encoding for Turkish Characters
-$OutputEncoding = [System.Text.Encoding]::UTF8
+# Force UTF-8 Terminal and Output
+chcp 65001 >$null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 $RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
 
@@ -80,10 +81,30 @@ if (!(Get-Command python -ErrorAction SilentlyContinue)) {
 $PyVer = python --version 2>&1
 Write-Host "[BİLGİ] Mevcut $PyVer tespit edildi." -ForegroundColor Yellow
 
+# Parse version (e.g. "Python 3.7.7" -> 307)
+$VerClean = $PyVer -replace '[^0-9.]', ''
+$VerParts = $VerClean.Split('.')
+$Major = [int]$VerParts[0]
+$Minor = [int]$VerParts[1]
+
+if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
+    Write-Host "[HATA] Mevcut Python sürümünüz ($VerClean) çok eski!" -ForegroundColor Red
+    Write-Host "[BİLGİ] Bu uygulama için en az Python 3.10 gereklidir." -ForegroundColor Cyan
+    Write-Host "[BİLGİ] Lütfen Python 3.12.8 yükleyin (İndirme başlatılıyor...)" -ForegroundColor Cyan
+    
+    $Arch = $env:PROCESSOR_ARCHITECTURE
+    $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
+    if ($Arch -eq "ARM64") { $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-arm64.exe" }
+    
+    Start-Process $PyUrl
+    return
+}
+
 if ($PyVer -like "*3.13*") {
     Write-Host "[UYARI] Python 3.13 kullanıyorsunuz. Bu sürüm bazı kütüphanelerde derleme (build) hatalarına neden olabilir." -ForegroundColor Yellow
     Write-Host "[BİLGİ] Eğer hata alırsanız Python 3.12.x kurmanızı öneririz." -ForegroundColor Cyan
 }
+
 
 
 # 5. Sanal Ortam ve Bağımlılıklar
