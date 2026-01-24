@@ -135,29 +135,41 @@ $PortablePyDir = Join-Path $TargetDir "python"
 $PythonExe = Join-Path $PortablePyDir "python.exe"
 
 if (!(Test-Path $PythonExe)) {
-    Write-Host "[BİLGİ] Taşınabilir (Portable) Python hazırlanıyor... (Hiçbir sistem ayarı değiştirilmez)" -ForegroundColor Cyan
+    Write-Host "[BİLGİ] Taşınabilir (Portable) Python hazırlanıyor..." -ForegroundColor Cyan
     
-    $PyZip = Join-Path $env:TEMP "python_portable.zip"
+    $PyZip = Join-Path $TargetDir "python_portable.zip"
     $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip"
     
+    # Silent download (hide progress bar)
+    $OldProgress = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue'
+    
     Write-Host "[İŞLEM] Python dosyaları indiriliyor..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $PyUrl -OutFile $PyZip
+    Invoke-WebRequest -Uri $PyUrl -OutFile $PyZip -ErrorAction Stop
     
     Write-Host "[İŞLEM] Dosyalar çıkartılıyor..." -ForegroundColor Yellow
-    if (!(Test-Path $PortablePyDir)) { New-Item -Path $PortablePyDir -ItemType Directory }
+    if (!(Test-Path $PortablePyDir)) { New-Item -Path $PortablePyDir -ItemType Directory | Out-Null }
     Expand-Archive -Path $PyZip -DestinationPath $PortablePyDir -Force
+    
+    $ProgressPreference = $OldProgress
     
     # 4.1 Bootstrap PIP (Portable Python'da pip yüklü gelmez)
     Write-Host "[İŞLEM] Paket yöneticisi (pip) kuruluyor..." -ForegroundColor Yellow
     $PthFile = Join-Path $PortablePyDir "python312._pth"
     # Uncomment 'import site' in .pth file to allow site-packages
-    (Get-Content $PthFile) -replace "#import site", "import site" | Set-Content $PthFile
+    $pthContent = Get-Content $PthFile
+    if ($pthContent -match "#import site") {
+        $pthContent -replace "#import site", "import site" | Set-Content $PthFile
+    }
     
     $GetPip = Join-Path $PortablePyDir "get-pip.py"
-    Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $GetPip
+    Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $GetPip -ErrorAction SilentlyContinue
     & $PythonExe $GetPip | Out-Null
     
-    Remove-Item $PyZip -Force
+    # Cleanup
+    Remove-Item $PyZip -Force -ErrorAction SilentlyContinue
+    Remove-Item $GetPip -Force -ErrorAction SilentlyContinue
+    
     Write-Host "[BAŞARILI] Taşınabilir Python hazır." -ForegroundColor Green
 }
 else {
