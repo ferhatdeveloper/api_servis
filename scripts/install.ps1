@@ -18,10 +18,11 @@ $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
 
 if ($OPS_MODE -eq "cleanup") {
     Write-Host "[BİLGİ] Python Temizleme Aracı başlatılıyor..." -ForegroundColor Yellow
-    # Download and run cleanup_python.ps1 directly
-    $CleanupUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/cleanup_python.ps1"
+    # Cache-busting download
+    $Id = Get-Random
+    $CleanupUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/cleanup_python.ps1?v=$Id"
     $CleanupPath = Join-Path $env:TEMP "cleanup_python.ps1"
-    Invoke-WebRequest -Uri $CleanupUrl -OutFile $CleanupPath -ErrorAction SilentlyContinue
+    Invoke-WebRequest -Uri $CleanupUrl -OutFile $CleanupPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
     if (Test-Path $CleanupPath) {
         & $CleanupPath
     }
@@ -33,9 +34,11 @@ if ($OPS_MODE -eq "cleanup") {
 
 if ($OPS_MODE -eq "fix-policy") {
     Write-Host "[BİLGİ] Kurulum Politikası Düzeltici başlatılıyor..." -ForegroundColor Yellow
-    $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1"
+    # Cache-busting download
+    $Id = Get-Random
+    $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1?v=$Id"
     $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
-    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -ErrorAction SilentlyContinue
+    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
     if (Test-Path $FixPath) {
         & $FixPath
     }

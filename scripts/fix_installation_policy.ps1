@@ -1,13 +1,18 @@
-# EXFIN OPS - Kurulum Politikası Düzeltici v2.0 (Aggressive Fix)
-# Bu script, sistem politikası (0x80070659) engellerini agresif bir şekilde kaldırmaya çalışır.
+# EXFIN OPS - Kurulum Politikası Düzeltici v2.1 (Ultra-Aggressive Fix)
+# Bu script, sistem politikası (0x80070659) engellerini en agresif şekilde kaldırmaya çalışır.
 
 $ErrorActionPreference = "SilentlyContinue"
 
-# UTF-8 Zorlaması (Script İçin)
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-chcp 65001 >$null
+# UTF-8 Zorlaması (Script Başında)
+Try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+    chcp 65001 >$null
+}
+Catch {}
 
-Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "`n==========================================" -ForegroundColor Cyan
 Write-Host "    SİSTEM KURULUM POLİTİKASI DÜZELTİCİ" -ForegroundColor Cyan
 Write-Host "==========================================`n" -ForegroundColor Cyan
 
@@ -45,11 +50,13 @@ function Resolve-RegistryRestriction {
 
 $fixed = $false
 
-# 1. Standart Installer Politikaları
+# 1. Standart Installer Politikaları (HKLM ve HKCU)
 $paths = @(
-    "HKLM:\Software\Policies\Microsoft\Windows\Installer",
-    "HKCU:\Software\Policies\Microsoft\Windows\Installer",
-    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Managed"
+    "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Installer",
+    "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Installer",
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Managed",
+    "HKLM:\SOFTWARE\WOW6432Node\Policies\Microsoft\Windows\Installer",
+    "HKCU:\SOFTWARE\WOW6432Node\Policies\Microsoft\Windows\Installer"
 )
 
 # DisableMSI = 0 (İzin Ver)
@@ -58,6 +65,7 @@ foreach ($p in $paths) {
     if (Resolve-RegistryRestriction -Path $p -Name "DisablePatch" -AlwaysSetTo 0) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "DisableUserInstalls" -AlwaysSetTo 0) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "AlwaysInstallElevated" -AlwaysSetTo 1) { $fixed = $true }
+    if (Resolve-RegistryRestriction -Path $p -Name "EnableAdminRemote" -AlwaysSetTo 1) { $fixed = $true }
 }
 
 # 2. Explorer Uygulama Önerileri (SmartScreen vb. engelleri)
