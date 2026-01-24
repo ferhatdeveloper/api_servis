@@ -7,6 +7,26 @@ import json
 import subprocess
 import sys
 
+def run_scheduled_backup():
+    """Module-level function for consistent pickling/serialization in APScheduler"""
+    try:
+        logger.info("Executing Scheduled Backup Task...")
+        # Find the script - use absolute path logic
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        script_path = os.path.join(base_dir, "scripts", "backup_db.py")
+        
+        # Use current python executable
+        python_exe = sys.executable
+        
+        if not os.path.exists(script_path):
+            logger.error(f"Backup script not found at: {script_path}")
+            return
+
+        subprocess.run([python_exe, script_path], check=True, capture_output=True, text=True)
+        logger.info("Backup Completed Successfully.")
+    except Exception as e:
+        logger.error(f"Scheduled backup job failed: {e}")
+
 class SchedulerService:
     def __init__(self):
         # Persistence: Use local SQLite for jobs
@@ -18,7 +38,7 @@ class SchedulerService:
             'default': ThreadPoolExecutor(20)
         }
         job_defaults = {
-            'coalesce': False,
+            'coalesce': True, # Coalesce missed runs
             'max_instances': 1
         }
         
@@ -36,22 +56,6 @@ class SchedulerService:
         if self.scheduler.running:
             self.scheduler.shutdown()
             logger.info("Scheduler Stopped")
-
-    def run_backup_process(self):
-        """Executes the backup script"""
-        try:
-            logger.info("Executing Scheduled Backup...")
-            # Find the script
-            base_dir = os.getcwd() # Should be backend root
-            script_path = os.path.join(base_dir, "scripts", "backup_db.py")
-            
-            # Use current python executable
-            python_exe = sys.executable
-            
-            subprocess.run([python_exe, script_path], check=True)
-            logger.info("Backup Completed Successfully.")
-        except Exception as e:
-            logger.error(f"Backup job failed: {e}")
 
     def refresh_backup_schedule(self):
         """Reads config and updates schedule"""
@@ -80,7 +84,7 @@ class SchedulerService:
                 except: h_val = 1
                 
                 self.scheduler.add_job(
-                    self.run_backup_process,
+                    run_scheduled_backup, # Use standalone function
                     'interval',
                     hours=h_val,
                     id=job_id,
@@ -98,7 +102,7 @@ class SchedulerService:
                     hour, minute = 23, 0
 
                 self.scheduler.add_job(
-                    self.run_backup_process,
+                    run_scheduled_backup, # Use standalone function
                     'cron',
                     hour=hour,
                     minute=minute,
@@ -124,7 +128,7 @@ class SchedulerService:
                     days_str = ",".join(days)
 
                 self.scheduler.add_job(
-                    self.run_backup_process,
+                    run_scheduled_backup, # Use standalone function
                     'cron',
                     hour=hour,
                     minute=minute,
@@ -139,3 +143,4 @@ class SchedulerService:
             logger.error(f"Error refreshing schedule: {e}")
 
 scheduler_service = SchedulerService()
+

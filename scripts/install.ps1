@@ -53,10 +53,21 @@ else {
 
 # 4. Python Kontrolü
 if (!(Get-Command python -ErrorAction SilentlyContinue)) {
-    Write-Host "[HATA] Python bulunamadı! Lütfen Python 3.10+ yükleyin." -ForegroundColor Red
-    Start-Process "https://www.python.org/downloads/"
+    Write-Host "[HATA] Python bulunamadı!" -ForegroundColor Red
+    Write-Host "[BİLGİ] Önerilen Sürüm: Python 3.12.8 (64-bit)" -ForegroundColor Cyan
+    Write-Host "[BİLGİ] İndirme Linki: https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe" -ForegroundColor Cyan
+    Start-Process "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
     return
 }
+
+$PyVer = python --version 2>&1
+Write-Host "[BİLGİ] Mevcut $PyVer tespit edildi." -ForegroundColor Yellow
+
+if ($PyVer -like "*3.13*") {
+    Write-Host "[UYARI] Python 3.13 kullanıyorsunuz. Bu sürüm bazı kütüphanelerde derleme (build) hatalarına neden olabilir." -ForegroundColor Yellow
+    Write-Host "[BİLGİ] Eğer hata alırsanız Python 3.12.x kurmanızı öneririz." -ForegroundColor Cyan
+}
+
 
 # 5. Sanal Ortam ve Bağımlılıklar
 if (!(Test-Path "venv")) {
