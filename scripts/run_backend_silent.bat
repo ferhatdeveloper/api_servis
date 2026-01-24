@@ -1,11 +1,12 @@
 @echo off
 cd /d "%~dp0\.."
 
-REM Use explicit python path just like run_api.bat
-if exist "venv\Scripts\python.exe" (
+REM Use explicit python path (Check for custom runner first for branding)
+if exist "venv\Scripts\ExfinOpsService.exe" (
+    set PYTHON_EXE=venv\Scripts\ExfinOpsService.exe
+) else if exist "venv\Scripts\python.exe" (
     set PYTHON_EXE=venv\Scripts\python.exe
 ) else (
-    rem Fallback to system python if venv not found
     set PYTHON_EXE=python
 )
 

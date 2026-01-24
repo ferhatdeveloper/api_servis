@@ -90,22 +90,36 @@ def kill_port_owner(port):
         except:
             pass
 
+def ensure_custom_runner(venv_scripts_dir, original_exe_name, custom_exe_name):
+    """Creates a copy of the python interpreter with a custom name to show in Task Manager"""
+    import shutil
+    try:
+        source = os.path.join(venv_scripts_dir, original_exe_name)
+        target = os.path.join(venv_scripts_dir, custom_exe_name)
+        
+        if os.path.exists(source) and not os.path.exists(target):
+            logging.info(f"Creating custom runner: {custom_exe_name}")
+            shutil.copy2(source, target)
+        return target if os.path.exists(target) else source
+    except Exception as e:
+        logging.error(f"Error creating custom runner: {e}")
+        return os.path.join(venv_scripts_dir, original_exe_name)
+
 def auto_launch_tray(base_dir):
     """Launches the Tray App automatically in the background"""
     logging.info("Attempting to auto-launch Tray App...")
     print("Tray App (Saatin yanındaki simge) başlatılıyor...")
     try:
         venv_dir = os.path.join(base_dir, "venv", "Scripts")
-        venv_pythonw = os.path.join(venv_dir, "pythonw.exe")
         tray_script = os.path.join(base_dir, "tray_app.py")
         
-        # Use pythonw.exe if available to run without a console window gracefully
-        python_exec = venv_pythonw if os.path.exists(venv_pythonw) else "pythonw"
+        # Ensure custom runner for Tray
+        custom_exec = ensure_custom_runner(venv_dir, "pythonw.exe", "ExfinOpsTray.exe")
         
-        logging.info(f"Launching Tray with pythonw: {python_exec} {tray_script} --force --no-password")
-        print(f"Tray App başlatılıyor: {python_exec}")
+        logging.info(f"Launching Tray with custom exec: {custom_exec} {tray_script} --force --no-password")
+        print(f"Tray App başlatılıyor: {custom_exec}")
         
-        subprocess.Popen([python_exec, tray_script, "--force", "--no-password"], 
+        subprocess.Popen([custom_exec, tray_script, "--force", "--no-password"], 
                          cwd=base_dir)
         logging.info("Tray App process started successfully.")
         print("Tray App launch command sent.")
@@ -141,7 +155,11 @@ def main():
     port = 8888
     kill_port_owner(port)
 
-    # 3. Auto-launch Tray App (User request: Launch immediately)
+    # 3. Prepare Custom Runner for Service (used by tray_app or bats)
+    venv_scripts = os.path.join(base_dir, "venv", "Scripts")
+    ensure_custom_runner(venv_scripts, "python.exe", "ExfinOpsService.exe")
+
+    # 4. Auto-launch Tray App (User request: Launch immediately)
     auto_launch_tray(base_dir)
 
     # 4. Add scripts/web_installer to path

@@ -13,7 +13,12 @@ if not exist "venv\Scripts\python.exe" (
 )
 
 echo [DEBUG] Found Python. Launching API...
-venv\Scripts\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+set PYTHON_EXE=venv\Scripts\python.exe
+if exist "venv\Scripts\ExfinOpsService.exe" (
+    set PYTHON_EXE=venv\Scripts\ExfinOpsService.exe
+)
+
+"%PYTHON_EXE%" -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 if %errorlevel% neq 0 (
     echo [ERROR] Uvicorn exited with code %errorlevel%
