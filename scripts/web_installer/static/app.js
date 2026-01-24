@@ -24,6 +24,31 @@ function switchDataTab(tabId, btn) {
     btn.classList.add('active');
 }
 
+function filterTable(tableId, query) {
+    const filter = query.toUpperCase();
+    const rows = document.getElementById(tableId).getElementsByTagName("tr");
+
+    for (let i = 0; i < rows.length; i++) {
+        // Skip header or empty message row if needed, but usually we filter logic rows
+        // If row has no cells (e.g. empty) skip
+        const cells = rows[i].getElementsByTagName("td");
+        if (cells.length < 2) continue; // Skip header/message rows
+
+        let found = false;
+        // Check all cells
+        for (let j = 0; j < cells.length; j++) {
+            const txt = cells[j].textContent || cells[j].innerText;
+            if (txt.toUpperCase().indexOf(filter) > -1) {
+                found = true;
+                break;
+            }
+        }
+
+        // Toggle visibility
+        rows[i].style.display = found ? "" : "none";
+    }
+}
+
 function getVal(id, fallback = "") {
     const el = document.getElementById(id);
     return el ? el.value : fallback;

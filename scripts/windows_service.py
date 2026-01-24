@@ -169,7 +169,25 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
             except Exception as db_e:
                 self.logger.warning(f"Could not read port from api.db: {db_e}")
             
-            cmd = [venv_python, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", api_port]
+            # SSL Check via .env
+            env_path = os.path.join(project_dir, ".env")
+            ssl_args = []
+            if os.path.exists(env_path):
+                try:
+                    with open(env_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if line.startswith("SSL_CERT_FILE="):
+                                cert_file = line.strip().split("=", 1)[1]
+                                if os.path.exists(cert_file):
+                                    ssl_args.extend(["--ssl-certfile", cert_file])
+                            elif line.startswith("SSL_KEY_FILE="):
+                                key_file = line.strip().split("=", 1)[1]
+                                if os.path.exists(key_file):
+                                    ssl_args.extend(["--ssl-keyfile", key_file])
+                except Exception as e:
+                    self.logger.warning(f"Failed to read .env for SSL: {e}")
+
+            cmd = [venv_python, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", api_port] + ssl_args
             
             self.logger.info(f'Startup Command: {" ".join(cmd)}')
             

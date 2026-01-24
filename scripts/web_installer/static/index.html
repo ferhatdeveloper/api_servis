@@ -405,7 +405,12 @@
                 <div id="tab-salesmen" class="tab-pane active">
                     <div class="selection-header" style="margin-bottom: 10px;">
                         <span>Satış Elemanları (Satışçı Girişi)</span>
-                        <button class="btn-preview" onclick="openPreview('salesmen')">Önizle</button>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" placeholder="🔍 Ara..."
+                                onkeyup="filterTable('list-salesmen', this.value)"
+                                style="background:var(--input-bg); border:1px solid var(--input-border); color:white; padding:5px 10px; border-radius:4px; font-size:12px;">
+                            <button class="btn-preview" onclick="openPreview('salesmen')">Önizle</button>
+                        </div>
                     </div>
                     <div class="data-selection-list">
                         <table class="selection-table">
@@ -459,7 +464,12 @@
                 <div id="tab-customers" class="tab-pane">
                     <div class="selection-header" style="margin-bottom: 10px;">
                         <span>Müşteriler (Cari Hesaplar)</span>
-                        <button class="btn-preview" onclick="openPreview('customers')">Önizle</button>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" placeholder="🔍 Ara..."
+                                onkeyup="filterTable('list-customers', this.value)"
+                                style="background:var(--input-bg); border:1px solid var(--input-border); color:white; padding:5px 10px; border-radius:4px; font-size:12px;">
+                            <button class="btn-preview" onclick="openPreview('customers')">Önizle</button>
+                        </div>
                     </div>
                     <div class="data-selection-list">
                         <div
