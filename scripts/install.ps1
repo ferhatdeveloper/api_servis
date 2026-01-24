@@ -28,22 +28,34 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Host "1) Standart Kurulum / Güncelleme (Önerilen)" -ForegroundColor Green
     Write-Host "2) Python Temizleme Aracı (Bağımlılık Sorunlarını Çözer)" -ForegroundColor Yellow
     Write-Host "3) Sistem Politikası Düzeltici (0x80070659 / 0x80070643 Fix)" -ForegroundColor Magenta
-    Write-Host "4) Sadece Windows Servisi Kur/Yönet" -ForegroundColor Cyan
-    Write-Host "5) Çıkış" -ForegroundColor White
+    Write-Host "4) SADECE MASAÜSTÜ KURTAR (Ekran donduysa veya UAC kapandıysa)" -ForegroundColor Red
+    Write-Host "5) Sadece Windows Servisi Kur/Yönet" -ForegroundColor Cyan
+    Write-Host "6) Çıkış" -ForegroundColor White
     
-    $MainChoice = Read-Host "`nSeçiminiz (1-5)"
+    $MainChoice = Read-Host "`nSeçiminiz (1-6)"
     
     switch ($MainChoice) {
         "1" { $OPS_MODE = "install" }
         "2" { $OPS_MODE = "cleanup" }
         "3" { $OPS_MODE = "fix-policy" }
-        "4" { $OPS_MODE = "service-only" }
-        "5" { return }
+        "4" { $OPS_MODE = "safe-mode" }
+        "5" { $OPS_MODE = "service-only" }
+        "6" { return }
         default { $OPS_MODE = "install" }
     }
 }
 
 # 0. Argument / Menu Action Handling
+if ($OPS_MODE -eq "safe-mode") {
+    Write-Host "`n[BİLGİ] Masaüstü Kurtarma Modu başlatılıyor..." -ForegroundColor Yellow
+    $env:OPS_ARG = "safe-mode"
+    $Id = Get-Random
+    $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1?v=$Id"
+    $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
+    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
+    if (Test-Path $FixPath) { & $FixPath }
+    return
+}
 if ($OPS_MODE -eq "cleanup") {
     Write-Host "`n[BİLGİ] Python Temizleme Aracı başlatılıyor..." -ForegroundColor Yellow
     $Id = Get-Random

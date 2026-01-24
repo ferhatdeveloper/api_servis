@@ -1,5 +1,5 @@
-# EXFIN OPS - Kurulum Politikası Düzeltici v2.5 (Ultimate Enterprise Bypass)
-# Bu script, fatal 0x80070643, 0x80070659 ve 'Yönetici Tarafından Engellendi' (Red UAC) hatalarını aşmak içindir.
+# EXFIN OPS - Kurulum Politikası Düzeltici v2.6 (Safety & Recovery)
+# Bu script, bypass işlemlerini geri almak veya kilitli masaüstünü kurtarmak içindir.
 
 $ErrorActionPreference = "SilentlyContinue"
 
@@ -12,12 +12,25 @@ Try {
 }
 Catch {}
 
+$SafetyMode = if ($env:OPS_ARG -eq "safe-mode") { $true } else { $false }
+
 Write-Host "`n==========================================" -ForegroundColor Cyan
-Write-Host "    SİSTEM KURULUM POLİTİKASI DÜZELTİCİ" -ForegroundColor Cyan
+if ($SafetyMode) { Write-Host "    MASAÜSTÜ KURTARMA VE GÜVENLİK MODU" -ForegroundColor Green }
+else { Write-Host "    SİSTEM KURULUM POLİTİKASI DÜZELTİCİ" -ForegroundColor Cyan }
 Write-Host "==========================================`n" -ForegroundColor Cyan
 
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "[HATA] Lütfen bu scripti 'YÖNETİCİ OLARAK' çalıştırın!" -ForegroundColor Red
+    pause
+    return
+}
+
+if ($SafetyMode) {
+    Write-Host "[>] Güvenlik ayarları geri yükleniyor (Masaüstünü kurtar)..." -ForegroundColor White
+    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "EnableLUA" -Value 1 -Type DWord -Force
+    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorAdmin" -Value 5 -Type DWord -Force
+    Write-Host "[BAŞARILI] UAC (Kullanıcı Hesabı Denetimi) tekrar açıldı." -ForegroundColor Green
+    Write-Host "[!] Lütfen masaüstünü görmek için bilgisayarınızı ŞİMDİ YENİDEN BAŞLATIN." -ForegroundColor Yellow
     pause
     return
 }
@@ -32,18 +45,17 @@ Get-Process msiexec, python* -ErrorAction SilentlyContinue | Stop-Process -Force
 Write-Host "[>] MSI kilitleri temizleniyor..." -ForegroundColor White
 if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress") {
     Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress" -Recurse -Force
+    Write-Host "[+] MSI InProgress kilidi kaldırıldı." -ForegroundColor Green
     $fixed = $true
 }
 
-# 3. SRP (Software Restriction Policies) ve Signature Bypass - RED UAC BOX FIX
-Write-Host "[>] Yazılım kısıtlama ve imza denetimleri bypass ediliyor..." -ForegroundColor White
+# 3. SRP ve UAC Bypass (Dikkat: EnableLUA=0 masaüstünü dondurabilir)
+Write-Host "[>] Kurumsal bypass ayarları yapılıyor..." -ForegroundColor White
 $regActions = @(
     @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Safer\CodeIdentifiers"; Name = "DefaultLevel"; Value = 262144 },
     @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Safer\CodeIdentifiers"; Name = "PolicyLevel"; Value = 0 },
-    @{ Path = "HKLM:\SOFTWARE\Microsoft\Windows\Safer\CodeIdentifiers"; Name = "AuthenticodeEnabled"; Value = 0 },
     @{ Path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"; Name = "LocalAccountTokenFilterPolicy"; Value = 1 },
     @{ Path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"; Name = "EnableLUA"; Value = 0 },
-    @{ Path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"; Name = "ConsentPromptBehaviorAdmin"; Value = 0 },
     @{ Path = "HKLM:\SOFTWARE\Microsoft\WinTrust\Trust Providers\Software Publishing"; Name = "State"; Value = 146944 }
 )
 
@@ -54,48 +66,13 @@ foreach ($ra in $regActions) {
 }
 
 # 4. Windows Installer Servisini Sıfırla
-Write-Host "[>] Windows Installer servisi yeniden kaydediliyor..." -ForegroundColor White
+Write-Host "[>] MSI servisi tazeleniyor..." -ForegroundColor White
 & msiexec /unreg
 & msiexec /regserver
-Set-Service -Name "msiserver" -StartupType Manual
 Restart-Service -Name "msiserver"
 
-function Resolve-RegistryRestriction {
-    param($Path, $Name, $AlwaysSetTo = $null)
-    if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-    $current = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
-    if ($null -ne $current) {
-        Write-Host "[!] Kısıtlama bulundu: $Name" -ForegroundColor Yellow
-        if ($null -ne $AlwaysSetTo) { Set-ItemProperty -Path $Path -Name $Name -Value $AlwaysSetTo -Force }
-        else { Remove-ItemProperty -Path $Path -Name $Name -Force }
-        return $true
-    }
-    elseif ($null -ne $AlwaysSetTo) {
-        New-ItemProperty -Path $Path -Name $Name -Value $AlwaysSetTo -PropertyType DWord -Force | Out-Null
-        return $true
-    }
-    return $false
-}
-
-# 5. Agresif Installer Politikaları
-$paths = @(
-    "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Installer",
-    "HKLM:\SOFTWARE\WOW6432Node\Policies\Microsoft\Windows\Installer"
-)
-
-foreach ($p in $paths) {
-    if (Resolve-RegistryRestriction -Path $p -Name "DisableMSI" -AlwaysSetTo 0) { $fixed = $true }
-    if (Resolve-RegistryRestriction -Path $p -Name "DisablePatch" -AlwaysSetTo 0) { $fixed = $true }
-    if (Resolve-RegistryRestriction -Path $p -Name "AlwaysInstallElevated" -AlwaysSetTo 1) { $fixed = $true }
-}
-
-if ($fixed) {
-    Write-Host "`n[BAŞARILI] Kurumsal kısıtlamalar (SRP/Signature) bypass edildi." -ForegroundColor Green
-}
-else {
-    Write-Host "`n[BİLGİ] Bypass anahtarları zaten yüklü." -ForegroundColor Cyan
-}
-
-Write-Host "[!] Lütfen Python kurulumunu ŞİMDİ tekrar deneyin." -ForegroundColor White
+Write-Host "`n[BAŞARILI] Tüm kısıtlamalar bypass edildi." -ForegroundColor Green
+Write-Host "[DİKKAT] Eğer ekranınız donarsa veya masaüstü gelmezse bilgisayarı YENİDEN BAŞLATIN." -ForegroundColor Yellow
+Write-Host "[!] Kuruluma yeniden başlatma sonrası devam edebilirsiniz." -ForegroundColor White
 Write-Host "------------------------------------------" -ForegroundColor Cyan
 pause
