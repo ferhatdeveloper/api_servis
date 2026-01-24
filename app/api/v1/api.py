@@ -40,29 +40,38 @@ api_router.include_router(logo_erp.router, prefix="/logo", tags=["Logo ERP Integ
 api_router.include_router(logo_data.router, prefix="/logo-data", tags=["Logo Master Data"])
 api_router.include_router(sync.router, prefix="/sync", tags=["Report Sync"])
 
-# --- PDKS ---
-api_router.include_router(pdks.router, prefix="/pdks", tags=["PDKS Integration"])
+# --- PDKS (Flattened) ---
+from app.api.v1.endpoints.pdks import (
+    departments, performance, auto_index, file_upload, 
+    hikvision, email_settings, realtime, health as pdks_health, 
+    database as pdks_database
+)
 
-# --- RETAIL (Prefix: /retail) ---
-# Grouping retail endpoints under /retail to keep main namespace clean, but sub-routes are short.
-# User asked for short URLs, so we avoid deep nesting like /retail/api/v1/...
-retail_router = APIRouter(prefix="/retail", tags=["Retail Protocol"])
+api_router.include_router(departments.router, prefix="/departments", tags=["Departments"])
+api_router.include_router(performance.router, prefix="/performance", tags=["Performance"])
+api_router.include_router(auto_index.router, prefix="/auto-index", tags=["Auto Index"])
+api_router.include_router(file_upload.router, prefix="/upload", tags=["File Upload"])
+api_router.include_router(hikvision.router, prefix="/hikvision", tags=["Hikvision"])
+api_router.include_router(email_settings.router, prefix="/email-settings", tags=["Email Settings"])
+api_router.include_router(realtime.router, prefix="/realtime", tags=["Realtime"])
+api_router.include_router(pdks_health.router, prefix="/device-health", tags=["Device Health"])
+api_router.include_router(pdks_database.router, prefix="/pdks-database", tags=["PDKS Database"])
 
-retail_router.include_router(retail_products.router, prefix="/products", tags=["Retail Products"])
-retail_router.include_router(retail_sales.router, prefix="/sales", tags=["Retail Sales"])
-retail_router.include_router(retail_customers.router, prefix="/customers", tags=["Retail Customers"])
-retail_router.include_router(retail_reports.router, prefix="/reports", tags=["Retail Reports"])
-retail_router.include_router(retail_payment.router, prefix="/payment", tags=["Retail Payment"])
-retail_router.include_router(retail_accounting.router, prefix="/accounting", tags=["Retail Accounting"])
-retail_router.include_router(retail_ecommerce.router, prefix="/ecommerce", tags=["Retail E-commerce"])
-retail_router.include_router(retail_websocket.router, prefix="/ws", tags=["Retail WebSocket"])
-retail_router.include_router(retail_duplicate_check.router, prefix="/check", tags=["Retail Checks"])
-retail_router.include_router(retail_ai.router, prefix="/ai", tags=["Retail AI"])
-retail_router.include_router(retail_cost.router, prefix="/cost", tags=["Retail Cost Accounting"])
-retail_router.include_router(retail_notifications.router, prefix="/notifications", tags=["Retail Notifications"])
-retail_router.include_router(retail_vpn.router, prefix="/vpn", tags=["Retail VPN"])
-retail_router.include_router(retail_whatsapp.router, prefix="/whatsapp", tags=["Retail WhatsApp"])
-
-api_router.include_router(retail_router)
+# --- RETAIL (Flattened) ---
+# Formerly under /retail prefix, now unified.
+api_router.include_router(retail_products.router, prefix="/products", tags=["Retail Products"])
+api_router.include_router(retail_sales.router, prefix="/sales", tags=["Retail Sales"])
+api_router.include_router(retail_customers.router, prefix="/retail-customers", tags=["Retail Customers"])
+api_router.include_router(retail_reports.router, prefix="/retail-reports", tags=["Retail Reports"])
+api_router.include_router(retail_payment.router, prefix="/payment", tags=["Retail Payment"])
+api_router.include_router(retail_accounting.router, prefix="/accounting", tags=["Retail Accounting"])
+api_router.include_router(retail_ecommerce.router, prefix="/ecommerce", tags=["Retail E-commerce"])
+api_router.include_router(retail_websocket.router, prefix="/ws", tags=["Retail WebSocket"])
+api_router.include_router(retail_duplicate_check.router, prefix="/duplicate-check", tags=["Retail Checks"])
+api_router.include_router(retail_ai.router, prefix="/ai-analysis", tags=["Retail AI"])
+api_router.include_router(retail_cost.router, prefix="/cost-accounting", tags=["Retail Cost Accounting"])
+api_router.include_router(retail_notifications.router, prefix="/notifications", tags=["Retail Notifications"])
+api_router.include_router(retail_vpn.router, prefix="/vpn", tags=["Retail VPN"])
+api_router.include_router(retail_whatsapp.router, prefix="/whatsapp", tags=["Retail WhatsApp"])
 
 
