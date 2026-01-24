@@ -668,9 +668,10 @@ async function testDB(type) {
 
 async function fetchLogoFirms() {
     const firmArea = document.getElementById('logo-firm-area');
+    const firmCards = document.getElementById('logo-firm-cards');
     const firmSelect = document.getElementById('logo-firm-select');
 
-    if (!firmSelect || !appState.config.ms) return;
+    if (!firmCards || !appState.config.ms) return;
 
     try {
         const res = await fetch('/api/logo-firms', {
@@ -681,18 +682,34 @@ async function fetchLogoFirms() {
         const data = await res.json();
 
         if (data.success && data.firms && data.firms.length > 0) {
-            firmSelect.innerHTML = '<option value="">Firma Seçin...</option>' +
-                data.firms.map(f => `<option value="${f.id}">Firma ${f.id} - ${f.name}</option>`).join('');
+            firmCards.innerHTML = data.firms.map(f => `
+                <div class="firm-card" onclick="selectFirm('${f.id}', this)">
+                    <div class="firm-number">Firma ${f.id}</div>
+                    <div class="firm-name">${f.name}</div>
+                    <div class="firm-check">✓</div>
+                </div>
+            `).join('');
 
             if (firmArea) firmArea.classList.remove('hidden');
         } else {
-            firmSelect.innerHTML = '<option value="">Firma bulunamadı</option>';
+            firmCards.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Firma bulunamadı</p>';
             if (firmArea) firmArea.classList.add('hidden');
         }
     } catch (e) {
         console.error('Logo firmalar alınamadı:', e);
-        firmSelect.innerHTML = '<option value="">Hata: Firmalar yüklenemedi</option>';
+        firmCards.innerHTML = '<p style="text-align:center; color:var(--danger);">Hata: Firmalar yüklenemedi</p>';
     }
+}
+
+function selectFirm(firmId, cardElement) {
+    // Remove selection from all cards
+    document.querySelectorAll('.firm-card').forEach(card => card.classList.remove('selected'));
+
+    // Select clicked card
+    cardElement.classList.add('selected');
+
+    // Update hidden input
+    document.getElementById('logo-firm-select').value = firmId;
 }
 
 async function handleDBFinish() {
