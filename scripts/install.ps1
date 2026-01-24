@@ -28,6 +28,21 @@ if ($args[0] -eq "cleanup") {
     return
 }
 
+# 0.1 Policy Fix Argument Handling
+if ($args[0] -eq "fix-policy") {
+    Write-Host "[BİLGİ] Kurulum Politikası Düzeltici başlatılıyor..." -ForegroundColor Yellow
+    $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1"
+    $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
+    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -ErrorAction SilentlyContinue
+    if (Test-Path $FixPath) {
+        & $FixPath
+    }
+    else {
+        Write-Host "[HATA] Düzeltme aracı indirilemedi." -ForegroundColor Red
+    }
+    return
+}
+
 $RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
 
 $DefaultDir = "C:\ExfinApi"
@@ -109,8 +124,8 @@ $Minor = [int]$VerParts[1]
 if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
     Write-Host "[HATA] Mevcut Python sürümünüz ($VerClean) çok eski!" -ForegroundColor Red
     Write-Host "[BİLGİ] Bu uygulama için en az Python 3.10 gereklidir." -ForegroundColor Cyan
-    Write-Host "[ÖNERİ] Temiz bir kurulum için önce tüm eski Python sürümlerini kaldırmanızı öneririz." -ForegroundColor Yellow
-    Write-Host "[BİLGİ] Bunun için şu komutu çalıştırabilirsiniz: irm bit.ly/opsapi | iex -Arguments 'cleanup'" -ForegroundColor White
+    Write-Host "[ÖNERİ] Eğer kurulum 'Sistem Politikası' hatasıyla (0x80070659) engellenirse şu komutu çalıştırın:" -ForegroundColor Yellow
+    Write-Host ">>> irm bit.ly/opsapi | iex -Arguments 'fix-policy'" -ForegroundColor White
     Write-Host "`n[İŞLEM] Lütfen Python 3.12.8 yükleyin (İndirme başlatılıyor...)" -ForegroundColor Cyan
     
     $Arch = $env:PROCESSOR_ARCHITECTURE
