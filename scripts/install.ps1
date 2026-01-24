@@ -3,10 +3,14 @@
 
 $ErrorActionPreference = "Stop"
 
-# UTF-8 Encoding for Turkish Characters
-$OutputEncoding = [System.Text.Encoding]::UTF8
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+# CRITICAL: Force UTF-8 Terminal and Session Encoding
+Try {
+    chcp 65001 >$null
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+}
+Catch { }
 
 # 0. Cleanup / Policy Fix Argument Handling
 # Fallback support for Invoke-Expression (iex) which doesn't support -Arguments
@@ -123,7 +127,7 @@ if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
     Write-Host "[HATA] Mevcut Python sürümünüz ($VerClean) çok eski!" -ForegroundColor Red
     Write-Host "[BİLGİ] Bu uygulama için en az Python 3.10 gereklidir." -ForegroundColor Cyan
     Write-Host "[ÖNERİ] Eğer kurulum 'Sistem Politikası' hatasıyla (0x80070659) engellenirse şu komutu çalıştırın:" -ForegroundColor Yellow
-    Write-Host ">>> `$env:OPS_ARG='fix-policy'; irm bit.ly/opsapi | iex" -ForegroundColor White
+    Write-Host ">>> `$env:OPS_ARG='fix-policy'; irm bit.ly/opsapi | iex" -ForegroundColor Magenta
     Write-Host "`n[İŞLEM] Lütfen Python 3.12.8 yükleyin (İndirme başlatılıyor...)" -ForegroundColor Cyan
     
     $Arch = $env:PROCESSOR_ARCHITECTURE

@@ -1,62 +1,81 @@
-# EXFIN OPS - Kurulum Politikası Düzeltici (Error 0x80070659 Fix)
-# Bu script, sistem politikası nedeniyle engellenen Python kurulumunu açmaya çalışır.
+# EXFIN OPS - Kurulum Politikası Düzeltici v2.0 (Aggressive Fix)
+# Bu script, sistem politikası (0x80070659) engellerini agresif bir şekilde kaldırmaya çalışır.
 
 $ErrorActionPreference = "SilentlyContinue"
+
+# UTF-8 Zorlaması (Script İçin)
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 >$null
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "    SİSTEM KURULUM POLİTİKASI DÜZELTİCİ" -ForegroundColor Cyan
 Write-Host "==========================================`n" -ForegroundColor Cyan
 
-# Yönetici kontrolü
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "[HATA] Lütfen bu scripti 'Yönetici Olarak' çalıştırın!" -ForegroundColor Red
+    Write-Host "[HATA] Lütfen bu scripti 'YÖNETİCİ OLARAK' çalıştırın!" -ForegroundColor Red
     pause
     return
 }
 
 function Resolve-RegistryRestriction {
-    param($Path, $Name)
-    if (Test-Path $Path) {
-        $val = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
-        if ($null -ne $val) {
-            Write-Host "[!] $Name kısıtlaması bulundu ($Path). Kaldırılıyor..." -ForegroundColor Yellow
-            Remove-ItemProperty -Path $Path -Name $Name -Force
-            return $true
+    param($Path, $Name, $AlwaysSetTo = $null)
+    if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+    
+    $current = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
+    if ($null -ne $current) {
+        Write-Host "[!] Kısıtlama anahtarı bulundu: $Name ($Path)" -ForegroundColor Yellow
+        if ($null -ne $AlwaysSetTo) {
+            Set-ItemProperty -Path $Path -Name $Name -Value $AlwaysSetTo -Force
+            Write-Host "[+] Değer $AlwaysSetTo olarak güncellendi." -ForegroundColor Green
         }
+        else {
+            Remove-ItemProperty -Path $Path -Name $Name -Force
+            Write-Host "[-] Kısıtlama silindi." -ForegroundColor Green
+        }
+        return $true
+    }
+    elseif ($null -ne $AlwaysSetTo) {
+        # Eğer anahtar yoksa ama biz bir değer set etmek istiyorsak (Bypass)
+        New-ItemProperty -Path $Path -Name $Name -Value $AlwaysSetTo -PropertyType DWord -Force | Out-Null
+        Write-Host "[+] Bypass anahtarı oluşturuldu: $Name = $AlwaysSetTo" -ForegroundColor Cyan
+        return $true
     }
     return $false
 }
 
 $fixed = $false
 
-# Yaygın kısıtlama anahtarları
+# 1. Standart Installer Politikaları
 $paths = @(
     "HKLM:\Software\Policies\Microsoft\Windows\Installer",
     "HKCU:\Software\Policies\Microsoft\Windows\Installer",
-    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer"
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Managed"
 )
 
-$names = @("DisableMSI", "DisablePatch", "DisableLUAPatch", "InstallEverywhere")
-
+# DisableMSI = 0 (İzin Ver)
 foreach ($p in $paths) {
-    foreach ($n in $names) {
-        if (Resolve-RegistryRestriction -Path $p -Name $n) { $fixed = $true }
-    }
+    if (Resolve-RegistryRestriction -Path $p -Name "DisableMSI" -AlwaysSetTo 0) { $fixed = $true }
+    if (Resolve-RegistryRestriction -Path $p -Name "DisablePatch" -AlwaysSetTo 0) { $fixed = $true }
+    if (Resolve-RegistryRestriction -Path $p -Name "DisableUserInstalls" -AlwaysSetTo 0) { $fixed = $true }
+    if (Resolve-RegistryRestriction -Path $p -Name "AlwaysInstallElevated" -AlwaysSetTo 1) { $fixed = $true }
 }
 
-# Windows Installer Servisini Yeniden Başlat
-Write-Host "[>] Windows Installer servisi kontrol ediliyor..." -ForegroundColor White
+# 2. Explorer Uygulama Önerileri (SmartScreen vb. engelleri)
+$explorerPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer"
+if (Resolve-RegistryRestriction -Path $explorerPath -Name "AicEnabled" -AlwaysSetTo "Anywhere") { $fixed = $true }
+
+# 3. Windows Installer Servisini Sıfırla
+Write-Host "`n[>] Windows Installer servisi kontrol ediliyor..." -ForegroundColor White
 Set-Service -Name "msiserver" -StartupType Manual
 Restart-Service -Name "msiserver" -ErrorAction SilentlyContinue
 
 if ($fixed) {
-    Write-Host "`n[BAŞARILI] Kısıtlamalar temizlendi. Lütfen Python kurulumunu tekrar deneyin." -ForegroundColor Green
+    Write-Host "`n[BAŞARILI] Agresif düzeltme adımları uygulandı." -ForegroundColor Green
 }
 else {
-    Write-Host "`n[BİLGİ] Belgin bir politika kısıtlaması bulunamadı." -ForegroundColor Yellow
-    Write-Host "ÖNERİ: Eğer sorun devam ediyorsa, indirdiğiniz Python dosyasını sağ tıklayıp 'Engellemeyi Kaldır' (Unblock) deyin." -ForegroundColor White
+    Write-Host "`n[BİLGİ] Otomatik bypass anahtarları oluşturuldu." -ForegroundColor Cyan
 }
 
-Write-Host "`n==========================================" -ForegroundColor Cyan
+Write-Host "[!] Lütfen Python kurulumunu ŞİMDİ tekrar deneyin." -ForegroundColor White
+Write-Host "------------------------------------------" -ForegroundColor Cyan
 pause
