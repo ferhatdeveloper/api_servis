@@ -1,4 +1,4 @@
-# EXFIN OPS - Kurulum Politikası Düzeltici v2.2 (Ultra-Aggressive Fix)
+# EXFIN OPS - Kurulum Politikası Düzeltici v2.3 (Ultra-Aggressive Fix)
 # Bu script, fatal 0x80070643 ve 0x80070659 hatalarını aşmak için tasarlanmıştır.
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -22,12 +22,31 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     return
 }
 
+$fixed = $false
+
 # 1. Çalışan Tüm Yükleyicileri Temizle
 Write-Host "[>] Çalışan yükleme süreçleri temizleniyor..." -ForegroundColor White
 Get-Process msiexec | Stop-Process -Force
 Get-Process python* | Stop-Process -Force
 
-# 2. Windows Installer Servisini Sıfırla (Reregister)
+# 2. MSI Lock ve InProgress Kayıtlarını Temizle
+Write-Host "[>] MSI kilitleri ve yarım kalan kurulumlar temizleniyor..." -ForegroundColor White
+
+# InProgress temizle
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress") {
+    Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress" -Recurse -Force
+    Write-Host "[+] MSI InProgress kilidi kaldırıldı." -ForegroundColor Green
+    $fixed = $true
+}
+
+# PendingFileRenameOperations temizle
+if (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "PendingFileRenameOperations" -ErrorAction SilentlyContinue) {
+    Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "PendingFileRenameOperations" -Force
+    Write-Host "[+] Bekleyen dosya işlemleri sıfırlandı." -ForegroundColor Green
+    $fixed = $true
+}
+
+# 3. Windows Installer Servisini Sıfırla (Reregister)
 Write-Host "[>] Windows Installer servisi yeniden kaydediliyor..." -ForegroundColor White
 & msiexec /unreg
 & msiexec /regserver
@@ -59,9 +78,7 @@ function Resolve-RegistryRestriction {
     return $false
 }
 
-$fixed = $false
-
-# 3. Agresif Installer Politikaları
+# 4. Agresif Installer Politikaları
 $paths = @(
     "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Installer",
     "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Installer",
@@ -75,16 +92,6 @@ foreach ($p in $paths) {
     if (Resolve-RegistryRestriction -Path $p -Name "DisableUserInstalls" -AlwaysSetTo 0) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "AlwaysInstallElevated" -AlwaysSetTo 1) { $fixed = $true }
     if (Resolve-RegistryRestriction -Path $p -Name "EnableAdminRemote" -AlwaysSetTo 1) { $fixed = $true }
-    if (Resolve-RegistryRestriction -Path $p -Name "Logging" -AlwaysSetTo "voicewarmupx") { $fixed = $true }
-    if (Resolve-RegistryRestriction -Path $p -Name "Debug" -AlwaysSetTo 7) { $fixed = $true }
-}
-
-# 4. AppLocker / Software Restriction Policies Bypass (Basic)
-$srpPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Safer\CodeIdentifiers"
-if (Test-Path $srpPath) {
-    Set-ItemProperty -Path $srpPath -Name "AuthenticodeEnabled" -Value 0 -Force
-    Set-ItemProperty -Path $srpPath -Name "PolicyLevel" -Value 0x00040000 -Force
-    Write-Host "[+] Yazılım kısıtlama politikaları bypass edildi." -ForegroundColor Cyan
 }
 
 if ($fixed) {

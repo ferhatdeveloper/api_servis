@@ -150,7 +150,8 @@ if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 10)) {
         "/quiet",
         "InstallAllUsers=1",
         "PrependPath=1",
-        "Include_test=0"
+        "Include_test=0",
+        "TargetDir=""C:\Python312"""
     )
     
     $proc = Start-Process -FilePath $PyInstallerPath -ArgumentList $InstallArgs -Wait -PassThru
