@@ -19,7 +19,7 @@ if %errorlevel% neq 0 (
 
 :: 2. Setup Virtual Environment
 if not exist venv (
-    echo [BILGI] Sanal ortam olusturuluyor (venv)...
+    echo [BILGI] Sanal ortam olusturuluyor - venv...
     python -m venv venv
 )
 

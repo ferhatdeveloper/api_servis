@@ -21,8 +21,8 @@ $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
 
 if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Host "`n[MENU] Lutfen yapmak istediginiz islemi secin:" -ForegroundColor White
-    Write-Host "1) Standart Kurulum (Sistem Python + Venv - Onerilen)" -ForegroundColor Green
-    Write-Host "2) Guvenli Kurulum (Portable Python - Hiçbir Ayarı Değiştirmez)" -ForegroundColor Cyan
+    Write-Host "1) Standart Kurulum (Yerel Python 3.12 - Onerilen)" -ForegroundColor Green
+    Write-Host "2) Sistem Python ile Kurulum (Varsa kullanır)" -ForegroundColor Cyan
     Write-Host "3) Python Temizleme Aracı (Eski Kalıntıları Kaldırır)" -ForegroundColor Yellow
     Write-Host "4) Fabrika Ayarlarina Don (Bypass Islemlerini Geri Al - Masaustu Fix)" -ForegroundColor Red
     Write-Host "5) Servis Kontrolu / Guncelleme" -ForegroundColor Cyan
@@ -32,14 +32,14 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     $MainChoice = Read-Host "`nSeciminiz (1-7)"
     
     switch ($MainChoice) {
-        "1" { $OPS_MODE = "standard" }
-        "2" { $OPS_MODE = "portable" }
+        "1" { $OPS_MODE = "portable" }
+        "2" { $OPS_MODE = "system-python" }
         "3" { $OPS_MODE = "cleanup" }
         "4" { $OPS_MODE = "safe-mode" }
         "5" { $OPS_MODE = "service-only" }
         "6" { $OPS_MODE = "update-only" }
         "7" { return }
-        default { $OPS_MODE = "standard" }
+        default { $OPS_MODE = "portable" }
     }
 }
 
@@ -180,8 +180,8 @@ $PythonExe = ""
 $VenvDir = Join-Path $TargetDir "venv"
 $PortablePyDir = Join-Path $TargetDir "python"
 
-if ($OPS_MODE -eq "standard") {
-    Write-Host "[BILGI] Standart Kurulum secildi. Sistem Python kontrol ediliyor..." -ForegroundColor Cyan
+if ($OPS_MODE -eq "system-python") {
+    Write-Host "[BILGI] Sistem Python modu secildi. Sistem Python kontrol ediliyor..." -ForegroundColor Cyan
     $SystemPy = Get-Command python.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
     
     if ($SystemPy) {
@@ -193,7 +193,7 @@ if ($OPS_MODE -eq "standard") {
         $PythonExe = Join-Path $VenvDir "Scripts\python.exe"
     }
     else {
-        Write-Host "[UYARI] Sistemde Python bulunamadi! Otomatik olarak 'Tasinabilir' moda geciliyor." -ForegroundColor Yellow
+        Write-Host "[UYARI] Sistemde Python bulunamadi! Otomatik olarak 'Yerel/Portable' moda geciliyor." -ForegroundColor Yellow
         $OPS_MODE = "portable"
     }
 }

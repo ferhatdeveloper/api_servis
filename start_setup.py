@@ -34,8 +34,8 @@ def run_as_admin():
     params = ' '.join(sys.argv[1:])
     
     # Relaunch using ShellExecute with 'runas' verb
-    # Use SW_HIDE (0) so the newly elevated process window doesn't pop up
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', os.path.dirname(script), 0)
+    # Use SW_SHOWNORMAL (1) for debugging
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', os.path.dirname(script), 1)
     sys.exit(0)
 
 def install_dependencies():
@@ -52,13 +52,13 @@ def install_dependencies():
         print("Installing installer dependencies...")
         subprocess.check_call([sys.executable, "-m", "pip", "install"] + required)
 
-def hide_console():
-    """Hides the console window on Windows"""
+    """Hides the console window on Windows - DISABLED FOR DEBUGGING"""
     try:
-        import ctypes
-        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
-        if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 0) # SW_HIDE = 0
+        pass
+        # import ctypes
+        # hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        # if hwnd:
+        #     ctypes.windll.user32.ShowWindow(hwnd, 1) # SW_NORMAL = 1
     except:
         pass
 
