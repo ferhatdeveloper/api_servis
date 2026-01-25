@@ -62,11 +62,11 @@
                         <p>İnsan Kaynakları & Personel</p>
                     </div>
                 </div>
-                <div class="app-card" onclick="selectApp('REST', this)">
-                    <div class="app-icon">🌐</div>
+                <div class="app-card" onclick="selectApp('CAFE', this)">
+                    <div class="app-icon">🍽️</div>
                     <div class="app-info">
-                        <h3>EXFIN REST</h3>
-                        <p>Modern Restful API Servisi</p>
+                        <h3>EXFIN CAFE</h3>
+                        <p>Restaurant & Cafe Yönetimi</p>
                     </div>
                 </div>
                 <div class="app-card" onclick="selectApp('BEATPY', this)">
@@ -150,6 +150,7 @@
 
             <div class="db-tabs">
                 <div class="db-tab active" id="tab-local" onclick="switchDBTab('local')">Yerel Kurulum</div>
+                <div class="db-tab" id="tab-backup" onclick="switchDBTab('backup')">Otomatik Yedekleme</div>
                 <div class="db-tab" id="tab-migration" onclick="switchDBTab('migration')">Sunucudan Taşıma</div>
             </div>
 
@@ -188,30 +189,6 @@
                             <input type="checkbox" id="load-demo">
                             <label for="load-demo" style="display: inline; margin: 0; cursor: pointer;">Örnek Demo
                                 Verileri Yükle</label>
-                        </div>
-
-                        <div class="backup-section">
-                            <div style="font-size: 12px; font-weight: bold; margin-bottom: 15px; color: var(--accent);">
-                                🔄 Otomatik Yedekleme</div>
-                            <div class="input-group">
-                                <label>Yedekleme Dizini</label>
-                                <input type="text" id="backup-dir" value="C:\EXFIN_Backups">
-                            </div>
-                            <div class="backup-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <div class="input-group">
-                                    <label>Sıklık</label>
-                                    <select id="backup-interval" class="custom-select" onchange="toggleBackupOptions()">
-                                        <option value="off">Kapalı</option>
-                                        <option value="hourly">Saatlik</option>
-                                        <option value="daily" selected>Günlük</option>
-                                        <option value="weekly">Haftalık</option>
-                                    </select>
-                                </div>
-                                <div class="input-group" id="backup-time-group">
-                                    <label>Saat</label>
-                                    <input type="text" id="backup-time" value="23:00">
-                                </div>
-                            </div>
                         </div>
 
                         <button class="btn btn-secondary" onclick="testDB('postgres')"
@@ -263,6 +240,63 @@
                                 Logo Firmasını Seçin</label>
                             <div id="logo-firm-cards" class="firm-selector"></div>
                             <input type="hidden" id="logo-firm-select" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backup Configuration View -->
+            <div id="backup-db-area" class="hidden">
+                <div class="db-panel" style="max-width: 600px; margin: 0 auto;">
+                    <div class="db-header">
+                        <span style="font-size: 24px;">🔄</span>
+                        <h3>Otomatik Yedekleme Yapılandırması</h3>
+                    </div>
+
+                    <p style="font-size: 13px; margin-bottom: 20px;">
+                        Veritabanınızın güvenliği için periyodik yedeklemeler ayarlayın.
+                        Yedekler belirtilen dizinde <code>.sql</code> formatında saklanacaktır.
+                    </p>
+
+                    <div class="input-group">
+                        <label>Yedekleme Dizini</label>
+                        <input type="text" id="backup-dir" value="C:\EXFIN_Backups">
+                    </div>
+
+                    <div class="db-grid" style="margin-bottom: 0;">
+                        <div class="input-group">
+                            <label>Sıklık</label>
+                            <select id="backup-interval" class="custom-select" onchange="toggleBackupOptions()">
+                                <option value="off">Kapalı</option>
+                                <option value="hourly">Saatlik</option>
+                                <option value="daily" selected>Günlük</option>
+                                <option value="weekly">Haftalık</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="backup-time-group">
+                            <label>Saat</label>
+                            <input type="text" id="backup-time" value="23:00">
+                        </div>
+                    </div>
+
+                    <div id="backup-hour-group" class="hidden">
+                        <div class="input-group">
+                            <label>Her kaç saatte bir?</label>
+                            <input type="number" id="backup-hours" value="1" min="1" max="23">
+                        </div>
+                    </div>
+
+                    <div id="backup-days-group" class="hidden">
+                        <label
+                            style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Günler</label>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                            <label><input type="checkbox" value="mon" checked> Pzt</label>
+                            <label><input type="checkbox" value="tue" checked> Sal</label>
+                            <label><input type="checkbox" value="wed" checked> Çar</label>
+                            <label><input type="checkbox" value="thu" checked> Per</label>
+                            <label><input type="checkbox" value="fri" checked> Cum</label>
+                            <label><input type="checkbox" value="sat" checked> Cmt</label>
+                            <label><input type="checkbox" value="sun" checked> Paz</label>
                         </div>
                     </div>
                 </div>
@@ -335,6 +369,7 @@
                             <tr>
                                 <th style="width: 40px;"><input type="checkbox" id="sel-all-salesmen"
                                         onchange="selectAll('salesmen', this.checked)" checked></th>
+                                <th style="width: 60px;">Ref</th>
                                 <th style="width: 80px;">Kod</th>
                                 <th>İsim / Açıklama</th>
                                 <th>Kullanıcı Adı</th>

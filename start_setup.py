@@ -62,6 +62,16 @@ def install_dependencies():
     except:
         pass
 
+def hide_console():
+    """Hides the console window on Windows"""
+    try:
+        import ctypes
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 0) # SW_HIDE = 0
+    except:
+        pass
+
 def kill_port_owner(port):
     """Kills any process using the specified port on Windows"""
     try:

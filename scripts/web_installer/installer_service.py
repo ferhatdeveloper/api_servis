@@ -526,7 +526,7 @@ class InstallerService:
             # 1. Fetch Salesmen (Deduplicated via LOGICALREF and Python set)
             # LG_SLSMAN table might have multiple entries for same code in some versions/configs?
             # User requested deduplication based on LOGICALREF.
-            cur.execute("SELECT DISTINCT LOGICALREF, CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
+            cur.execute(f"SELECT DISTINCT LOGICALREF, CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 AND FIRMNR={int(firm_id)} ORDER BY CODE")
             salesmen = []
             seen_sls = set()
             for r in cur.fetchall():
@@ -537,8 +537,7 @@ class InstallerService:
                 
                 # Composite key or just LOGICALREF? User asked "filter by logicalref".
                 # If we use logicalref as unique key:
-                unique_key = lref if lref else sid
-
+                unique_key = sid # Deduplicate by CODE as requested
                 if sid and sid != '0' and unique_key not in seen_sls:
                     salesmen.append({"id": sid, "name": name, "logo_ref": lref})
                     seen_sls.add(unique_key)
@@ -592,14 +591,14 @@ class InstallerService:
                 cur = conn.cursor(as_dict=True)
                 
                 # Fallback: Fetch Salesmen
-                cur.execute("SELECT DISTINCT LOGICALREF, CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE")
+                cur.execute(f"SELECT DISTINCT LOGICALREF, CODE, DEFINITION_ FROM LG_SLSMAN WHERE ACTIVE=0 AND FIRMNR={int(firm_id)} ORDER BY CODE")
                 salesmen = []
                 seen_sls = set()
                 for r in cur.fetchall():
                     lref = str(r.get('LOGICALREF') or "")
                     sid = str(r['CODE'] or "").strip()
                     name = str(r['DEFINITION_'] or "").strip()
-                    unique_key = lref if lref else sid
+                    unique_key = sid
                     if sid and sid != '0' and unique_key not in seen_sls:
                         salesmen.append({"id": sid, "name": name, "logo_ref": lref})
                         seen_sls.add(unique_key)
@@ -1280,7 +1279,7 @@ class InstallerService:
             return None
     
     def get_logo_preview(self, ms_config, firm_id, data_type):
-        \"\"\"Preview Logo data before sync\"\"\"
+        """Preview Logo data before sync"""
         # Ensure 3-digit padding for firm_id
         firm_id = str(firm_id).strip().zfill(3)
         try:
@@ -1307,15 +1306,18 @@ class InstallerService:
                     })
             
             elif data_type == "salesmen":
-                query = f"SELECT TOP 50 CODE, DEFINITION_, EMAILADDR FROM LG_SLSMAN WHERE ACTIVE=0 ORDER BY CODE"
-                print(f"DEBUG SQL (Preview Salesmen): {query}")
-                ms_cur.execute(query)
+                ms_cur.execute(f"SELECT TOP 100 LOGICALREF, CODE, DEFINITION_, EMAILADDR FROM LG_SLSMAN WHERE ACTIVE=0 AND FIRMNR={int(firm_id)} ORDER BY CODE")
+                seen_codes = set()
                 for row in ms_cur.fetchall():
-                    results.append({
-                        "code": row['CODE'],
-                        "name": row.get('DEFINITION_'),
-                        "email": row.get('EMAILADDR')
-                    })
+                    code = str(row['CODE'] or "").strip()
+                    if code and code not in seen_codes:
+                        results.append({
+                            "logo_ref": row.get('LOGICALREF'),
+                            "code": code,
+                            "name": row.get('DEFINITION_'),
+                            "email": row.get('EMAILADDR')
+                        })
+                        seen_codes.add(code)
             
             elif data_type == "warehouses":
                 ms_cur.execute(f"SELECT TOP 50 NR, NAME FROM L_CAPIWHOUSE WHERE FIRMNR={int(firm_id)} ORDER BY NR")

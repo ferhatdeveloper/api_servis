@@ -219,49 +219,48 @@ p {
 .mod-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 15px;
-    border-radius: 16px;
-    transition: all 0.3s;
+    padding: 20px;
+    border-radius: 20px;
+    transition: all 0.3s ease-out;
+    backdrop-filter: blur(5px);
 }
 
 .mod-card:hover {
     background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-8px) scale(1.02);
+    transform: translateY(-5px);
     border-color: var(--primary);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
 .mod-icon {
-    font-size: 28px;
-    margin-bottom: 15px;
-    display: inline-block;
+    font-size: 32px;
+    margin-bottom: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(59, 130, 246, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    transition: 0.3s;
 }
 
 .mod-card:hover .mod-icon {
-    animation: bounce 0.5s infinite alternate;
-}
-
-@keyframes bounce {
-    from {
-        transform: translateY(0);
-    }
-
-    to {
-        transform: translateY(-5px);
-    }
+    background: var(--primary);
+    color: white;
 }
 
 .mod-card h4 {
-    margin: 0 0 8px 0;
-    font-size: 15px;
+    margin: 0 0 10px 0;
+    font-size: 16px;
     color: var(--text);
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .mod-card p {
     margin: 0;
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.6;
     color: var(--text-muted);
 }
 
@@ -304,43 +303,58 @@ p {
 
 /* App Selector */
 .app-selector {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 12px;
     margin-bottom: 20px;
-    max-height: 400px;
+    max-height: 420px;
     overflow-y: auto;
     padding: 10px;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 20px;
 }
 
 .app-card {
     display: flex;
     align-items: center;
-    gap: 20px;
-    padding: 15px 20px;
+    gap: 24px;
+    padding: 20px 25px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
+    border-radius: 20px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.app-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+    transform: translateX(-100%);
+    transition: 0.6s;
 }
 
 .app-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(59, 130, 246, 0.5);
-    transform: translateX(10px);
-    box-shadow: -10px 0 20px rgba(59, 130, 246, 0.1);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.app-card:hover::after {
+    transform: translateX(100%);
 }
 
 .app-card.selected {
-    background: rgba(59, 130, 246, 0.1);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
     border-color: var(--primary);
-    box-shadow: 0 0 25px rgba(59, 130, 246, 0.3);
-    position: relative;
-    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
 }
 
 .app-card.selected::before {
@@ -372,14 +386,32 @@ p {
 }
 
 .app-icon {
-    font-size: 24px;
-    min-width: 45px;
-    height: 45px;
-    background: rgba(0, 0, 0, 0.2);
+    font-size: 28px;
+    min-width: 60px;
+    height: 60px;
+    background: rgba(59, 130, 246, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 16px;
+    transition: 0.3s;
+}
+
+.app-card:hover .app-icon {
+    background: var(--primary);
+    color: white;
+}
+
+.app-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.app-info p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.8;
 }
 
 /* Forms */
@@ -560,54 +592,62 @@ p {
 .firm-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 12px 16px;
+    border-radius: 15px;
+    padding: 15px 20px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 15px;
 }
 
 .firm-card:hover {
-    border-color: rgba(59, 130, 246, 0.4);
-    background: rgba(255, 255, 255, 0.05);
-    transform: translateX(4px);
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(8px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .firm-card.selected {
     border-color: var(--primary);
-    background: rgba(59, 130, 246, 0.12);
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
 }
 
 .firm-info {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 15px;
 }
 
 .firm-number {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 800;
     color: var(--primary);
-    min-width: 80px;
+    min-width: 90px;
+    padding: 6px 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 10px;
+    text-align: center;
 }
 
 .firm-card.selected .firm-number {
+    background: var(--primary);
     color: white;
 }
 
 .firm-name {
-    font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.3;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
 }
 
 .firm-card.selected .firm-name {
-    color: rgba(255, 255, 255, 0.9);
+    color: white;
+    font-weight: 600;
 }
 
 .firm-check {

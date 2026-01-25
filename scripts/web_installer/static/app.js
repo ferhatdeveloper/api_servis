@@ -132,20 +132,31 @@ function updateMigrationTargetInfo() {
 
 function switchDBTab(tab) {
     const localArea = document.getElementById('local-db-area');
+    const backupArea = document.getElementById('backup-db-area');
     const migArea = document.getElementById('migration-db-area');
     const tabLocal = document.getElementById('tab-local');
+    const tabBackup = document.getElementById('tab-backup');
     const tabMig = document.getElementById('tab-migration');
+
+    // Hide all
+    localArea.classList.add('hidden');
+    backupArea.classList.add('hidden');
+    migArea.classList.add('hidden');
+
+    // Deactivate all tabs
+    tabLocal.classList.remove('active');
+    tabBackup.classList.remove('active');
+    tabMig.classList.remove('active');
 
     if (tab === 'local') {
         localArea.classList.remove('hidden');
-        migArea.classList.add('hidden');
         tabLocal.classList.add('active');
-        tabMig.classList.remove('active');
         appState.migrationMode = false;
+    } else if (tab === 'backup') {
+        backupArea.classList.remove('hidden');
+        tabBackup.classList.add('active');
     } else {
-        localArea.classList.add('hidden');
         migArea.classList.remove('hidden');
-        tabLocal.classList.remove('active');
         tabMig.classList.add('active');
         appState.migrationMode = true;
     }
@@ -207,7 +218,7 @@ async function openPreview(type) {
             if (type === 'companies') {
                 html += '<th>No</th><th>Firma Adı</th><th>Vergi No</th>';
             } else if (type === 'salesmen') {
-                html += '<th>Kod</th><th>İsim</th><th>E-posta</th>';
+                html += '<th>Ref</th><th>Kod</th><th>İsim</th><th>E-posta</th>';
             } else {
                 html += '<th>No</th><th>Ambar Adı</th>';
             }
@@ -218,7 +229,7 @@ async function openPreview(type) {
                 if (type === 'companies') {
                     html += `<td>${item.nr}</td><td>${item.name}</td><td>${item.tax_nr || '-'}</td>`;
                 } else if (type === 'salesmen') {
-                    html += `<td>${item.code}</td><td>${item.name}</td><td>${item.email || '-'}</td>`;
+                    html += `<td>${item.logo_ref || '-'}</td><td>${item.code}</td><td>${item.name}</td><td>${item.email || '-'}</td>`;
                 } else if (type === 'customers') {
                     html += `<td>${item.code}</td><td>${item.name}</td><td>${item.city || '-'}</td>`;
                 } else {
@@ -412,7 +423,7 @@ function selectApp(appId, el) {
         'OPS': 'EXFINOPS',
         'RETAIL': 'EXFIN_RETAIL',
         'HRM': 'EXFIN_HRM',
-        'REST': 'EXFIN_REST',
+        'CAFE': 'EXFIN_CAFE',
         'BEATPY': 'EXFIN_BEATPY',
         'EXCHANGE': 'EXFIN_EXCHANGE'
     };
@@ -825,6 +836,7 @@ async function fetchLogoSchemaInfo() {
                     return `
                         <tr>
                             <td><input type="checkbox" id="sls-${sid}" value="${sid}" checked></td>
+                            <td style="color:var(--text-muted); font-family:monospace; font-size:12px;">${s.logo_ref || '-'}</td>
                             <td style="font-weight:bold; color:var(--primary);">${sid}</td>
                             <td><label for="sls-${sid}">${sname}</label></td>
                             <td><input type="text" class="credential-input username-input" data-id="${sid}" value="${suggested}" placeholder="Kullanıcı Adı"></td>

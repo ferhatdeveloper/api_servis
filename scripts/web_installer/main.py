@@ -231,9 +231,10 @@ def start_installer():
     def open_browser():
         import time
         time.sleep(1.5)
-        webbrowser.open(url)
+        # Use os.system('start') as it's more reliable for elevated processes on Windows
+        os.system(f"start {url}")
     
-    threading.Thread(target=open_browser).start()
+    threading.Thread(target=open_browser, daemon=True).start()
     
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
 
