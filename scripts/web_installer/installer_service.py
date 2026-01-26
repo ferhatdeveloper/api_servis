@@ -195,6 +195,13 @@ class InstallerService:
             
             logs.append(f"Özet: {success_count} başarılı, {skip_count} atlandı, {error_count} hata.")
 
+        # 0. Skip for specialized apps that handle their own schema (e.g., WhatsApp Evolution API)
+        if app_type == 'WHATSAPP':
+            logs.append(f"WhatsApp (Evolution API) için veritabanı hazırlandı. Şemalar uygulama başlatıldığında otomatik oluşturulacaktır.")
+            cur.close()
+            conn.close()
+            return logs
+
         # 1. Base Core Schema
         core_path = os.path.join(self.project_dir, "sql", "schema", "01_core_schema.sql")
         content = safe_read(core_path)
