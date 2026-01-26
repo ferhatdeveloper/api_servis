@@ -117,24 +117,30 @@ npm run build
 # --- PART 3: STARTUP ---
 Write-Host "`n[FINAL] Starting Services..." -ForegroundColor Yellow
 
+# Helper to find PM2
+$PM2 = "pm2"
 if (!(Get-Command pm2 -ErrorAction SilentlyContinue)) {
+    Write-Host "PM2 not found in PATH. Checking npm prefix..."
     npm install -g pm2
+    $NpmPrefix = npm config get prefix
+    $PM2 = "$NpmPrefix\pm2.cmd"
 }
 
-# Start Engine
-& pm2 delete exfin-wa-engine 2>$null
-& pm2 start "$EngineDir\dist\main.js" --name exfin-wa-engine
-
-# Start Manager (Using 'serve' to host static build on specific port)
+# Ensure Serve is installed
 if (!(Get-Command serve -ErrorAction SilentlyContinue)) {
     npm install -g serve
 }
 
-& pm2 delete exfin-wa-dashboard 2>$null
-# Use 'serve' to host the build folder on DashboardPort
-& pm2 start "serve" --name exfin-wa-dashboard -- -s "$ManagerDir\dist" -l $DashboardPort
+# Start Engine
+& $PM2 delete exfin-whatsapp-api 2>$null # Delete legacy if exists
+& $PM2 delete exfin-wa-engine 2>$null
+& $PM2 start "$EngineDir\dist\main.js" --name exfin-wa-engine
 
-& pm2 save
+# Start Manager
+& $PM2 delete exfin-wa-dashboard 2>$null
+& $PM2 start "serve" --name exfin-wa-dashboard -- -s "$ManagerDir\dist" -l $DashboardPort --single
+
+& $PM2 save
 
 Write-Host "`n==============================================" -ForegroundColor Green
 Write-Host " INSTALLATION COMPLETE ✅" -ForegroundColor Green
