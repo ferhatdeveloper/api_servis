@@ -1144,7 +1144,9 @@ async function startInstallation() {
                     wa: {
                         port: getVal('wa-port', '8080'),
                         instance: getVal('wa-instance', 'EXFIN'),
-                        key: getVal('wa-key', '42247726A7F14310B30A3CA655148D32')
+                        key: getVal('wa-key', '42247726A7F14310B30A3CA655148D32'),
+                        mode: getVal('wa-mode', 'install'),
+                        serviceType: getVal('wa-service-type', 'service')
                     }
                 })
             });

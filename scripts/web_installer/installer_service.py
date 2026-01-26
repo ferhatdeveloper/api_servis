@@ -1481,7 +1481,9 @@ class InstallerService:
                 "-ApiPort", api_port,
                 "-DbUrl", db_url,
                 "-ApiKey", api_key,
-                "-InstanceName", wa.get("instance", "EXFIN")
+                "-InstanceName", wa.get("instance", "EXFIN"),
+                "-Mode", wa.get("mode", "install"),
+                "-ServiceType", wa.get("serviceType", "service")
             ]
             
             # We also need to update the .env template or pass the key

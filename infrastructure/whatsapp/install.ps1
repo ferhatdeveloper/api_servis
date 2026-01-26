@@ -5,7 +5,8 @@ Param(
     [string]$DbUrl = "postgresql://postgres:Yq7xwQpt6c@localhost:5432/evolution_api",
     [string]$ApiKey = "42247726A7F14310B30A3CA655148D32",
     [string]$InstanceName = "EXFIN",
-    [string]$Mode = "" # install, update, repair
+    [string]$Mode = "", # install, update, repair
+    [string]$ServiceType = "pm2" # pm2, service
 )
 
 Write-Host "============================" -ForegroundColor Cyan
@@ -111,13 +112,16 @@ function Register-Windows-Service {
 }
 
 function Start-API-Service {
-    Write-Host "`nServis Başlatma Tercihi:" -ForegroundColor White
-    Write-Host "1) PM2 ile Başlat (Önerilen - Konsol Yönetimi Kolay)" -ForegroundColor Yellow
-    Write-Host "2) Native Windows Servisi Olarak Kaydet (Sistem Seviyesi - sc.exe)" -ForegroundColor Blue
+    if ($ServiceType -eq "") {
+        Write-Host "`nServis Başlatma Tercihi:" -ForegroundColor White
+        Write-Host "1) PM2 ile Başlat (Önerilen - Konsol Yönetimi Kolay)" -ForegroundColor Yellow
+        Write-Host "2) Native Windows Servisi Olarak Kaydet (Sistem Seviyesi - sc.exe)" -ForegroundColor Blue
+        
+        $choice = Read-Host "Seçiminiz (1-2)"
+        if ($choice -eq "2") { $ServiceType = "service" } else { $ServiceType = "pm2" }
+    }
     
-    $choice = Read-Host "Seçiminiz (1-2)"
-    
-    if ($choice -eq "2") {
+    if ($ServiceType -eq "service") {
         Register-Windows-Service
     }
     else {
@@ -126,11 +130,12 @@ function Start-API-Service {
         if (!$pm2) {
             Write-Host "PM2 bulunamadı, yükleniyor..."
             npm install -g pm2
-            $pm2Path = "$(npm config get prefix)\pm2.cmd"
+            # Refresh path to find pm2
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+            $pm2 = Get-Command pm2 -ErrorAction SilentlyContinue
         }
-        else {
-            $pm2Path = $pm2.Source
-        }
+        
+        $pm2Path = if ($pm2) { $pm2.Source } else { "pm2" }
 
         & $pm2Path delete exfin-whatsapp-api 2>$null
         & $pm2Path start dist/main.js --name exfin-whatsapp-api
