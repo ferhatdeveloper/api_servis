@@ -687,8 +687,8 @@ async function testDB(type) {
                 appState.config.ms = payload;
                 if (typeof fetchLogoFirms === 'function') fetchLogoFirms();
             }
-        } else if (result.db_missing && type === 'postgres') {
-            statusEl.innerHTML = `<span style="color:yellow">Veritabanı mevcut değil. Otomatik oluşturuluyor...</span>`;
+        } else if ((result.db_missing || result.db_empty) && type === 'postgres') {
+            statusEl.innerHTML = `<span style="color:yellow">Veritabanı hazır değil (Eksik veya Boş). Otomatik hazırlanıyor...</span>`;
             try {
                 const setupRes = await fetch('/api/setup-postgresql', {
                     method: 'POST',
