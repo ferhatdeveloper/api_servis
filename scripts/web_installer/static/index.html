@@ -87,7 +87,7 @@
                     <div class="app-icon">💬</div>
                     <div class="app-info">
                         <h3>WHATSAPP</h3>
-                        <p>WhatsApp Api Reporter (BerqenasCloud Api Services)</p>
+                        <p>Evolution API Entegrasyonu</p>
                     </div>
                 </div>
             </div>
@@ -210,10 +210,26 @@
                         </div>
                         <div class="input-group">
                             <label>Bağlantı Yöntemi</label>
-                            <select id="ms-method" class="custom-select">
+                            <select id="ms-method" class="custom-select" onchange="toggleLogoCredentials()">
                                 <option value="direct">Direct Database (SQL)</option>
                                 <option value="object">Logo Object (DLL/COM)</option>
                             </select>
+                        </div>
+
+                        <!-- Logo Object Credentials -->
+                        <div id="logo-object-credentials" class="hidden"
+                            style="margin-bottom: 15px; padding: 10px; background: rgba(255,165,0,0.1); border-radius: 8px; border: 1px dashed orange;">
+                            <div class="input-group">
+                                <label style="color: orange;">Logo Uygulama Kullanıcısı</label>
+                                <input type="text" id="ms-logo-user" placeholder="Örn: LOGO_ADMIN">
+                            </div>
+                            <div class="input-group">
+                                <label style="color: orange;">Logo Uygulama Şifresi</label>
+                                <div class="password-wrapper">
+                                    <input type="password" id="ms-logo-pass">
+                                    <span class="toggle-password" onclick="togglePassword('ms-logo-pass')">👁️</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="input-group">
                             <label>Host</label>
@@ -256,12 +272,12 @@
                     <div class="db-panel" style="max-width: 100%;">
                         <div class="db-header">
                             <span style="font-size: 24px;">💬</span>
-                            <h3>WhatsApp Api Reporter (BerqenasCloud Api Services)</h3>
+                            <h3>WhatsApp API Yapılandırması (Evolution API)</h3>
                         </div>
                         <div class="db-grid">
                             <div class="input-group">
                                 <label>API Portu</label>
-                                <input type="text" id="wa-port" value="8001" placeholder="Örn: 8001">
+                                <input type="text" id="wa-port" value="8080" placeholder="Örn: 8080">
                             </div>
                             <div class="input-group">
                                 <label>Instance (Oturum) Adı</label>
@@ -530,7 +546,7 @@
 
     </div>
 
-    <script src="installer.js?v=2.0.0"></script>
+    <script src="app.js?v=1.0.5"></script>
 </body>
 
 </html>

@@ -9,7 +9,7 @@ router = APIRouter()
 @router.post("/events")
 async def handle_whatsapp_events(request: Request, db: Session = Depends(get_db)):
     """
-    Handle incoming webhooks from BerqenasCloud Engine.
+    Handle incoming webhooks from Evolution API.
     Capture incoming messages and save to local DB.
     """
     try:
@@ -90,5 +90,5 @@ async def handle_whatsapp_events(request: Request, db: Session = Depends(get_db)
     except Exception as e:
         db.rollback()
         logger.error(f"Webhook processing error: {str(e)}")
-        # Still return 200 to prevent BerqenasCloud from retrying infinitely
+        # Still return 200 to prevent Evolution API from retrying infinitely
         return {"status": "error", "message": str(e)}

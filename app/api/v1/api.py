@@ -21,7 +21,7 @@ api_router.include_router(system.router, prefix="/system", tags=["System Managem
 api_router.include_router(database.router, prefix="/database", tags=["Database Management"])
 api_router.include_router(companies.router, prefix="/companies", tags=["Company & Period Management"])
 
-# --- WHATSAPP (BerqenasCloud Api Services) ---
+# --- WHATSAPP (Evolution API) ---
 api_router.include_router(whatsapp_router, prefix="/whatsapp")
 
 # --- ANALYTICS ---

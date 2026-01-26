@@ -210,12 +210,12 @@ async def save_config(request: ConfigRequest):
 async def install_service():
     return installer.install_windows_service()
 
-class WAInstallRequest(BaseModel):
+class WhatsAppInstallRequest(BaseModel):
     pg: dict
     wa: dict
 
 @app.post("/api/install-whatsapp")
-async def install_whatsapp(request: WAInstallRequest):
+async def install_whatsapp(request: WhatsAppInstallRequest):
     return installer.install_whatsapp(request.dict())
 
 class WAConnectRequest(BaseModel):

@@ -72,21 +72,6 @@ class InstallerService:
                 conn.close()
         except: pass
 
-        # Check Node.js & Git (Needed for WhatsApp)
-        node_installed = False
-        git_installed = False
-        try:
-            node_installed = subprocess.run(["node", "-v"], capture_output=True).returncode == 0
-        except: pass
-        try:
-            git_installed = subprocess.run(["git", "--version"], capture_output=True).returncode == 0
-        except: pass
-
-        checks["node_installed"] = node_installed
-        checks["git_installed"] = git_installed
-        checks["node_download_url"] = "https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi"
-        checks["git_download_url"] = "https://git-scm.com/download/win"
-
         checks["deployment_mode"] = deployment_mode
         return checks
             
@@ -210,9 +195,9 @@ class InstallerService:
             
             logs.append(f"Özet: {success_count} başarılı, {skip_count} atlandı, {error_count} hata.")
 
-        # 0. Skip for specialized apps that handle their own schema (e.g., BerqenasCloud WhatsApp Api)
+        # 0. Skip for specialized apps that handle their own schema (e.g., WhatsApp Evolution API)
         if app_type == 'WHATSAPP':
-            logs.append(f"BerqenasCloud WhatsApp Api için veritabanı hazırlandı. Şemalar uygulama başlatıldığında otomatik oluşturulacaktır.")
+            logs.append(f"WhatsApp (Evolution API) için veritabanı hazırlandı. Şemalar uygulama başlatıldığında otomatik oluşturulacaktır.")
             cur.close()
             conn.close()
             return logs
@@ -925,12 +910,23 @@ class InstallerService:
                              password TEXT,
                              method TEXT)''')
             
-            # Check if method column exists (migration)
+             # Check if method column exists (migration)
             try:
                 cur.execute("SELECT method FROM db_connections LIMIT 1")
             except:
-                try:
-                    cur.execute("ALTER TABLE db_connections ADD COLUMN method TEXT")
+                try: cur.execute("ALTER TABLE db_connections ADD COLUMN method TEXT")
+                except: pass
+            
+            try:
+                cur.execute("SELECT logo_username FROM db_connections LIMIT 1")
+            except:
+                try: cur.execute("ALTER TABLE db_connections ADD COLUMN logo_username TEXT")
+                except: pass
+            
+            try:
+                cur.execute("SELECT logo_password FROM db_connections LIMIT 1")
+            except:
+                try: cur.execute("ALTER TABLE db_connections ADD COLUMN logo_password TEXT")
                 except: pass
 
             # 1. Save Global Settings
@@ -942,8 +938,8 @@ class InstallerService:
             connections = config.get("connections", [])
             for conn_data in connections:
                  cur.execute("""
-                    INSERT OR REPLACE INTO db_connections (id, name, type, host, port, database, username, password, method) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO db_connections (id, name, type, host, port, database, username, password, method, logo_username, logo_password) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     conn_data.get("id"),
                     conn_data.get("name"),
@@ -953,7 +949,9 @@ class InstallerService:
                     conn_data.get("database"),
                     conn_data.get("username"),
                     conn_data.get("password"),
-                    conn_data.get("method", "direct")
+                    conn_data.get("method", "direct"),
+                    conn_data.get("logo_username"),
+                    conn_data.get("logo_password")
                 ))
 
             conn.commit()
@@ -1430,67 +1428,32 @@ class InstallerService:
             return {"success": False, "error": str(e)}
 
 
-    def __init__(self, project_dir):
-        self.project_dir = project_dir
-        self.install_logs = []
-        self.install_status = "idle" # idle, running, completed, error
-        self.install_result = {}
-
-    def _run_whatsapp_install_thread(self, cmd):
-        """Runs the installation in a background thread and captures logs"""
-        try:
-            self.install_status = "running"
-            self.install_logs = ["--- Kurulum Başlatıldı ---"]
-            
-            process = subprocess.Popen(
-                cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.STDOUT, 
-                text=True, 
-                bufsize=1, 
-                universal_newlines=True
-            )
-            
-            # Read stdout line by line
-            for line in iter(process.stdout.readline, ''):
-                if line:
-                    clean_line = line.strip()
-                    if clean_line:
-                        self.install_logs.append(clean_line)
-                        print(f"[INSTALLER] {clean_line}") # Also print to server console
-            
-            process.stdout.close()
-            return_code = process.wait()
-            
-            if return_code == 0:
-                self.install_status = "completed"
-                self.install_logs.append("--- Kurulum Başarıyla Tamamlandı ✅ ---")
-                self.install_result = {"success": True, "message": "Kurulum tamamlandı."}
-            else:
-                self.install_status = "error"
-                self.install_logs.append(f"--- Kurulum Hata ile Bitti (Kod: {return_code}) ❌ ---")
-                self.install_result = {"success": False, "error": f"Hata Kodu: {return_code}"}
-                
-        except Exception as e:
-            self.install_status = "error"
-            self.install_logs.append(f"KRİTİK HATA: {str(e)}")
-            self.install_result = {"success": False, "error": str(e)}
-
     def install_whatsapp(self, config: dict):
-        """Triggers the PowerShell installation script for WhatsApp in BACKGROUND"""
-        if self.install_status == "running":
-            return {"success": True, "message": "Kurulum zaten devam ediyor..."}
-
+        """Triggers the PowerShell installation script for WhatsApp with custom parameters"""
         try:
             script_path = os.path.join(self.project_dir, "infrastructure", "whatsapp", "install.ps1")
             wa = config.get("wa", {})
             pg = config.get("pg", {})
             
-            # Single Port Architecture (API on 8080)
-            api_port = "8080"
+            api_port = wa.get("port", "8080")
             api_key = wa.get("key", "42247726A7F14310B30A3CA655148D32")
             db_url = f"postgresql://{pg.get('username')}:{pg.get('password')}@{pg.get('host')}:{pg.get('port')}/{pg.get('database')}"
             
+            # 0. Check if already running
+            import requests
+            try:
+                # Check health/version or just root
+                res = requests.get(f"http://localhost:{api_port}", timeout=2)
+                if res.status_code in [200, 404, 401]: # 404/401 means server is there but maybe path/auth is needed
+                    logger.info(f"WhatsApp service already active on port {api_port}. Skipping install.")
+                    return {
+                        "success": True, 
+                        "message": f"WhatsApp Servisi zaten çalışıyor (Port {api_port}). Kurulum atlandı. ✅", 
+                        "logs": "Service already detected."
+                    }
+            except:
+                pass # Not running, proceed with install
+
             # Execute PowerShell script with parameters
             cmd = [
                 "powershell.exe", 
@@ -1503,53 +1466,56 @@ class InstallerService:
                 "-InstanceName", wa.get("instance", "EXFIN")
             ]
             
-            # Start background thread
-            import threading
-            t = threading.Thread(target=self._run_whatsapp_install_thread, args=(cmd,))
-            t.daemon = True
-            t.start()
+            # We also need to update the .env template or pass the key
+            # For simplicity, we'll pass the key as an environment variable or just let the script handle it
+            # Let's update the command to include more parameters if the script supports them
             
-            return {"success": True, "message": "Kurulum arka planda başlatıldı. Loglar izleniyor..."}
-
+            process = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if process.returncode == 0:
+                return {"success": True, "message": "WhatsApp (Evolution API) başarıyla kuruldu ve başlatıldı. ✅", "logs": process.stdout}
+            else:
+                return {"success": False, "error": f"Kurulum hatası: {process.stderr}", "logs": process.stdout}
+                
         except Exception as e:
-            logger.error(f"WhatsApp install crash: {e}")
-            return {"success": False, "error": f"Sistem Hatası: {str(e)}"}
-
-    def get_install_status(self):
-        """Returns the current log buffer and status"""
-        return {
-            "status": self.install_status,
-            "logs": self.install_logs,
-            "result": self.install_result
-        }
+            return {"success": False, "error": str(e)}
 
     def get_whatsapp_qr(self, config: dict):
-        """Fetches QR code from the local WhatsApp Api Reporter (BerqenasCloud Api Services) instance"""
+        """Fetches QR code from the local Evolution API instance"""
         import requests
         try:
-            # We connect to the Engine Port (8080)
-            port = "8080" 
+            port = config.get("port", "8080")
             instance = config.get("instance", "EXFIN")
             api_key = config.get("key", "42247726A7F14310B30A3CA655148D32")
             
             url = f"http://localhost:{port}/instance/connect/{instance}"
-            headers = {"apikey": api_key}
+            headers = {"apikey": api_key, "Content-Type": "application/json"}
             
-            # Simple retry loop as service might be starting
+            # Simple retry loop
             import time
             for _ in range(3):
                 try:
                     res = requests.get(url, headers=headers, timeout=5)
+                    if res.status_code == 404:
+                         # Instance likely missing, try to create it
+                         create_url = f"http://localhost:{port}/instance/create"
+                         create_payload = {
+                             "instanceName": instance,
+                             "qrcode": True,
+                             "integration": "WHATSAPP-BAILEYS"
+                         }
+                         requests.post(create_url, headers=headers, json=create_payload, timeout=5)
+                         time.sleep(1) # Wait for creation
+                         continue # Retry connect
+
                     return res.json()
                 except:
                     time.sleep(2)
             
-            return {"success": False, "error": "WhatsApp servisine ulaşılamadı. Servis hala başlatılıyor olabilir."}
+            return {"success": False, "error": "WhatsApp servisine ulaşılamadı veya instance oluşturulamadı."}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-# Initialize singleton
-base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-installer = InstallerService(base_dir)
+installer = InstallerService()
 
 
