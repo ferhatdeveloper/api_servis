@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     
     # BerqenasCloud WhatsApp Api Settings
     WHATSAPP_PROVIDER: str = "Evolution" # Evolution, Twilio, Meta
-    EVOLUTION_API_URL: Optional[str] = "http://localhost:8001"
+    EVOLUTION_API_URL: Optional[str] = "http://localhost:8081"
     EVOLUTION_API_TOKEN: Optional[str] = None
     EVOLUTION_API_INSTANCE: str = "Main"
     

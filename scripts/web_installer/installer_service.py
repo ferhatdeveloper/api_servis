@@ -1437,7 +1437,9 @@ class InstallerService:
             wa = config.get("wa", {})
             pg = config.get("pg", {})
             
-            api_port = wa.get("port", "8001")
+            # API Port is now separate from Dashboard Port
+            dashboard_port = wa.get("port", "8001")
+            api_port = "8081" # Internal Engine Port
             api_key = wa.get("key", "42247726A7F14310B30A3CA655148D32")
             db_url = f"postgresql://{pg.get('username')}:{pg.get('password')}@{pg.get('host')}:{pg.get('port')}/{pg.get('database')}"
             
@@ -1448,6 +1450,7 @@ class InstallerService:
                 "-File", script_path,
                 "-BaseDir", os.path.join(self.project_dir, "infrastructure", "whatsapp"),
                 "-ApiPort", api_port,
+                "-DashboardPort", dashboard_port,
                 "-DbUrl", db_url,
                 "-ApiKey", api_key,
                 "-InstanceName", wa.get("instance", "EXFIN")
@@ -1483,7 +1486,8 @@ class InstallerService:
         """Fetches QR code from the local WhatsApp Api Reporter (BerqenasCloud Api Services) instance"""
         import requests
         try:
-            port = config.get("port", "8001")
+            # We connect to the Internal API Port (8081)
+            port = "8081" 
             instance = config.get("instance", "EXFIN")
             api_key = config.get("key", "42247726A7F14310B30A3CA655148D32")
             
