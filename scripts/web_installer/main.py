@@ -210,6 +210,10 @@ async def save_config(request: ConfigRequest):
 async def install_service():
     return installer.install_windows_service()
 
+@app.get("/api/install-status")
+async def get_install_status(offset: int = 0):
+    return installer.get_install_status(offset)
+
 class WhatsAppInstallRequest(BaseModel):
     pg: dict
     wa: dict

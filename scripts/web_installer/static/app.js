@@ -954,15 +954,15 @@ async function fetchLogoSchemaInfo() {
     }
 }
 
+function log(msg) {
+    const logBox = document.getElementById('install-logs');
+    if (!logBox) return;
+    logBox.innerHTML += `<div>> ${msg}</div>`;
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
 // --- Step 3: Install ---
 async function startInstallation() {
-    const logBox = document.getElementById('install-logs');
-
-    function log(msg) {
-        logBox.innerHTML += `<div>> ${msg}</div>`;
-        logBox.scrollTop = logBox.scrollHeight;
-    }
-
     log("Konfigürasyon dökümü yapılıyor...");
 
     // 1. Prepare Save Payload
@@ -1134,7 +1134,7 @@ async function startInstallation() {
 
     // 5. Deployment Step
     if (appState.selectedApp === 'WHATSAPP') {
-        log("WhatsApp (Evolution API) bağımlılıkları kuruluyor (Bu işlem birkaç dakika sürebilir)...");
+        log("WhatsApp (Evolution API) kurulumu başlatılıyor...");
         try {
             const waRes = await fetch('/api/install-whatsapp', {
                 method: 'POST',
@@ -1149,13 +1149,13 @@ async function startInstallation() {
                 })
             });
             const waData = await waRes.json();
+
             if (waData.success) {
-                log(waData.message);
-                finishAndShowSuccess();
+                // Start polling for logs
+                pollLogs();
             } else {
-                log("HATA: WhatsApp kurulumu başarısız.");
-                const errMsg = waData.error || (waData.detail ? JSON.stringify(waData.detail) : JSON.stringify(waData));
-                log(errMsg);
+                log("HATA: WhatsApp kurulumu başlatılamadı.");
+                log(waData.error);
             }
         } catch (e) {
             log("Kritik WhatsApp kurulum hatası.");
@@ -1337,4 +1337,31 @@ function selectAll(type, checked) {
     checkboxes.forEach(cb => {
         cb.checked = checked;
     });
+}
+async function pollLogs() {
+    let lastIndex = 0;
+    const logInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/install-status?offset=${lastIndex}`);
+            const data = await res.json();
+
+            if (data.logs && data.logs.length > 0) {
+                data.logs.forEach(l => log(l));
+                lastIndex += data.logs.length;
+            }
+
+            if (!data.is_installing) {
+                clearInterval(logInterval);
+                if (data.success) {
+                    log("Yükleme başarıyla tamamlandı. ✅");
+                    finishAndShowSuccess();
+                } else {
+                    log("HATA: Yükleme sırasında bir sorun oluştu.");
+                    log(data.error || "Bilinmeyen hata");
+                }
+            }
+        } catch (e) {
+            console.error("Polling error:", e);
+        }
+    }, 1500);
 }

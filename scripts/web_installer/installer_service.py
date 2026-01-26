@@ -11,6 +11,10 @@ logger = logging.getLogger("InstallerService")
 class InstallerService:
     def __init__(self):
         self.project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.install_logs = []
+        self.is_installing = False
+        self.install_error = None
+        self.install_success = False
         
     def check_admin(self) -> bool:
         """Checks if the script is running with Admin privileges with multi-factor probe"""
@@ -319,7 +323,21 @@ class InstallerService:
                         break
             
             if not probe_conn:
-                return {"success": False, "error": f"Veritabanı sunucusu yanıt verdi ancak bağlanılamadı: {self._extract_error(probe_err)}"}
+                # RETRY with 127.0.0.1 if localhost gave an auth error (common IPv6/IPv4 mismatch in pg_hba.conf)
+                if host.lower() == "localhost":
+                    logger.warning("Auth failed on localhost (IPv6?), retrying with 127.0.0.1...")
+                    try:
+                        probe_conn = psycopg2.connect(
+                            host="127.0.0.1", port=port, user=username, password=password, 
+                            database="postgres", connect_timeout=3,
+                            client_encoding="utf8"
+                        )
+                        host = "127.0.0.1" # Success! Update host for remaining steps
+                    except Exception as retry_e:
+                        probe_err = retry_e # Still failing, use the latest error
+                
+                if not probe_conn:
+                    return {"success": False, "error": f"Veritabanı sunucusu yanıt verdi ancak bağlanılamadı: {self._extract_error(probe_err)} (Not: Eğer parolanız doğruysa Host kısmına 'localhost' yerine '127.0.0.1' yazmayı deneyin.)"}
             
             # PHASE 2: Check Target DB via SQL
             try:
@@ -1470,12 +1488,14 @@ class InstallerService:
             # For simplicity, we'll pass the key as an environment variable or just let the script handle it
             # Let's update the command to include more parameters if the script supports them
             
-            process = subprocess.run(cmd, capture_output=True, text=True)
+            # Start async install
+            self._run_install_async(cmd)
             
-            if process.returncode == 0:
-                return {"success": True, "message": "WhatsApp (Evolution API) başarıyla kuruldu ve başlatıldı. ✅", "logs": process.stdout}
-            else:
-                return {"success": False, "error": f"Kurulum hatası: {process.stderr}", "logs": process.stdout}
+            return {
+                "success": True, 
+                "message": "Kurulum başlatıldı. Loglar akıyor...", 
+                "async": True
+            }
                 
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -1515,6 +1535,61 @@ class InstallerService:
             return {"success": False, "error": "WhatsApp servisine ulaşılamadı veya instance oluşturulamadı."}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def _run_install_async(self, cmd):
+        """Internal helper to run install command in background and capture logs"""
+        import threading
+        
+        def runner():
+            self.is_installing = True
+            self.install_logs = ["> Başlatılıyor..."]
+            self.install_error = None
+            self.install_success = False
+            
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+                
+                if process.stdout:
+                    for line in process.stdout:
+                        clean_line = line.strip()
+                        if clean_line:
+                            if len(self.install_logs) > 500:
+                                self.install_logs.pop(0)
+                            self.install_logs.append(clean_line)
+                
+                process.wait()
+                if process.returncode == 0:
+                    self.install_success = True
+                    self.install_logs.append("Bitti. ✅")
+                else:
+                    self.install_success = False
+                    self.install_error = f"Exit Code: {process.returncode}"
+                    self.install_logs.append(f"Hata ile sonlandı. (Kod: {process.returncode})")
+                    
+            except Exception as e:
+                self.install_error = str(e)
+                self.install_logs.append(f"Kritik Hata: {str(e)}")
+            finally:
+                self.is_installing = False
+
+        threading.Thread(target=runner, daemon=True).start()
+
+    def get_install_status(self, offset: int = 0):
+        """Returns the current state of installation logs from a specific offset"""
+        return {
+            "is_installing": self.is_installing,
+            "logs": self.install_logs[offset:] if len(self.install_logs) > offset else [],
+            "success": self.install_success,
+            "error": self.install_error,
+            "total_count": len(self.install_logs)
+        }
 
 installer = InstallerService()
 
