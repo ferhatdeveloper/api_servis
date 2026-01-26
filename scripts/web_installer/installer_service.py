@@ -658,7 +658,7 @@ class InstallerService:
             
             # Header
             c.setFont("Helvetica-Bold", 16)
-            c.drawCentredString(width/2, height - 50, "EXFIN ALL - Satışçı Giriş Bilgileri")
+            c.drawCentredString(width/2, height - 50, "EXFIN OPS - Satisci Giris Bilgileri")
             c.setFont("Helvetica", 10)
             c.drawCentredString(width/2, height - 70, f"Olusturulma Tarihi: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             

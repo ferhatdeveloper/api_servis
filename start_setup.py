@@ -156,7 +156,7 @@ def main():
     logging.info("Console hidden.")
 
     print("=========================================")
-    print("   EXFIN ALL API - Modern Setup Wizard 🚀")
+    print("   EXFIN OPS - Modern Setup Wizard 🚀    ")
     print("=========================================")
     
     base_dir = os.path.dirname(os.path.abspath(__file__))

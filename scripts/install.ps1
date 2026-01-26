@@ -1,4 +1,4 @@
-# EXFIN ALL API - Akıllı Kurulum ve Güncelleme Scripti
+# EXFIN OPS API - Akıllı Kurulum ve Güncelleme Scripti
 # Kullanım: irm bit.ly/opsapi | iex
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +14,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Host "`n==========================================" -ForegroundColor Cyan
-Write-Host "   EXFIN ALL API - AKILLI KURULUM SISTEMI" -ForegroundColor Cyan
+Write-Host "   EXFIN OPS API - AKILLI KURULUM SISTEMI" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
