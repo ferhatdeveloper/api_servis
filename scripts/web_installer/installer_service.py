@@ -1430,16 +1430,64 @@ class InstallerService:
             return {"success": False, "error": str(e)}
 
 
+    def __init__(self, project_dir):
+        self.project_dir = project_dir
+        self.install_logs = []
+        self.install_status = "idle" # idle, running, completed, error
+        self.install_result = {}
+
+    def _run_whatsapp_install_thread(self, cmd):
+        """Runs the installation in a background thread and captures logs"""
+        try:
+            self.install_status = "running"
+            self.install_logs = ["--- Kurulum Başlatıldı ---"]
+            
+            process = subprocess.Popen(
+                cmd, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.STDOUT, 
+                text=True, 
+                bufsize=1, 
+                universal_newlines=True
+            )
+            
+            # Read stdout line by line
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    clean_line = line.strip()
+                    if clean_line:
+                        self.install_logs.append(clean_line)
+                        print(f"[INSTALLER] {clean_line}") # Also print to server console
+            
+            process.stdout.close()
+            return_code = process.wait()
+            
+            if return_code == 0:
+                self.install_status = "completed"
+                self.install_logs.append("--- Kurulum Başarıyla Tamamlandı ✅ ---")
+                self.install_result = {"success": True, "message": "Kurulum tamamlandı."}
+            else:
+                self.install_status = "error"
+                self.install_logs.append(f"--- Kurulum Hata ile Bitti (Kod: {return_code}) ❌ ---")
+                self.install_result = {"success": False, "error": f"Hata Kodu: {return_code}"}
+                
+        except Exception as e:
+            self.install_status = "error"
+            self.install_logs.append(f"KRİTİK HATA: {str(e)}")
+            self.install_result = {"success": False, "error": str(e)}
+
     def install_whatsapp(self, config: dict):
-        """Triggers the PowerShell installation script for WhatsApp with custom parameters"""
+        """Triggers the PowerShell installation script for WhatsApp in BACKGROUND"""
+        if self.install_status == "running":
+            return {"success": True, "message": "Kurulum zaten devam ediyor..."}
+
         try:
             script_path = os.path.join(self.project_dir, "infrastructure", "whatsapp", "install.ps1")
             wa = config.get("wa", {})
             pg = config.get("pg", {})
             
-            # API Port is now separate from Dashboard Port
-            dashboard_port = wa.get("port", "8001")
-            api_port = "8081" # Internal Engine Port
+            # Single Port Architecture (API on 8080)
+            api_port = "8080"
             api_key = wa.get("key", "42247726A7F14310B30A3CA655148D32")
             db_url = f"postgresql://{pg.get('username')}:{pg.get('password')}@{pg.get('host')}:{pg.get('port')}/{pg.get('database')}"
             
@@ -1450,44 +1498,37 @@ class InstallerService:
                 "-File", script_path,
                 "-BaseDir", os.path.join(self.project_dir, "infrastructure", "whatsapp"),
                 "-ApiPort", api_port,
-                "-DashboardPort", dashboard_port,
                 "-DbUrl", db_url,
                 "-ApiKey", api_key,
                 "-InstanceName", wa.get("instance", "EXFIN")
             ]
             
-            # We also need to update the .env template or pass the key
-            # For simplicity, we'll pass the key as an environment variable or just let the script handle it
-            # Let's update the command to include more parameters if the script supports them
+            # Start background thread
+            import threading
+            t = threading.Thread(target=self._run_whatsapp_install_thread, args=(cmd,))
+            t.daemon = True
+            t.start()
             
-            process = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if process.returncode == 0:
-                return {"success": True, "message": "BerqenasCloud WhatsApp Api başarıyla kuruldu ve başlatıldı. ✅", "logs": process.stdout}
-            else:
-                # Often PowerShell errors are in stdout or mixed. 
-                combined_stderr = (process.stderr or "").strip()
-                if not combined_stderr and process.stdout:
-                    # Look for "Hata" or "Error" in stdout
-                    combined_stderr = "Script hatası (Detaylar loglarda). İlk satırlar: " + process.stdout.split('\n')[0]
+            return {"success": True, "message": "Kurulum arka planda başlatıldı. Loglar izleniyor..."}
 
-                return {
-                    "success": False, 
-                    "error": f"Kurulum başarısız (Kod: {process.returncode}): {combined_stderr}", 
-                    "logs": process.stdout,
-                    "stderr": process.stderr
-                }
-                
         except Exception as e:
             logger.error(f"WhatsApp install crash: {e}")
             return {"success": False, "error": f"Sistem Hatası: {str(e)}"}
+
+    def get_install_status(self):
+        """Returns the current log buffer and status"""
+        return {
+            "status": self.install_status,
+            "logs": self.install_logs,
+            "result": self.install_result
+        }
 
     def get_whatsapp_qr(self, config: dict):
         """Fetches QR code from the local WhatsApp Api Reporter (BerqenasCloud Api Services) instance"""
         import requests
         try:
-            # We connect to the Internal API Port (8081)
-            port = "8081" 
+            # We connect to the Engine Port (8080)
+            port = "8080" 
             instance = config.get("instance", "EXFIN")
             api_key = config.get("key", "42247726A7F14310B30A3CA655148D32")
             
@@ -1507,6 +1548,8 @@ class InstallerService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-installer = InstallerService()
+# Initialize singleton
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+installer = InstallerService(base_dir)
 
 
