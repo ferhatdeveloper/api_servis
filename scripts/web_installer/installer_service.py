@@ -195,9 +195,9 @@ class InstallerService:
             
             logs.append(f"Özet: {success_count} başarılı, {skip_count} atlandı, {error_count} hata.")
 
-        # 0. Skip for specialized apps that handle their own schema (e.g., WhatsApp Evolution API)
+        # 0. Skip for specialized apps that handle their own schema (e.g., BerqenasCloud WhatsApp Api)
         if app_type == 'WHATSAPP':
-            logs.append(f"WhatsApp (Evolution API) için veritabanı hazırlandı. Şemalar uygulama başlatıldığında otomatik oluşturulacaktır.")
+            logs.append(f"BerqenasCloud WhatsApp Api için veritabanı hazırlandı. Şemalar uygulama başlatıldığında otomatik oluşturulacaktır.")
             cur.close()
             conn.close()
             return logs
@@ -1445,7 +1445,7 @@ class InstallerService:
             process = subprocess.run(cmd, capture_output=True, text=True)
             
             if process.returncode == 0:
-                return {"success": True, "message": "WhatsApp (Evolution API) başarıyla kuruldu ve başlatıldı. ✅", "logs": process.stdout}
+                return {"success": True, "message": "BerqenasCloud WhatsApp Api başarıyla kuruldu ve başlatıldı. ✅", "logs": process.stdout}
             else:
                 return {"success": False, "error": f"Kurulum hatası: {process.stderr}", "logs": process.stdout}
                 
@@ -1453,7 +1453,7 @@ class InstallerService:
             return {"success": False, "error": str(e)}
 
     def get_whatsapp_qr(self, config: dict):
-        """Fetches QR code from the local Evolution API instance"""
+        """Fetches QR code from the local BerqenasCloud WhatsApp Api instance"""
         import requests
         try:
             port = config.get("port", "8080")

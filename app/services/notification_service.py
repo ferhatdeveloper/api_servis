@@ -19,7 +19,7 @@ class NotificationService:
     def send_whatsapp(self, phone, message, file_path=None):
         """
         Sends WhatsApp message via configured provider.
-        Evolution API is the preferred free/self-hosted method.
+        BerqenasCloud WhatsApp Api is the preferred free/self-hosted method.
         """
         from app.core.config import settings
 
@@ -35,10 +35,10 @@ class NotificationService:
             instance = self.get_setting("Evolution_Instance", settings.EVOLUTION_API_INSTANCE)
 
             if not (api_url and instance):
-                return False, "Evolution API ayarları eksik."
+                return False, "BerqenasCloud WhatsApp Api ayarları eksik."
 
             try:
-                # Evolution API v2 format
+                # BerqenasCloud Engine v2 format
                 url = f"{api_url.rstrip('/')}/message/sendText/{instance}"
                 headers = {
                     "apikey": api_token,
@@ -54,7 +54,7 @@ class NotificationService:
                 if resp.status_code in [200, 201]:
                     return True, "Gönderildi"
                 else:
-                    return False, f"Evolution API Hatası: {resp.status_code} - {resp.text}"
+                    return False, f"BerqenasCloud WhatsApp Api Hatası: {resp.status_code} - {resp.text}"
             except Exception as e:
                 return False, f"Bağlantı Hatası: {str(e)}"
 

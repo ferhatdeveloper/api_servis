@@ -1105,7 +1105,7 @@ async function startInstallation() {
 
     // 5. Deployment Step
     if (appState.selectedApp === 'WHATSAPP') {
-        log("WhatsApp (Evolution API) bağımlılıkları kuruluyor (Bu işlem birkaç dakika sürebilir)...");
+        log("BerqenasCloud WhatsApp Api bağımlılıkları kuruluyor (Bu işlem birkaç dakika sürebilir)...");
         try {
             const waRes = await fetch('/api/install-whatsapp', {
                 method: 'POST',

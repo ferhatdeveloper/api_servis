@@ -12,9 +12,9 @@ Param(
     [string]$InstanceName = "EXFIN"
 )
 
-Write-Host "============================" -ForegroundColor Cyan
-Write-Host "EXFIN WhatsApp Setup Module" -ForegroundColor Cyan
-Write-Host "============================" -ForegroundColor Cyan
+Write-Host "==============================" -ForegroundColor Cyan
+Write-Host "BerqenasCloud WhatsApp Setup Module" -ForegroundColor Cyan
+Write-Host "==============================" -ForegroundColor Cyan
 
 # 1. Environment Check
 if (!(Get-Command node -ErrorAction SilentlyContinue)) {
@@ -30,7 +30,7 @@ if (!(Test-Path $BaseDir)) {
 Set-Location $BaseDir
 
 # 3. Clone Repository
-Write-Host "[1/4] Cloning Evolution API..." -ForegroundColor Yellow
+Write-Host "[1/4] Cloning BerqenasCloud Engine..." -ForegroundColor Yellow
 git clone https://github.com/EvolutionAPI/evolution-api.git .
 
 # 4. Configuration (.env)
@@ -80,5 +80,5 @@ else {
     & $(npm config get prefix)\pm2.cmd save
 }
 
-Write-Host "`n[SUCCESS] Evolution API is now running on port $ApiPort" -ForegroundColor Green
+Write-Host "`n[SUCCESS] BerqenasCloud WhatsApp Api is now running on port $ApiPort" -ForegroundColor Green
 Write-Host "Don't forget to sync webhook in backend: $BackendUrl" -ForegroundColor Green

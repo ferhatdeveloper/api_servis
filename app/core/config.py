@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_WHATSAPP_NUMBER: Optional[str] = None
     
-    # Evolution API Settings
+    # BerqenasCloud WhatsApp Api Settings
     WHATSAPP_PROVIDER: str = "Evolution" # Evolution, Twilio, Meta
     EVOLUTION_API_URL: Optional[str] = "http://localhost:8080"
     EVOLUTION_API_TOKEN: Optional[str] = None

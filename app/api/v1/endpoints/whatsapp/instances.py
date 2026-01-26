@@ -21,5 +21,5 @@ async def logout_instance():
 
 @router.post("/sync-webhook")
 async def sync_webhook(webhook_url: str = Query(..., description="Your Backend URL (e.g. http://server-ip:8000/api/v1/whatsapp/webhooks/events)")):
-    """Sync your backend URL to Evolution API for webhooks"""
+    """Sync your backend URL to BerqenasCloud WhatsApp Api for webhooks"""
     return whatsapp_service.set_webhook(webhook_url)
