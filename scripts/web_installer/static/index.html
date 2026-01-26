@@ -83,6 +83,13 @@
                         <p>Döviz Büroları (TR & IQ Market)</p>
                     </div>
                 </div>
+                <div class="app-card" onclick="selectApp('WHATSAPP', this)">
+                    <div class="app-icon">💬</div>
+                    <div class="app-info">
+                        <h3>WHATSAPP</h3>
+                        <p>Evolution API Entegrasyonu</p>
+                    </div>
+                </div>
             </div>
 
             <div class="card-footer">
@@ -240,6 +247,30 @@
                                 Logo Firmasını Seçin</label>
                             <div id="logo-firm-cards" class="firm-selector"></div>
                             <input type="hidden" id="logo-firm-select" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WhatsApp Specific Settings (Visible only when WHATSAPP selected) -->
+                <div id="wa-settings-area" class="hidden" style="margin-top: 20px;">
+                    <div class="db-panel" style="max-width: 100%;">
+                        <div class="db-header">
+                            <span style="font-size: 24px;">💬</span>
+                            <h3>WhatsApp API Yapılandırması (Evolution API)</h3>
+                        </div>
+                        <div class="db-grid">
+                            <div class="input-group">
+                                <label>API Portu</label>
+                                <input type="text" id="wa-port" value="8080" placeholder="Örn: 8080">
+                            </div>
+                            <div class="input-group">
+                                <label>Instance (Oturum) Adı</label>
+                                <input type="text" id="wa-instance" value="EXFIN" placeholder="Örn: EXFIN">
+                            </div>
+                            <div class="input-group">
+                                <label>Global API Key</label>
+                                <input type="text" id="wa-key" value="42247726A7F14310B30A3CA655148D32">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -458,6 +489,24 @@
                 <div class="checkmark">✅</div>
                 <h3>Kurulum Başarılı!</h3>
                 <p>EXFIN <span id="success-app-name"></span> Servisi arka planda çalışıyor.</p>
+
+                <div id="wa-success-addon" class="hidden"
+                    style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 15px; border: 1px dashed var(--primary);">
+                    <h4 style="margin-bottom: 15px; color: var(--primary);">WhatsApp Bağlantısı Hazır 📱</h4>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Likitidasyon ve
+                        bildirimler için WhatsApp oturumunu şimdi başlatabilirsiniz.</p>
+
+                    <div id="wa-qr-container"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px;">
+                        <button class="btn btn-primary" id="btn-show-qr" onclick="fetchWhatsAppQR()">QR Kodunu
+                            Göster</button>
+                        <div id="wa-qr-image" class="hidden"
+                            style="background: white; padding: 10px; border-radius: 10px; margin-top: 15px;">
+                            <!-- QR Image will be injected here -->
+                        </div>
+                    </div>
+                </div>
+
                 <div class="dashboard-link" style="margin-top:20px; display: flex; gap:10px; justify-content: center;">
                     <button class="btn btn-primary" onclick="launchTray()">Tepsiyi Başlat</button>
                     <a href="http://localhost:8000/docs" target="_blank" class="btn btn-secondary">API Docs</a>

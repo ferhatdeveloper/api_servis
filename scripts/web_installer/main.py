@@ -210,6 +210,19 @@ async def save_config(request: ConfigRequest):
 async def install_service():
     return installer.install_windows_service()
 
+@app.post("/api/install-whatsapp")
+async def install_whatsapp(request: ConfigRequest):
+    return installer.install_whatsapp(request.dict())
+
+class WAConnectRequest(BaseModel):
+    port: str
+    instance: str
+    key: str
+
+@app.post("/api/whatsapp-qr")
+async def get_wa_qr(request: WAConnectRequest):
+    return installer.get_whatsapp_qr(request.dict())
+
 # Static mounting for UI
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")

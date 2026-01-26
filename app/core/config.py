@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_WHATSAPP_NUMBER: Optional[str] = None
     
+    # Evolution API Settings
+    WHATSAPP_PROVIDER: str = "Evolution" # Evolution, Twilio, Meta
+    EVOLUTION_API_URL: Optional[str] = "http://localhost:8080"
+    EVOLUTION_API_TOKEN: Optional[str] = None
+    EVOLUTION_API_INSTANCE: str = "Main"
+    
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = []
 

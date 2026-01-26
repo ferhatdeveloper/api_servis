@@ -1408,6 +1408,67 @@ class InstallerService:
             return {"success": False, "error": str(e)}
 
 
+    def install_whatsapp(self, config: dict):
+        """Triggers the PowerShell installation script for WhatsApp with custom parameters"""
+        try:
+            script_path = os.path.join(self.project_dir, "infrastructure", "whatsapp", "install.ps1")
+            wa = config.get("wa", {})
+            pg = config.get("pg", {})
+            
+            api_port = wa.get("port", "8080")
+            api_key = wa.get("key", "42247726A7F14310B30A3CA655148D32")
+            db_url = f"postgresql://{pg.get('username')}:{pg.get('password')}@{pg.get('host')}:{pg.get('port')}/{pg.get('database')}"
+            
+            # Execute PowerShell script with parameters
+            cmd = [
+                "powershell.exe", 
+                "-ExecutionPolicy", "Bypass", 
+                "-File", script_path,
+                "-BaseDir", os.path.join(self.project_dir, "infrastructure", "whatsapp"),
+                "-ApiPort", api_port,
+                "-DbUrl", db_url,
+                "-ApiKey", api_key,
+                "-InstanceName", wa.get("instance", "EXFIN")
+            ]
+            
+            # We also need to update the .env template or pass the key
+            # For simplicity, we'll pass the key as an environment variable or just let the script handle it
+            # Let's update the command to include more parameters if the script supports them
+            
+            process = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if process.returncode == 0:
+                return {"success": True, "message": "WhatsApp (Evolution API) başarıyla kuruldu ve başlatıldı. ✅", "logs": process.stdout}
+            else:
+                return {"success": False, "error": f"Kurulum hatası: {process.stderr}", "logs": process.stdout}
+                
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_whatsapp_qr(self, config: dict):
+        """Fetches QR code from the local Evolution API instance"""
+        import requests
+        try:
+            port = config.get("port", "8080")
+            instance = config.get("instance", "EXFIN")
+            api_key = config.get("key", "42247726A7F14310B30A3CA655148D32")
+            
+            url = f"http://localhost:{port}/instance/connect/{instance}"
+            headers = {"apikey": api_key}
+            
+            # Simple retry loop as service might be starting
+            import time
+            for _ in range(3):
+                try:
+                    res = requests.get(url, headers=headers, timeout=5)
+                    return res.json()
+                except:
+                    time.sleep(2)
+            
+            return {"success": False, "error": "WhatsApp servisine ulaşılamadı. Servis hala başlatılıyor olabilir."}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
 installer = InstallerService()
 
 

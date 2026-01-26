@@ -126,14 +126,40 @@ async def send_whatsapp_message(
         
         db.commit()
         
-        # TODO: Trigger actual WhatsApp API call
-        # await send_via_twilio(message_id)
+        # Trigger actual WhatsApp API call
+        from app.services.notification_service import NotificationService
+        notif_service = NotificationService()
+        
+        success, feedback = notif_service.send_whatsapp(
+            phone=message.contact_phone,
+            message=message.message_content
+        )
+        
+        # Update message status based on provider response
+        status = "sent" if success else "failed"
+        error_msg = None if success else feedback
+        
+        update_status_query = """
+            UPDATE whatsapp_messages
+            SET status = :status,
+                error_message = :error_msg,
+                sent_at = CASE WHEN :status = 'sent' THEN NOW() ELSE NULL END
+            WHERE id = :message_id
+        """
+        db.execute(update_status_query, {
+            "status": status,
+            "error_msg": error_msg,
+            "message_id": message_id
+        })
+        
+        db.commit()
         
         return {
-            "success": True,
+            "success": success,
             "message_id": message_id,
-            "status": "pending",
-            "message": "Mesaj gönderim kuyruğuna alındı."
+            "status": status,
+            "feedback": feedback,
+            "message": "İşlem tamamlandı." if success else f"Hata: {feedback}"
         }
         
     except Exception as e:

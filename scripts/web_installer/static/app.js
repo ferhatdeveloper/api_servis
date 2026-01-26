@@ -425,11 +425,19 @@ function selectApp(appId, el) {
         'HRM': 'EXFIN_HRM',
         'CAFE': 'EXFIN_CAFE',
         'BEATPY': 'EXFIN_BEATPY',
-        'EXCHANGE': 'EXFIN_EXCHANGE'
+        'EXCHANGE': 'EXFIN_EXCHANGE',
+        'WHATSAPP': 'EVOLUTION_API'
     };
     if (dbMap[appId]) {
         const pgDbInput = document.getElementById('pg-db');
         if (pgDbInput) pgDbInput.value = dbMap[appId];
+    }
+
+    // Toggle WhatsApp Settings Panel
+    const waPanel = document.getElementById('wa-settings-area');
+    if (waPanel) {
+        if (appId === 'WHATSAPP') waPanel.classList.remove('hidden');
+        else waPanel.classList.add('hidden');
     }
 }
 
@@ -1089,7 +1097,33 @@ async function startInstallation() {
     }
 
     // 5. Deployment Step
-    if (appState.deploymentMode === "1") {
+    if (appState.selectedApp === 'WHATSAPP') {
+        log("WhatsApp (Evolution API) bağımlılıkları kuruluyor (Bu işlem birkaç dakika sürebilir)...");
+        try {
+            const waRes = await fetch('/api/install-whatsapp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pg: appState.config.pg,
+                    wa: {
+                        port: getVal('wa-port', '8080'),
+                        instance: getVal('wa-instance', 'EXFIN'),
+                        key: getVal('wa-key', '42247726A7F14310B30A3CA655148D32')
+                    }
+                })
+            });
+            const waData = await waRes.json();
+            if (waData.success) {
+                log(waData.message);
+                finishAndShowSuccess();
+            } else {
+                log("HATA: WhatsApp kurulumu başarısız.");
+                log(waData.error);
+            }
+        } catch (e) {
+            log("Kritik WhatsApp kurulum hatası.");
+        }
+    } else if (appState.deploymentMode === "1") {
         log("Windows Servisi kuruluyor...");
         try {
             const instRes = await fetch('/api/install-service', { method: 'POST' });
@@ -1132,8 +1166,54 @@ function finishAndShowSuccess() {
         const appNameSpan = document.getElementById('success-app-name');
         if (appNameSpan) appNameSpan.innerText = appState.selectedApp || "OPS";
 
+        // Show WhatsApp QR Addon if selected
+        if (appState.selectedApp === 'WHATSAPP') {
+            const waAddon = document.getElementById('wa-success-addon');
+            if (waAddon) waAddon.classList.remove('hidden');
+        }
+
         document.getElementById('success-screen').classList.remove('hidden');
     }, 2000);
+}
+
+async function fetchWhatsAppQR() {
+    const btn = document.getElementById('btn-show-qr');
+    const qrImageDiv = document.getElementById('wa-qr-image');
+
+    btn.disabled = true;
+    btn.innerText = "Yükleniyor...";
+
+    try {
+        const payload = {
+            port: getVal('wa-port', '8080'),
+            instance: getVal('wa-instance', 'EXFIN'),
+            key: getVal('wa-key', '42247726A7F14310B30A3CA655148D32')
+        };
+
+        const res = await fetch('/api/whatsapp-qr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.qrcode && data.qrcode.base64) {
+            qrImageDiv.innerHTML = `<img src="${data.qrcode.base64}" style="width: 250px; height: 250px; display: block;">`;
+            qrImageDiv.classList.remove('hidden');
+            btn.innerText = "Yenile";
+        } else if (data.status === "CONNECTED") {
+            qrImageDiv.innerHTML = `<div style="padding: 20px; color: var(--success); font-weight: bold;">WhatsApp Zaten Bağlı! ✅</div>`;
+            qrImageDiv.classList.remove('hidden');
+            btn.classList.add('hidden');
+        } else {
+            alert("QR Kod alınamadı: " + (data.error || "Bilinmeyen hata"));
+            btn.innerText = "Tekrar Dene";
+        }
+    } catch (e) {
+        alert("Bağlantı Hatası: Servis henüz hazır olmayabilir.");
+        btn.innerText = "Tekrar Dene";
+    }
+    btn.disabled = false;
 }
 
 async function launchTray() {

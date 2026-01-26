@@ -18,29 +18,60 @@ class NotificationService:
 
     def send_whatsapp(self, phone, message, file_path=None):
         """
-        Sends WhatsApp message. 
-        Note: Official API requires templates. This simulates a generic provider or 
-        uses a redirect link for local app if client-side. 
-        For server-side, we'd need a provider like NetGSM or Twilio.
+        Sends WhatsApp message via configured provider.
+        Evolution API is the preferred free/self-hosted method.
         """
-        provider = self.get_setting("Whatsapp_Provider", "Twilio") # Twilio, NetGSM, Local
+        from app.core.config import settings
+
+        # Load from DB settings or use config defaults
+        provider = self.get_setting("Whatsapp_Provider", settings.WHATSAPP_PROVIDER)
         
-        if provider == "Twilio":
-            sid = self.get_setting("Twilio_SID")
-            token = self.get_setting("Twilio_Token")
-            from_num = self.get_setting("Twilio_From")
+        # Clean phone number (ensure only digits)
+        clean_phone = "".join(filter(str.isdigit, phone))
+
+        if provider == "Evolution":
+            api_url = self.get_setting("Evolution_Api_Url", settings.EVOLUTION_API_URL)
+            api_token = self.get_setting("Evolution_Api_Token", settings.EVOLUTION_API_TOKEN)
+            instance = self.get_setting("Evolution_Instance", settings.EVOLUTION_API_INSTANCE)
+
+            if not (api_url and instance):
+                return False, "Evolution API ayarları eksik."
+
+            try:
+                # Evolution API v2 format
+                url = f"{api_url.rstrip('/')}/message/sendText/{instance}"
+                headers = {
+                    "apikey": api_token,
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "number": clean_phone,
+                    "text": message,
+                    "linkPreview": True
+                }
+
+                resp = requests.post(url, json=data, headers=headers)
+                if resp.status_code in [200, 201]:
+                    return True, "Gönderildi"
+                else:
+                    return False, f"Evolution API Hatası: {resp.status_code} - {resp.text}"
+            except Exception as e:
+                return False, f"Bağlantı Hatası: {str(e)}"
+
+        elif provider == "Twilio":
+            sid = self.get_setting("Twilio_SID", settings.TWILIO_ACCOUNT_SID)
+            token = self.get_setting("Twilio_Token", settings.TWILIO_AUTH_TOKEN)
+            from_num = self.get_setting("Twilio_From", settings.TWILIO_WHATSAPP_NUMBER)
             
             if not (sid and token and from_num):
                 return False, "Twilio ayarları eksik."
             
             try:
-                # Mock request for now as we don't have installed twilio lib in main scope yet,
-                # but standard HTTP request is safer for portability
                 url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
                 auth = (sid, token)
                 data = {
                     "From": f"whatsapp:{from_num}",
-                    "To": f"whatsapp:{phone}",
+                    "To": f"whatsapp:{clean_phone}",
                     "Body": message
                 }
                 
@@ -48,11 +79,11 @@ class NotificationService:
                 if resp.status_code in [200, 201]:
                     return True, "Gönderildi"
                 else:
-                    return False, f"Hata: {resp.text}"
+                    return False, f"Twilio Hatası: {resp.text}"
             except Exception as e:
                 return False, str(e)
 
-        return False, "Sağlayıcı yapılandırılmadı."
+        return False, f"Sağlayıcı ('{provider}') yapılandırılmadı."
 
     def send_sms(self, phone, message):
         """
