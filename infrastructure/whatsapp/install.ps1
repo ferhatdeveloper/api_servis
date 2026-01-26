@@ -83,7 +83,9 @@ function Register-Windows-Service {
         $nssmPath = Join-Path (Get-Location) "nssm.exe"
         if (!(Test-Path $nssmPath)) {
             Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" -OutFile "nssm.zip"
-            Expand-Archive -Path "nssm.zip" -DestinationPath "nssm_temp" -Force
+            # Use tar for extraction to bypass PowerShell Constrained Language Mode restrictions
+            New-Item -Path "nssm_temp" -ItemType Directory -Force | Out-Null
+            tar -xf "nssm.zip" -C "nssm_temp"
             Copy-Item "nssm_temp\nssm-2.24\win64\nssm.exe" -Destination $nssmPath -Force
             Remove-Item "nssm.zip", "nssm_temp" -Recurse -Force
         }
@@ -161,7 +163,14 @@ if (!(Setup-Environment)) { return }
 switch ($Mode) {
     "install" {
         Write-Host "`n>>> SIFIRDAN KURULUM BAŞLATILDI <<<" -ForegroundColor Green
-        git clone https://github.com/EvolutionAPI/evolution-api.git .
+        if (Test-Path "package.json") {
+            Write-Host "[*] Kodlar zaten mevcut, güncelleniyor..." -ForegroundColor Yellow
+            git fetch --all
+            git reset --hard origin/main
+        }
+        else {
+            git clone https://github.com/EvolutionAPI/evolution-api.git .
+        }
         Create-EnvFile
         npm install
         npm run db:generate
