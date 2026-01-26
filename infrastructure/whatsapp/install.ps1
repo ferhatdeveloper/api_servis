@@ -73,22 +73,70 @@ LANGUAGE=en-US
     $EnvContent | Out-File -FilePath ".env" -Encoding utf8
 }
 
-function Start-API-Service {
-    Write-Host "[*] Servis başlatılıyor (PM2)..." -ForegroundColor Yellow
-    $pm2 = Get-Command pm2 -ErrorAction SilentlyContinue
-    if (!$pm2) {
-        Write-Host "PM2 bulunamadı, yükleniyor..."
-        npm install -g pm2
-        $pm2Path = "$(npm config get prefix)\pm2.cmd"
+function Register-Windows-Service {
+    Write-Host "[*] Windows Servisi kaydediliyor (NSSM)..." -ForegroundColor Yellow
+    
+    $nssm = Get-Command nssm -ErrorAction SilentlyContinue
+    if (!$nssm) {
+        Write-Host "NSSM bulunamadı, indiriliyor..."
+        $nssmPath = Join-Path (Get-Location) "nssm.exe"
+        if (!(Test-Path $nssmPath)) {
+            Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" -OutFile "nssm.zip"
+            Expand-Archive -Path "nssm.zip" -DestinationPath "nssm_temp" -Force
+            Copy-Item "nssm_temp\nssm-2.24\win64\nssm.exe" -Destination $nssmPath -Force
+            Remove-Item "nssm.zip", "nssm_temp" -Recurse -Force
+        }
     }
     else {
-        $pm2Path = $pm2.Source
+        $nssmPath = $nssm.Source
     }
 
-    & $pm2Path delete exfin-whatsapp-api 2>$null
-    & $pm2Path start dist/main.js --name exfin-whatsapp-api
-    & $pm2Path save
-    Write-Host "`n[BAŞARILI] Evolution API port $ApiPort üzerinde çalışıyor. ✅" -ForegroundColor Green
+    $serviceName = "Exfin_WhatsAppService"
+    $nodePath = Get-Command node | Select-Object -ExpandProperty Source
+    $scriptRoot = Get-Location
+    $entryPoint = Join-Path $scriptRoot "dist\main.js"
+
+    # Stop and remove existing if any
+    & $nssmPath stop $serviceName 2>$null
+    & $nssmPath remove $serviceName confirm 2>$null
+    
+    # Install and set up
+    & $nssmPath install $serviceName "$nodePath" "$entryPoint"
+    & $nssmPath set $serviceName AppDirectory "$scriptRoot"
+    & $nssmPath set $serviceName Description "EXFIN ALL WhatsApp Service"
+    & $nssmPath set $serviceName Start SERVICE_AUTO_START
+    & $nssmPath start $serviceName
+
+    Write-Host "`n[BAŞARILI] WhatsApp Windows Servisi ($serviceName) kuruldu ve başlatıldı. ✅" -ForegroundColor Green
+}
+
+function Start-API-Service {
+    Write-Host "`nServis Başlatma Tercihi:" -ForegroundColor White
+    Write-Host "1) PM2 ile Başlat (Önerilen - Konsol Yönetimi Kolay)" -ForegroundColor Yellow
+    Write-Host "2) Native Windows Servisi Olarak Kaydet (Sistem Seviyesi - sc.exe)" -ForegroundColor Blue
+    
+    $choice = Read-Host "Seçiminiz (1-2)"
+    
+    if ($choice -eq "2") {
+        Register-Windows-Service
+    }
+    else {
+        Write-Host "[*] Servis başlatılıyor (PM2)..." -ForegroundColor Yellow
+        $pm2 = Get-Command pm2 -ErrorAction SilentlyContinue
+        if (!$pm2) {
+            Write-Host "PM2 bulunamadı, yükleniyor..."
+            npm install -g pm2
+            $pm2Path = "$(npm config get prefix)\pm2.cmd"
+        }
+        else {
+            $pm2Path = $pm2.Source
+        }
+
+        & $pm2Path delete exfin-whatsapp-api 2>$null
+        & $pm2Path start dist/main.js --name exfin-whatsapp-api
+        & $pm2Path save
+        Write-Host "`n[BAŞARILI] Evolution API port $ApiPort üzerinde çalışıyor (PM2). ✅" -ForegroundColor Green
+    }
 }
 
 # --- MAIN LOGIC ---

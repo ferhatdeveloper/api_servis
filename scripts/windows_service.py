@@ -38,7 +38,7 @@ except Exception as e:
 
 # Default names
 SERVICE_NAME = "Exfin_ApiService"
-SERVICE_DISPLAY_NAME = "EXFIN OPS API Service"
+SERVICE_DISPLAY_NAME = "EXFIN ALL API Service"
 
 # Try to load custom names from api.db (Set by installer if conflict occurs)
 try:
@@ -49,7 +49,7 @@ try:
         _row = _conn.execute("SELECT value FROM settings WHERE key = 'ServiceName'").fetchone()
         if _row:
             SERVICE_NAME = str(_row[0])
-            SERVICE_DISPLAY_NAME = f"EXFIN OPS API ({SERVICE_NAME})"
+            SERVICE_DISPLAY_NAME = f"EXFIN ALL API Service ({SERVICE_NAME})"
         _conn.close()
 except: 
     pass

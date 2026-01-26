@@ -133,7 +133,7 @@ else {
 }
 
 # 5. Restart API Service
-Write-Host "> Restarting EXFIN OPS API Service..." -ForegroundColor Yellow
+Write-Host "> Restarting EXFIN ALL API Service..." -ForegroundColor Yellow
 $ApiService = Get-Service -Name "Exfin_ApiService" -ErrorAction SilentlyContinue
 if ($ApiService) {
     Restart-Service -Name "Exfin_ApiService" -Force
