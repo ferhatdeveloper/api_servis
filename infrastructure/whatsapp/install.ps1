@@ -27,7 +27,12 @@ if (!(Test-Path $BaseDir)) {
     New-Item -Path $BaseDir -ItemType Directory -Force
 }
 
-Set-Location $BaseDir
+$EngineDir = Join-Path $BaseDir "engine"
+if (!(Test-Path $EngineDir)) {
+    New-Item -Path $EngineDir -ItemType Directory -Force
+}
+
+Set-Location $EngineDir
 
 # 3. Clone or Update Repository
 Write-Host "[1/4] Preparing BerqenasCloud Engine..." -ForegroundColor Yellow
@@ -37,8 +42,6 @@ if (Test-Path ".git") {
 }
 else {
     Write-Host "Cloning repository..." -ForegroundColor Gray
-    # Clear directory if not a git repo to avoid clone failures
-    Remove-Item -Path "*" -Exclude "install.ps1" -Recurse -Force -ErrorAction SilentlyContinue
     git clone https://github.com/EvolutionAPI/evolution-api.git .
 }
 
