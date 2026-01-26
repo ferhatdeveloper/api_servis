@@ -29,9 +29,18 @@ if (!(Test-Path $BaseDir)) {
 
 Set-Location $BaseDir
 
-# 3. Clone Repository
-Write-Host "[1/4] Cloning BerqenasCloud Engine..." -ForegroundColor Yellow
-git clone https://github.com/EvolutionAPI/evolution-api.git .
+# 3. Clone or Update Repository
+Write-Host "[1/4] Preparing BerqenasCloud Engine..." -ForegroundColor Yellow
+if (Test-Path ".git") {
+    Write-Host "Existing repository detected. Pulling updates..." -ForegroundColor Gray
+    git pull origin main
+}
+else {
+    Write-Host "Cloning repository..." -ForegroundColor Gray
+    # Clear directory if not a git repo to avoid clone failures
+    Remove-Item -Path "*" -Exclude "install.ps1" -Recurse -Force -ErrorAction SilentlyContinue
+    git clone https://github.com/EvolutionAPI/evolution-api.git .
+}
 
 # 4. Configuration (.env)
 Write-Host "[2/4] Configuring Environment..." -ForegroundColor Yellow
