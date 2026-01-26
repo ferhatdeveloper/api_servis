@@ -1437,7 +1437,7 @@ class InstallerService:
             wa = config.get("wa", {})
             pg = config.get("pg", {})
             
-            api_port = wa.get("port", "8080")
+            api_port = wa.get("port", "8001")
             api_key = wa.get("key", "42247726A7F14310B30A3CA655148D32")
             db_url = f"postgresql://{pg.get('username')}:{pg.get('password')}@{pg.get('host')}:{pg.get('port')}/{pg.get('database')}"
             
@@ -1480,10 +1480,10 @@ class InstallerService:
             return {"success": False, "error": f"Sistem Hatası: {str(e)}"}
 
     def get_whatsapp_qr(self, config: dict):
-        """Fetches QR code from the local BerqenasCloud WhatsApp Api instance"""
+        """Fetches QR code from the local WhatsApp Api Reporter (BerqenasCloud Api Services) instance"""
         import requests
         try:
-            port = config.get("port", "8080")
+            port = config.get("port", "8001")
             instance = config.get("instance", "EXFIN")
             api_key = config.get("key", "42247726A7F14310B30A3CA655148D32")
             

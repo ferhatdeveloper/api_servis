@@ -1135,7 +1135,7 @@ async function startInstallation() {
 
     // 5. Deployment Step
     if (appState.selectedApp === 'WHATSAPP') {
-        log("BerqenasCloud WhatsApp Api kurulumu başlatıldı (Bu işlem birkaç dakika sürebilir)...");
+        log("WhatsApp Api Reporter (BerqenasCloud Api Services) kurulumu başlatıldı (Bu işlem birkaç dakika sürebilir)...");
         try {
             const waRes = await fetch('/api/install-whatsapp', {
                 method: 'POST',
@@ -1143,7 +1143,7 @@ async function startInstallation() {
                 body: JSON.stringify({
                     pg: appState.config.pg,
                     wa: {
-                        port: getVal('wa-port', '8080'),
+                        port: getVal('wa-port', '8001'),
                         instance: getVal('wa-instance', 'EXFIN'),
                         key: getVal('wa-key', '42247726A7F14310B30A3CA655148D32')
                     }
@@ -1234,7 +1234,7 @@ async function fetchWhatsAppQR() {
 
     try {
         const payload = {
-            port: getVal('wa-port', '8080'),
+            port: getVal('wa-port', '8001'),
             instance: getVal('wa-instance', 'EXFIN'),
             key: getVal('wa-key', '42247726A7F14310B30A3CA655148D32')
         };

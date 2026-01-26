@@ -5,7 +5,7 @@
 
 Param(
     [string]$BaseDir = "infrastructure\whatsapp",
-    [string]$ApiPort = "8080",
+    [string]$ApiPort = "8001",
     [string]$BackendUrl = "http://localhost:8000",
     [string]$DbUrl = "postgresql://postgres:Yq7xwQpt6c@localhost:5432/evolution_api",
     [string]$ApiKey = "42247726A7F14310B30A3CA655148D32",
@@ -13,7 +13,7 @@ Param(
 )
 
 Write-Host "==============================" -ForegroundColor Cyan
-Write-Host "BerqenasCloud WhatsApp Setup Module" -ForegroundColor Cyan
+Write-Host "WhatsApp Api Reporter (BerqenasCloud Api Services)" -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
 
 # 1. Environment Check
