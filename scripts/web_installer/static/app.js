@@ -1105,7 +1105,7 @@ async function startInstallation() {
 
     // 5. Deployment Step
     if (appState.selectedApp === 'WHATSAPP') {
-        log("BerqenasCloud WhatsApp Api bağımlılıkları kuruluyor (Bu işlem birkaç dakika sürebilir)...");
+        log("BerqenasCloud WhatsApp Api kurulumu başlatıldı (Bu işlem birkaç dakika sürebilir)...");
         try {
             const waRes = await fetch('/api/install-whatsapp', {
                 method: 'POST',
@@ -1119,16 +1119,28 @@ async function startInstallation() {
                     }
                 })
             });
+
+            if (!waRes.ok) {
+                const text = await waRes.text();
+                log("HATA: Sunucu yanıtı başarısız (" + waRes.status + ")");
+                log(text.substring(0, 100));
+                return;
+            }
+
             const waData = await waRes.json();
             if (waData.success) {
-                log(waData.message);
+                log(waData.message || "Kurulum tamamlandı! ✅");
                 finishAndShowSuccess();
             } else {
-                log("HATA: WhatsApp kurulumu başarısız.");
-                log(waData.error);
+                log("HATA: Kurulum başarısız.");
+                log(waData.error || "Bilinmeyen bir hata oluştu.");
+                if (waData.logs) {
+                    console.error("Installation Logs:", waData.logs);
+                    log("Detaylar console loglarında (F12).");
+                }
             }
         } catch (e) {
-            log("Kritik WhatsApp kurulum hatası.");
+            log("KRİTİK HATA: " + e.message);
         }
     } else if (appState.deploymentMode === "1") {
         log("Windows Servisi kuruluyor...");
