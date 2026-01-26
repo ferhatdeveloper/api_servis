@@ -13,7 +13,19 @@ const appState = {
 };
 
 function switchDataTab(tabId, btn) {
-    // 1. Hide all panes
+    // Check Dependencies for WhatsApp
+    if (appState.selectedApp === 'WHATSAPP') {
+        if (!appState.systemData.node_installed) {
+            log("❌ HATA: Kurulum durduruldu. Lütfen önce Node.js yükleyin.");
+            return;
+        }
+        if (!appState.systemData.git_installed) {
+            log("❌ HATA: Kurulum durduruldu. Lütfen önce Git yükleyin.");
+            return;
+        }
+    }
+
+    // 1. Initial Step
     document.querySelectorAll('.tab-pane').forEach(p => {
         p.classList.remove('active');
         p.classList.add('hidden');
@@ -471,6 +483,24 @@ async function runPrerequisiteChecks() {
         }
 
         const adminItem = document.getElementById('chk-admin');
+        if (data.ram_gb < 2) {
+            log("UYARI: RAM miktarınız 2GB altındadır ( " + data.ram_gb + " GB). Performans sorunları yaşayabilirsiniz.");
+        }
+
+        // Check for WhatsApp dependencies if module selected
+        if (appState.selectedApp === 'WHATSAPP') {
+            if (!data.node_installed) {
+                log("KRİTİK UYARI: Node.js yüklü değil! BerqenasCloud için gereklidir.");
+                const btnHtml = `<a href="${data.node_download_url}" target="_blank" class="btn btn-primary" style="margin: 10px 0; display: inline-block;">Node.js İndir ve Kur</a>`;
+                appendToLogs(btnHtml);
+            }
+            if (!data.git_installed) {
+                log("KRİTİK UYARI: Git yüklü değil! Kurulum yapılamaz.");
+                const btnHtml = `<a href="${data.git_download_url}" target="_blank" class="btn btn-secondary" style="margin: 10px 0; display: inline-block;">Git İndir ve Kur</a>`;
+                appendToLogs(btnHtml);
+            }
+        }
+
         if (!data.is_admin) {
             console.warn("DİKKAT: Yönetici yetkisi yok. Servis kurulumu aşamasında hata alabilirsiniz.");
             if (adminItem) {

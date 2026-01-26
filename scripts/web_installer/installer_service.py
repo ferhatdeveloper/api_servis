@@ -72,6 +72,21 @@ class InstallerService:
                 conn.close()
         except: pass
 
+        # Check Node.js & Git (Needed for WhatsApp)
+        node_installed = False
+        git_installed = False
+        try:
+            node_installed = subprocess.run(["node", "-v"], capture_output=True).returncode == 0
+        except: pass
+        try:
+            git_installed = subprocess.run(["git", "--version"], capture_output=True).returncode == 0
+        except: pass
+
+        checks["node_installed"] = node_installed
+        checks["git_installed"] = git_installed
+        checks["node_download_url"] = "https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi"
+        checks["git_download_url"] = "https://git-scm.com/download/win"
+
         checks["deployment_mode"] = deployment_mode
         return checks
             
