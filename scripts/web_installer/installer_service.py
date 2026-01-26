@@ -1447,10 +1447,22 @@ class InstallerService:
             if process.returncode == 0:
                 return {"success": True, "message": "BerqenasCloud WhatsApp Api başarıyla kuruldu ve başlatıldı. ✅", "logs": process.stdout}
             else:
-                return {"success": False, "error": f"Kurulum hatası: {process.stderr}", "logs": process.stdout}
+                # Often PowerShell errors are in stdout or mixed. 
+                combined_stderr = (process.stderr or "").strip()
+                if not combined_stderr and process.stdout:
+                    # Look for "Hata" or "Error" in stdout
+                    combined_stderr = "Script hatası (Detaylar loglarda). İlk satırlar: " + process.stdout.split('\n')[0]
+
+                return {
+                    "success": False, 
+                    "error": f"Kurulum başarısız (Kod: {process.returncode}): {combined_stderr}", 
+                    "logs": process.stdout,
+                    "stderr": process.stderr
+                }
                 
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"WhatsApp install crash: {e}")
+            return {"success": False, "error": f"Sistem Hatası: {str(e)}"}
 
     def get_whatsapp_qr(self, config: dict):
         """Fetches QR code from the local BerqenasCloud WhatsApp Api instance"""
