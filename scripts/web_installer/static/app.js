@@ -656,15 +656,12 @@ async function testDB(type) {
             statusEl.innerHTML = `<span style="color:var(--success)">${result.message}</span>`;
 
             // Save to state
-            if (type === 'postgres') appState.config.pg = payload;
-            else {
-                appState.config.ms = payload;
-                if (typeof fetchLogoFirms === 'function') fetchLogoFirms();
-            }
-        } else if (result.db_missing && type === 'postgres') {
-            statusEl.innerHTML = `<span style="color:var(--warning)">${result.error}</span>`;
-            if (confirm(`'${payload.database}' veritabanı mevcut değil. Şemalar ve varsa örnek verilerle birlikte otomatik oluşturulsun mu?`)) {
-                statusEl.innerHTML = `<span style="color:yellow">Veritabanı oluşturuluyor...</span>`;
+            if (type === 'postgres') {
+                appState.config.pg = payload;
+                // AUTOMATIC SETUP: If connection is successful, trigger schema creation immediately
+                console.log("Postgres connection successful, triggering automatic setup...");
+                statusEl.innerHTML = `<span style="color:yellow">Bağlantı Başarılı. Veritabanı ve şemalar otomatik oluşturuluyor...</span>`;
+
                 try {
                     const setupRes = await fetch('/api/setup-postgresql', {
                         method: 'POST',
@@ -673,39 +670,49 @@ async function testDB(type) {
                     });
                     const setupData = await setupRes.json();
 
-                    if (setupData.logs && Array.from(setupData.logs).length > 0) {
-                        // We filter for summaries or important bits for the small popup, 
-                        // but let's just log them to console or a secondary view if we had one.
-                        // For now, let's just show the summary in the UI.
-                        console.log("Detailed Schema Logs:", setupData.logs);
-                    }
-
                     if (setupData.success) {
                         statusEl.innerHTML = `<span style="color:var(--success)">${setupData.message} ✅</span>`;
-                        appState.config.pg = payload;
                         const nextBtn = document.getElementById('btn-next-db');
                         if (nextBtn) {
                             nextBtn.disabled = false;
                             nextBtn.onclick = () => handleDBFinish();
                         }
                     } else {
-                        statusEl.innerHTML = `<span style="color:var(--error)">Hata: ${setupData.error}</span>`;
+                        statusEl.innerHTML = `<span style="color:var(--error)">Kurulum Hatası: ${setupData.error}</span>`;
                     }
                 } catch (setupErr) {
-                    statusEl.innerHTML = `<span style="color:var(--error)">Kurulum hatası oluştu.</span>`;
+                    statusEl.innerHTML = `<span style="color:var(--error)">Otomatik kurulum sırasında hata oluştu.</span>`;
                 }
+            } else {
+                appState.config.ms = payload;
+                if (typeof fetchLogoFirms === 'function') fetchLogoFirms();
+            }
+        } else if (result.db_missing && type === 'postgres') {
+            statusEl.innerHTML = `<span style="color:yellow">Veritabanı mevcut değil. Otomatik oluşturuluyor...</span>`;
+            try {
+                const setupRes = await fetch('/api/setup-postgresql', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const setupData = await setupRes.json();
+
+                if (setupData.success) {
+                    statusEl.innerHTML = `<span style="color:var(--success)">${setupData.message} ✅</span>`;
+                    appState.config.pg = payload;
+                    const nextBtn = document.getElementById('btn-next-db');
+                    if (nextBtn) {
+                        nextBtn.disabled = false;
+                        nextBtn.onclick = () => handleDBFinish();
+                    }
+                } else {
+                    statusEl.innerHTML = `<span style="color:var(--error)">Hata: ${setupData.error}</span>`;
+                }
+            } catch (setupErr) {
+                statusEl.innerHTML = `<span style="color:var(--error)">Kurulum hatası oluştu.</span>`;
             }
         } else {
             statusEl.innerHTML = `<span style="color:var(--error)">Hata: ${result.error}</span>`;
-        }
-
-        // Enable Next if PG is verified
-        if (type === 'postgres' && (result.success)) {
-            const nextBtn = document.getElementById('btn-next-db');
-            if (nextBtn) {
-                nextBtn.disabled = false;
-                nextBtn.onclick = () => handleDBFinish();
-            }
         }
     } catch (e) {
         statusEl.innerHTML = `<span style="color:var(--error)">Bağlantı Hatası: ${e.message}</span>`;
