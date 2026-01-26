@@ -61,6 +61,19 @@ function getVal(id, fallback = "") {
     return el ? el.value : fallback;
 }
 
+function copyToClipboard(inputId) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    el.select();
+    el.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(el.value).then(() => {
+        const btn = el.nextElementSibling;
+        const originalText = btn.innerText;
+        btn.innerText = "✅";
+        setTimeout(() => { btn.innerText = originalText; }, 2000);
+    });
+}
+
 function togglePassword(inputId) {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -1193,7 +1206,20 @@ function finishAndShowSuccess() {
         // Show WhatsApp QR Addon if selected
         if (appState.selectedApp === 'WHATSAPP') {
             const waAddon = document.getElementById('wa-success-addon');
-            if (waAddon) waAddon.classList.remove('hidden');
+            if (waAddon) {
+                waAddon.classList.remove('hidden');
+
+                // Populate API Key and Manager Link
+                const apiKey = getVal('wa-key', '42247726A7F14310B30A3CA655148D32');
+                const port = getVal('wa-port', '8080');
+                const displayKey = document.getElementById('wa-display-key');
+                const managerLink = document.getElementById('wa-manager-link');
+
+                if (displayKey) displayKey.value = apiKey;
+                if (managerLink) {
+                    managerLink.href = `http://localhost:${port}/manager`;
+                }
+            }
         }
 
         if (appState.deploymentMode === "1" && appState.selectedApp !== 'WHATSAPP') {
@@ -1281,8 +1307,7 @@ async function fetchWhatsAppQR() {
         alert("Bağlantı Hatası: Servis henüz hazır olmayabilir.");
         btn.innerText = "Tekrar Dene";
     }
-}
-btn.disabled = false;
+    btn.disabled = false;
 }
 
 async function launchTray() {
