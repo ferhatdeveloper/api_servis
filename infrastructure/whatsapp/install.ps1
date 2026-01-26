@@ -36,9 +36,17 @@ Set-Location $EngineDir
 
 # 3. Clone or Update Repository
 Write-Host "[1/4] Preparing BerqenasCloud Engine..." -ForegroundColor Yellow
-if (Test-Path ".git") {
-    Write-Host "Existing repository detected. Pulling updates..." -ForegroundColor Gray
-    git pull origin main
+if (Test-Path "$EngineDir\.git") {
+    Write-Host "Existing repository detected. Syncing..." -ForegroundColor Gray
+    try {
+        git fetch --all
+        git reset --hard origin/main
+    }
+    catch {
+        Write-Host "Update failed, clearing directory for fresh clone..." -ForegroundColor Red
+        Remove-Item -Path "$EngineDir\*" -Recurse -Force
+        git clone https://github.com/EvolutionAPI/evolution-api.git .
+    }
 }
 else {
     Write-Host "Cloning repository..." -ForegroundColor Gray
