@@ -109,13 +109,25 @@ function Register-Windows-Service {
     $entryPoint = Join-Path $scriptRoot "dist\main.js"
 
     # Install and set up
+    Write-Host "[*] NSSM ile servis kaydediliyor..." -ForegroundColor Yellow
     & $nssmPath install $serviceName "$nodePath" "$entryPoint"
     & $nssmPath set $serviceName AppDirectory "$scriptRoot"
     & $nssmPath set $serviceName Description "EXFIN ALL WhatsApp Service"
     & $nssmPath set $serviceName Start SERVICE_AUTO_START
+    
+    # Logging
+    & $nssmPath set $serviceName AppStdout (Join-Path $scriptRoot "service_stdout.log")
+    & $nssmPath set $serviceName AppStderr (Join-Path $scriptRoot "service_stderr.log")
+    
+    # Permissions
+    Write-Host "[*] Klasör izinleri düzenleniyor (SYSTEM account)..." -ForegroundColor Yellow
+    icacls $scriptRoot /grant "SYSTEM:(OI)(CI)F" /T /C /Q
+    
+    Write-Host "[*] Servis başlatılıyor..." -ForegroundColor Yellow
     & $nssmPath start $serviceName
 
     Write-Host "`n[BAŞARILI] WhatsApp Windows Servisi ($serviceName) kuruldu ve başlatıldı. ✅" -ForegroundColor Green
+    Write-Host "[BİLGİ] Loglar: $scriptRoot\service_stdout.log" -ForegroundColor Gray
 }
 
 function Start-API-Service {
