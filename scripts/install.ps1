@@ -93,6 +93,7 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Safe "5) Servis Kontrolu / Guncelleme" "Cyan"
     Write-Safe "6) API Guncelle (Son Degisiklikleri Cek ve Uygula)" "Green"
     Write-Safe "7) Cikis" "White"
+    Write-Safe "8) Sadece WhatsApp Kurulumu (Evolution API)" "Cyan"
     
     # Read-Host'u Write-Output ile destekleyelim (0x1F riski)
     [Console]::Write("`nSeciminiz (1-7): ")
@@ -106,6 +107,7 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
         "5" { $OPS_MODE = "service-only" }
         "6" { $OPS_MODE = "update-only" }
         "7" { return }
+        "8" { $OPS_MODE = "whatsapp-only" }
         default { $OPS_MODE = "portable" }
     }
 }
@@ -192,6 +194,34 @@ if ($OPS_MODE -eq "update-only") {
     }
     
     Write-Safe "`n[BASARILI] Guncelleme islemi tamamlandi." "Green"
+    return
+}
+
+if ($OPS_MODE -eq "whatsapp-only") {
+    Write-Safe "`n[BILGI] WhatsApp Kurulum Modulu baslatiliyor..." "Cyan"
+    
+    $RepoPath = if (Test-Path $DefaultDir) { $DefaultDir } else { (Get-Location).Path }
+
+    # 1. Update/Ensure Repo if possible
+    if (Test-Path (Join-Path $RepoPath ".git")) {
+        Set-Location $RepoPath
+        Write-Safe "> Guncellemeler denetleniyor..." "Yellow"
+        git fetch origin >$null 2>&1
+        git reset --hard origin/main >$null 2>&1
+    }
+
+    # 2. Run WhatsApp Installer
+    $WA_Installer = Join-Path $RepoPath "infrastructure\whatsapp\install.ps1"
+    if (Test-Path $WA_Installer) {
+        Write-Safe "> WhatsApp Yukleyicisi calistiriliyor..." "Yellow"
+        Set-Location (Split-Path $WA_Installer)
+        powershell -ExecutionPolicy Bypass -File $WA_Installer
+    }
+    else {
+        Write-Safe "[HATA] WhatsApp yukleyicisi bulunamadi: $WA_Installer" "Red"
+        Write-Safe "[TIP] Lutfen once '1' secenegi ile tam kurulum yapin." "Yellow"
+    }
+    pause
     return
 }
 
