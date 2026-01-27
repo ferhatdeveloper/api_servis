@@ -389,6 +389,39 @@ else {
     Write-Safe "[OK] Visual C++ Redistributable zaten yuklu." "Green"
 }
 
+# 5.1.a Node.js Kontrolu ve Otomatik Kurulum
+Write-Safe "[ISLEM] Node.js kontrol ediliyor..." "Yellow"
+if (!(Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Safe "[UYARI] Node.js eksik! Otomatik kuruluyor..." "Red"
+    $NodeInstallerPath = Join-Path $env:TEMP "node_installer.msi"
+    $NodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi" # Stable LTS
+    
+    try {
+        Write-Safe "[ISLEM] Node.js yukleyici indiriliyor..." "Yellow"
+        Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeInstallerPath -UseBasicParsing -ErrorAction Stop
+        
+        Write-Safe "[ISLEM] Node.js sessiz kurulum baslatildi (Lutfen bekleyin...)" "Yellow"
+        $Process = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$NodeInstallerPath`"", "/quiet", "/norestart" -PassThru -Wait
+        
+        if ($Process.ExitCode -eq 0) {
+            Write-Safe "[BASARILI] Node.js kuruldu. ✅" "Green"
+            # Refresh path in current session
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        }
+        else {
+            Write-Safe "[HATA] Node.js kurulumu hata koduyla bitti: $($Process.ExitCode)" "Red"
+        }
+        Remove-Item $NodeInstallerPath -Force -ErrorAction SilentlyContinue
+    }
+    catch {
+        Write-Safe "[HATA] Node.js indirilemedi veya kurulamadi. Lutfen manuel kurun: https://nodejs.org/" "Red"
+    }
+}
+else {
+    $NodeVer = node -v
+    Write-Safe "[OK] Node.js zaten yuklu ($NodeVer)." "Green"
+}
+
 # 5.2 Python SSL Testi
 Write-Safe "[ISLEM] Python SSL modulu test ediliyor..." "Yellow"
 $SslTest = & $PythonExe -c "import ssl; print(ssl.OPENSSL_VERSION)" 2>&1
