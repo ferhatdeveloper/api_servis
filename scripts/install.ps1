@@ -256,9 +256,26 @@ if ($OPS_MODE -eq "portable") {
     Write-Safe "[BILGI] Tasinabilir (Portable) Python hazirlaniyor..." "Cyan"
     $PythonExe = Join-Path $PortablePyDir "python.exe"
     
+    # Eger yanlis surum (3.12) varsa ve sistem 2012 ise temizle
+    if (Test-Path $PythonExe) {
+        $VerInfo = & $PythonExe --version 2>&1
+        if ($IsLegacyOS -and $VerInfo -like "*3.12*") {
+            Write-Safe "[UYARI] Hatali Python surumu (3.12) tespit edildi. 3.10 ile degistiriliyor..." "Yellow"
+            Remove-Item $PortablePyDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
     if (!(Test-Path $PythonExe)) {
         $PyZip = Join-Path $TargetDir "python_portable.zip"
-        $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip"
+        
+        if ($IsLegacyOS) {
+            $PyUrl = "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip"
+            $PyVerShort = "310"
+        }
+        else {
+            $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip"
+            $PyVerShort = "312"
+        }
         
         $OldProgress = $ProgressPreference
         $ProgressPreference = 'SilentlyContinue'
@@ -266,18 +283,19 @@ if ($OPS_MODE -eq "portable") {
         Write-Safe "[ISLEM] Python dosyalari indiriliyor..." "Yellow"
         Invoke-WebRequest -Uri $PyUrl -OutFile $PyZip -UseBasicParsing -ErrorAction Stop
         
-        # tar yerine Expand-Zip kullaniliyor
         Expand-Zip -ZipPath $PyZip -DestDir $PortablePyDir
         
         $ProgressPreference = $OldProgress
         
         Write-Safe "[ISLEM] Paket yoneticisi (pip) kuruluyor..." "Yellow"
-        $PthFile = Join-Path $PortablePyDir "python312._pth"
-        $pthLines = Get-Content $PthFile
-        $newPth = foreach ($line in $pthLines) {
-            if ($line -like "*#import site*") { "import site" } else { $line }
+        $PthFile = Join-Path $PortablePyDir "python$($PyVerShort)._pth"
+        if (Test-Path $PthFile) {
+            $pthLines = Get-Content $PthFile
+            $newPth = foreach ($line in $pthLines) {
+                if ($line -like "*#import site*") { "import site" } else { $line }
+            }
+            $newPth | Set-Content $PthFile
         }
-        $newPth | Set-Content $PthFile
         
         $GetPip = Join-Path $PortablePyDir "get-pip.py"
         Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $GetPip -UseBasicParsing -ErrorAction SilentlyContinue
