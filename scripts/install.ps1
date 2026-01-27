@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.11 (SSL & VC++ Fix)
+# VERSION: 1.1.12 (Auto VC++ Fix)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -78,7 +78,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.11)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.12)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -350,8 +350,8 @@ if ($OPS_MODE -eq "portable") {
 # 5. Bagimliliklar (Portable Python uzerine kurulur)
 Write-Safe "[BILGI] Bagimliliklar kontrol ediliyor... (1-2 dakika surebilir)" "Yellow"
 
-# 5.1 VC++ Redistributable Kontrolu
-Write-Safe "[ISLEM] Visual C++ Redistributable kontrol ediliyor..." "Yellow"
+# 5.1 VC++ Redistributable Kontrolu ve Otomatik Kurulum
+Write-Safe "[ISLEM] Visual C++ Redistributable (2015-2022) kontrol ediliyor..." "Yellow"
 $VCRedistInstalled = $false
 try {
     # 2015-2022 (v14) kontrolü
@@ -361,9 +361,32 @@ try {
 catch { }
 
 if (-not $VCRedistInstalled) {
-    Write-Safe "[UYARI] Visual C++ Redistributable (2015-2022) bulunamadi!" "Red"
-    Write-Safe "        Python SSL modulu bu paket olmadan calismaz." "Red"
-    Write-Safe "        Indirmek icin: https://aka.ms/vs/17/release/vc_redist.x64.exe" "Cyan"
+    Write-Safe "[UYARI] Visual C++ Redistributable eksik! Otomatik kuruluyor..." "Red"
+    $VcRedistPath = Join-Path $env:TEMP "vc_redist.x64.exe"
+    $VcUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+    
+    try {
+        Write-Safe "[ISLEM] Kurulum dosyasi indiriliyor..." "Yellow"
+        Invoke-WebRequest -Uri $VcUrl -OutFile $VcRedistPath -UseBasicParsing -ErrorAction Stop
+        
+        Write-Safe "[ISLEM] Sessiz kurulum baslatildi (Lutfen bekleyin...)" "Yellow"
+        $Process = Start-Process -FilePath $VcRedistPath -ArgumentList "/install", "/quiet", "/norestart" -PassThru -Wait
+        
+        if ($Process.ExitCode -eq 0 -or $Process.ExitCode -eq 3010) {
+            Write-Safe "[BASARILI] Visual C++ Redistributable kuruldu." "Green"
+            if ($Process.ExitCode -eq 3010) { Write-Safe "[NOT] Sistemin yeniden baslatilmasi gerekebilir." "Gray" }
+        }
+        else {
+            Write-Safe "[HATA] VC++ kurulumu hata koduyla bitti: $($Process.ExitCode)" "Red"
+        }
+        Remove-Item $VcRedistPath -Force -ErrorAction SilentlyContinue
+    }
+    catch {
+        Write-Safe "[HATA] VC++ indirilemedi veya kurulamadi. Lutfen manuel kurun: $VcUrl" "Red"
+    }
+}
+else {
+    Write-Safe "[OK] Visual C++ Redistributable zaten yuklu." "Green"
 }
 
 # 5.2 Python SSL Testi
