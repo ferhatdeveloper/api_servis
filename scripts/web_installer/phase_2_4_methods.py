@@ -98,7 +98,7 @@
             env_content = ""
             
             if os.path.exists(env_path):
-                with open(env_path, "r") as f:
+                with open(env_path, "r", encoding="utf-8") as f:
                     env_content = f.read()
             
             # Remove old SSL entries if exist
@@ -110,7 +110,7 @@
             lines.append(f"SSL_KEY_FILE={key_file}")
             lines.append("USE_HTTPS=True")
             
-            with open(env_path, "w") as f:
+            with open(env_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
             
             return {

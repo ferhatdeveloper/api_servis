@@ -92,7 +92,7 @@ class VPNManager:
             
             # Write server config
             config_file = self.config_dir / f"{self.interface_name}.conf"
-            with open(config_file, 'w') as f:
+            with open(config_file, 'w', encoding='utf-8') as f:
                 f.write(server_config)
             
             print(f"âœ… VPN Server initialized successfully!")
@@ -357,7 +357,7 @@ PersistentKeepalive = 25
     
     def import_database(self, filepath: str = "./vpn_database.json"):
         """Import clients database from JSON"""
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
             self.server_keys = data['server']
             self.network = ipaddress.IPv4Network(data['network'])

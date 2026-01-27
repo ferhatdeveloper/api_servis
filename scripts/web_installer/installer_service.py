@@ -1519,7 +1519,7 @@ class InstallerService:
             env_content = ""
             
             if os.path.exists(env_path):
-                with open(env_path, "r") as f:
+                with open(env_path, "r", encoding="utf-8") as f:
                     env_content = f.read()
             
             lines = env_content.split("\n")
@@ -1529,7 +1529,7 @@ class InstallerService:
             lines.append(f"SSL_KEY_FILE={key_file}")
             lines.append("USE_HTTPS=True")
             
-            with open(env_path, "w") as f:
+            with open(env_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
             
             return {
@@ -1651,6 +1651,7 @@ class InstallerService:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
+                    encoding='utf-8',
                     bufsize=1,
                     universal_newlines=True
                 )
