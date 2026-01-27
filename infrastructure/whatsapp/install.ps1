@@ -11,25 +11,46 @@ Param(
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-Write-Host "============================" -ForegroundColor Cyan
-Write-Host "EXFIN WhatsApp Setup Module" -ForegroundColor Cyan
-Write-Host "============================" -ForegroundColor Cyan
+# Write-Safe: Server 2012 uyumlulugu icin [Console]::WriteLine kullanir
+function Write-Safe($msg, $color = "White") {
+    try {
+        [Console]::ResetColor()
+        switch ($color) {
+            "Cyan" { [Console]::ForegroundColor = [ConsoleColor]::Cyan }
+            "Green" { [Console]::ForegroundColor = [ConsoleColor]::Green }
+            "Yellow" { [Console]::ForegroundColor = [ConsoleColor]::Yellow }
+            "Red" { [Console]::ForegroundColor = [ConsoleColor]::Red }
+            "White" { [Console]::ForegroundColor = [ConsoleColor]::White }
+            "Gray" { [Console]::ForegroundColor = [ConsoleColor]::Gray }
+            default { [Console]::ForegroundColor = [ConsoleColor]::White }
+        }
+        [Console]::WriteLine($msg)
+        [Console]::ResetColor()
+    }
+    catch {
+        Write-Output $msg
+    }
+}
+
+Write-Safe "============================" "Cyan"
+Write-Safe "EXFIN WhatsApp Setup Module" "Cyan"
+Write-Safe "============================" "Cyan"
 
 # --- FUNCTIONS ---
 
 function Show-Menu {
-    Write-Host "`nLütfen bir işlem seçin:" -ForegroundColor White
-    Write-Host "1) Sıfırdan Kurulum (Fresh Install)" -ForegroundColor Green
-    Write-Host "2) Güncelle (Update) - Kodları çeker ve servisi yeniler" -ForegroundColor Yellow
-    Write-Host "3) Onar (Repair) - Her şeyi siler ve baştan kurar" -ForegroundColor Blue
-    Write-Host "4) Çıkış" -ForegroundColor Cyan
+    Write-Safe "`nLutfen bir islem secin:" "White"
+    Write-Safe "1) Sifirdan Kurulum (Fresh Install)" "Green"
+    Write-Safe "2) Guncelle (Update) - Kodlari ceker ve servisi yeniler" "Yellow"
+    Write-Safe "3) Onar (Repair) - Her seyi siler ve bastan kurar" "Blue"
+    Write-Safe "4) Cikis" "Cyan"
     
-    $choice = Read-Host "`nSeçiminiz (1-4)"
+    $choice = Read-Host "`nSeciminiz (1-4)"
     return $choice
 }
 
 function Setup-Environment {
-    Write-Host "[*] Sistem kontrolü yapılıyor..." -ForegroundColor Yellow
+    Write-Safe "[*] Sistem kontrolu yapiliyor..." "Yellow"
     if (!(Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Error "Node.js bulunamadı! Lütfen önce Node.js kurun."
         return $false
@@ -43,7 +64,7 @@ function Setup-Environment {
 }
 
 function Create-EnvFile {
-    Write-Host "[*] Yapılandırma dosyası (.env) oluşturuluyor..." -ForegroundColor Yellow
+    Write-Safe "[*] Yapilandirma dosyasi (.env) olusturuluyor..." "Yellow"
     $EnvContent = @"
 SERVER_NAME=$InstanceName
 SERVER_TYPE=http
@@ -81,7 +102,7 @@ function Register-Windows-Service {
     
     $nssm = Get-Command nssm -ErrorAction SilentlyContinue
     if (!$nssm) {
-        Write-Host "NSSM bulunamadı, indiriliyor..."
+        Write-Safe "NSSM bulunamadi, indiriliyor..."
         $nssmPath = Join-Path (Get-Location) "nssm.exe"
         if (!(Test-Path $nssmPath)) {
             Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" -OutFile "nssm.zip"
@@ -109,7 +130,7 @@ function Register-Windows-Service {
     $entryPoint = Join-Path $scriptRoot "dist\main.js"
 
     # Install and set up
-    Write-Host "[*] NSSM ile servis kaydediliyor..." -ForegroundColor Yellow
+    Write-Safe "[*] NSSM ile servis kaydediliyor..." "Yellow"
     & $nssmPath install $serviceName "$nodePath" "$entryPoint"
     & $nssmPath set $serviceName AppDirectory "$scriptRoot"
     & $nssmPath set $serviceName Description "EXFIN ALL WhatsApp Service"
@@ -120,23 +141,23 @@ function Register-Windows-Service {
     & $nssmPath set $serviceName AppStderr (Join-Path $scriptRoot "service_stderr.log")
     
     # Permissions
-    Write-Host "[*] Klasör izinleri düzenleniyor (SYSTEM account)..." -ForegroundColor Yellow
+    Write-Safe "[*] Klasor izinleri duzenleniyor (SYSTEM account)..." "Yellow"
     icacls $scriptRoot /grant "SYSTEM:(OI)(CI)F" /T /C /Q
     
-    Write-Host "[*] Servis başlatılıyor..." -ForegroundColor Yellow
+    Write-Safe "[*] Servis baslatiliyor..." "Yellow"
     & $nssmPath start $serviceName
 
-    Write-Host "`n[BAŞARILI] WhatsApp Windows Servisi ($serviceName) kuruldu ve başlatıldı. ✅" -ForegroundColor Green
-    Write-Host "[BİLGİ] Loglar: $scriptRoot\service_stdout.log" -ForegroundColor Gray
+    Write-Safe "`n[BASARILI] WhatsApp Windows Servisi ($serviceName) kuruldu ve baslatildi. ✅" "Green"
+    Write-Safe "[BILGI] Loglar: $scriptRoot\service_stdout.log" "Gray"
 }
 
 function Start-API-Service {
     if ($ServiceType -eq "") {
-        Write-Host "`nServis Başlatma Tercihi:" -ForegroundColor White
-        Write-Host "1) PM2 ile Başlat (Önerilen - Konsol Yönetimi Kolay)" -ForegroundColor Yellow
-        Write-Host "2) Native Windows Servisi Olarak Kaydet (Sistem Seviyesi - sc.exe)" -ForegroundColor Blue
+        Write-Safe "`nServis Baslatma Tercihi:" "White"
+        Write-Safe "1) PM2 ile Baslat (Onerilen - Konsol Yonetimi Kolay)" "Yellow"
+        Write-Safe "2) Native Windows Servisi Olarak Kaydet (Sistem Seviyesi - sc.exe)" "Blue"
         
-        $choice = Read-Host "Seçiminiz (1-2)"
+        $choice = Read-Host "Seciminiz (1-2)"
         if ($choice -eq "2") { $ServiceType = "service" } else { $ServiceType = "pm2" }
     }
     
@@ -144,10 +165,10 @@ function Start-API-Service {
         Register-Windows-Service
     }
     else {
-        Write-Host "[*] Servis başlatılıyor (PM2)..." -ForegroundColor Yellow
+        Write-Safe "[*] Servis baslatiliyor (PM2)..." "Yellow"
         $pm2 = Get-Command pm2 -ErrorAction SilentlyContinue
         if (!$pm2) {
-            Write-Host "PM2 bulunamadı, yükleniyor..."
+            Write-Safe "PM2 bulunamadi, yukleniyor..."
             npm install -g pm2
             # Refresh path to find pm2
             $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
@@ -157,11 +178,11 @@ function Start-API-Service {
         $pm2Path = if ($pm2) { $pm2.Source } else { "pm2" }
         $scriptRoot = (Get-Location).Path
         $entryPoint = Join-Path $scriptRoot "dist\main.js"
-
+ 
         & $pm2Path delete exfin-whatsapp-api 2>$null
         & $pm2Path start "$entryPoint" --name exfin-whatsapp-api --cwd "$scriptRoot"
         & $pm2Path save
-        Write-Host "`n[BAŞARILI] Evolution API port $ApiPort üzerinde çalışıyor (PM2). ✅" -ForegroundColor Green
+        Write-Safe "`n[BASARILI] Evolution API port $ApiPort uzerinde calisiyor (PM2). ✅" "Green"
     }
 }
 
@@ -181,9 +202,9 @@ if (!(Setup-Environment)) { return }
 
 switch ($Mode) {
     "install" {
-        Write-Host "`n>>> SIFIRDAN KURULUM BAŞLATILDI <<<" -ForegroundColor Green
+        Write-Safe "`n>>> SIFIRDAN KURULUM BASLATILDI <<<" "Green"
         if (Test-Path "package.json") {
-            Write-Host "[*] Kodlar zaten mevcut, güncelleniyor..." -ForegroundColor Yellow
+            Write-Safe "[*] Kodlar zaten mevcut, guncelleniyor..." "Yellow"
             git fetch --all
             git reset --hard origin/main
         }
@@ -199,7 +220,7 @@ switch ($Mode) {
     }
     
     "update" {
-        Write-Host "`n>>> GÜNCELLEME BAŞLATILDI <<<" -ForegroundColor Yellow
+        Write-Safe "`n>>> GUNCELLEME BASLATILDI <<<" "Yellow"
         git pull
         Create-EnvFile
         npm install
@@ -208,7 +229,7 @@ switch ($Mode) {
     }
     
     "repair" {
-        Write-Host "`n>>> ONARIM BAŞLATILDI <<<" -ForegroundColor Blue
+        Write-Safe "`n>>> ONARIM BASLATILDI <<<" "Blue"
         # Stop service first
         pm2 stop exfin-whatsapp-api 2>$null
         
