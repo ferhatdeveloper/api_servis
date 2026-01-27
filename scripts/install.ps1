@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.10 (Extraction Fix)
+# VERSION: 1.1.11 (SSL & VC++ Fix)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -78,7 +78,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.10)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.11)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -350,13 +350,29 @@ if ($OPS_MODE -eq "portable") {
 # 5. Bagimliliklar (Portable Python uzerine kurulur)
 Write-Safe "[BILGI] Bagimliliklar kontrol ediliyor... (1-2 dakika surebilir)" "Yellow"
 
-# 5.1 Python SSL Testi
+# 5.1 VC++ Redistributable Kontrolu
+Write-Safe "[ISLEM] Visual C++ Redistributable kontrol ediliyor..." "Yellow"
+$VCRedistInstalled = $false
+try {
+    # 2015-2022 (v14) kontrolü
+    if (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" -ErrorAction SilentlyContinue) { $VCRedistInstalled = $true }
+    if (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\VC\Runtime\Bindable\x64" -ErrorAction SilentlyContinue) { $VCRedistInstalled = $true }
+}
+catch { }
+
+if (-not $VCRedistInstalled) {
+    Write-Safe "[UYARI] Visual C++ Redistributable (2015-2022) bulunamadi!" "Red"
+    Write-Safe "        Python SSL modulu bu paket olmadan calismaz." "Red"
+    Write-Safe "        Indirmek icin: https://aka.ms/vs/17/release/vc_redist.x64.exe" "Cyan"
+}
+
+# 5.2 Python SSL Testi
 Write-Safe "[ISLEM] Python SSL modulu test ediliyor..." "Yellow"
 $SslTest = & $PythonExe -c "import ssl; print(ssl.OPENSSL_VERSION)" 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Safe "[HATA] Python SSL modulu hatali! Pip calismayabilir." "Red"
+    Write-Safe "[HATA] Python SSL modulu yuklenemedi!" "Red"
     Write-Safe "Detay: $SslTest" "Gray"
-    $TrustedHost = "--trusted-host pypi.org --trusted-host files.pythonhosted.org"
+    $TrustedHost = "--trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host bootstrap.pypa.io"
 }
 else {
     Write-Safe "[OK] SSL Modulu Hazir: $SslTest" "Green"
