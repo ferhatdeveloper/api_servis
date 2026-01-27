@@ -71,7 +71,7 @@ DATABASE_SAVE_DATA_LABELS=true
 LOG_LEVEL=ERROR,WARN,INFO
 LANGUAGE=en-US
 "@
-    $EnvContent | Out-File -FilePath ".env" -Encoding utf8
+    [System.IO.File]::WriteAllText((Join-Path (Get-Location) ".env"), $EnvContent, (New-Object System.Text.UTF8Encoding($false)))
 }
 
 function Register-Windows-Service {
@@ -103,6 +103,9 @@ function Register-Windows-Service {
     & $nssmPath stop $serviceName 2>$null
     & $nssmPath remove $serviceName confirm 2>$null
     
+    $scriptRoot = (Get-Location).Path
+    $entryPoint = Join-Path $scriptRoot "dist\main.js"
+
     # Install and set up
     & $nssmPath install $serviceName "$nodePath" "$entryPoint"
     & $nssmPath set $serviceName AppDirectory "$scriptRoot"
@@ -138,9 +141,11 @@ function Start-API-Service {
         }
         
         $pm2Path = if ($pm2) { $pm2.Source } else { "pm2" }
+        $scriptRoot = (Get-Location).Path
+        $entryPoint = Join-Path $scriptRoot "dist\main.js"
 
         & $pm2Path delete exfin-whatsapp-api 2>$null
-        & $pm2Path start dist/main.js --name exfin-whatsapp-api
+        & $pm2Path start "$entryPoint" --name exfin-whatsapp-api --cwd "$scriptRoot"
         & $pm2Path save
         Write-Host "`n[BAŞARILI] Evolution API port $ApiPort üzerinde çalışıyor (PM2). ✅" -ForegroundColor Green
     }
