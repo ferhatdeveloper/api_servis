@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.3 (URL & IE Fix)
+# VERSION: 1.1.4 (No-Tar Fix)
 
 # Write-Safe: Server 2012 uyumlulugu icin [Console]::WriteLine kullanir
 function Write-Safe($msg, $color = "White") {
@@ -28,13 +28,36 @@ function Write-Safe($msg, $color = "White") {
     }
 }
 
+# Expand-Zip: tar olmayan eski sistemler icin ZIP acma fonksiyonu
+function Expand-Zip($ZipPath, $DestDir) {
+    Write-Safe "[ISLEM] Dosyalar cikartiliyor..." "Yellow"
+    if (!(Test-Path $DestDir)) { New-Item -ItemType Directory -Path $DestDir | Out-Null }
+    
+    try {
+        if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
+            Expand-Archive -Path $ZipPath -DestinationPath $DestDir -Force
+        }
+        else {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipPath, $DestDir)
+        }
+    }
+    catch {
+        # En eski sistemler icin COM objesi fallback
+        $shell = New-Object -ComObject Shell.Application
+        $zipFile = $shell.NameSpace($ZipPath)
+        $destination = $shell.NameSpace($DestDir)
+        $destination.CopyHere($zipFile.Items(), 16)
+    }
+}
+
 # GitHub URL'sinde .git eki ZIP indirmeyi bozabilir, temiz halini kullanalim.
 $RepoUrl = "https://github.com/ferhatdeveloper/api_servis"
 $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.3)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.4)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
