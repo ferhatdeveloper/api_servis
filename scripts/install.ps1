@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.2 (Server 2012 Fix)
+# VERSION: 1.1.3 (URL & IE Fix)
 
 # Write-Safe: Server 2012 uyumlulugu icin [Console]::WriteLine kullanir
 function Write-Safe($msg, $color = "White") {
@@ -28,12 +28,13 @@ function Write-Safe($msg, $color = "White") {
     }
 }
 
-$RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
+# GitHub URL'sinde .git eki ZIP indirmeyi bozabilir, temiz halini kullanalim.
+$RepoUrl = "https://github.com/ferhatdeveloper/api_servis"
 $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.2)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.3)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -71,7 +72,7 @@ if ($OPS_MODE -eq "safe-mode") {
     $Id = Get-Random
     $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1?v=$Id"
     $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
-    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
+    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -UseBasicParsing -ErrorAction SilentlyContinue
     if (Test-Path $FixPath) { powershell -ExecutionPolicy Bypass -File $FixPath }
     return
 }
@@ -80,7 +81,7 @@ if ($OPS_MODE -eq "cleanup") {
     $Id = Get-Random
     $CleanupUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/cleanup_python.ps1?v=$Id"
     $CleanupPath = Join-Path $env:TEMP "cleanup_python.ps1"
-    Invoke-WebRequest -Uri $CleanupUrl -OutFile $CleanupPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
+    Invoke-WebRequest -Uri $CleanupUrl -OutFile $CleanupPath -Headers @{"Cache-Control" = "no-cache" } -UseBasicParsing -ErrorAction SilentlyContinue
     if (Test-Path $CleanupPath) { powershell -ExecutionPolicy Bypass -File $CleanupPath }
     else { Write-Safe "[HATA] Temizleme araci indirilemedi." "Red" }
     return
@@ -91,7 +92,7 @@ if ($OPS_MODE -eq "fix-policy") {
     $Id = Get-Random
     $FixUrl = "https://raw.githubusercontent.com/ferhatdeveloper/api_servis/main/scripts/fix_installation_policy.ps1?v=$Id"
     $FixPath = Join-Path $env:TEMP "fix_policy.ps1"
-    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -ErrorAction SilentlyContinue
+    Invoke-WebRequest -Uri $FixUrl -OutFile $FixPath -Headers @{"Cache-Control" = "no-cache" } -UseBasicParsing -ErrorAction SilentlyContinue
     if (Test-Path $FixPath) { powershell -ExecutionPolicy Bypass -File $FixPath }
     else { Write-Safe "[HATA] Duzeltme araci indirilemedi." "Red" }
     return
@@ -171,7 +172,16 @@ Set-Location $TargetDir
 if (!(Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Safe "[UYARI] Git bulunamadi! Repo ZIP olarak indiriliyor..." "Yellow"
     $ZipPath = Join-Path $TargetDir "repo.zip"
-    Invoke-WebRequest -Uri "$RepoUrl/archive/refs/heads/main.zip" -OutFile $ZipPath
+    $ZipUrl = "$RepoUrl/archive/refs/heads/main.zip"
+    
+    try {
+        Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath -UseBasicParsing -ErrorAction Stop
+    }
+    catch {
+        # Fallback to direct archive URL if refs/heads fails
+        $ZipUrl = "$RepoUrl/archive/main.zip"
+        Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath -UseBasicParsing -ErrorAction Stop
+    }
     
     # CLM-Safe Extraction via TAR
     tar -xf $ZipPath -C $TargetDir
@@ -187,7 +197,7 @@ if (!(Get-Command git -ErrorAction SilentlyContinue)) {
 else {
     if (!(Test-Path ".git")) {
         Write-Safe "[BILGI] Repo klonlaniyor..." "Yellow"
-        git clone $RepoUrl .
+        git clone "$RepoUrl.git" .
     }
     else {
         Write-Safe "[BILGI] Mevcut depo guncelleniyor..." "Yellow"
@@ -231,7 +241,7 @@ if ($OPS_MODE -eq "portable") {
         $ProgressPreference = 'SilentlyContinue'
         
         Write-Safe "[ISLEM] Python dosyalari indiriliyor..." "Yellow"
-        Invoke-WebRequest -Uri $PyUrl -OutFile $PyZip -ErrorAction Stop
+        Invoke-WebRequest -Uri $PyUrl -OutFile $PyZip -UseBasicParsing -ErrorAction Stop
         
         Write-Safe "[ISLEM] Dosyalar cikartiliyor..." "Yellow"
         if (!(Test-Path $PortablePyDir)) { New-Item -Path $PortablePyDir -ItemType Directory | Out-Null }
@@ -248,7 +258,7 @@ if ($OPS_MODE -eq "portable") {
         $newPth | Set-Content $PthFile
         
         $GetPip = Join-Path $PortablePyDir "get-pip.py"
-        Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $GetPip -ErrorAction SilentlyContinue
+        Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $GetPip -UseBasicParsing -ErrorAction SilentlyContinue
         & $PythonExe $GetPip | Out-Null
         
         Remove-Item $PyZip -Force -ErrorAction SilentlyContinue
