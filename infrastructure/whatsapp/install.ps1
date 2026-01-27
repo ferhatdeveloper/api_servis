@@ -9,6 +9,8 @@ Param(
     [string]$ServiceType = "pm2" # pm2, service
 )
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 Write-Host "============================" -ForegroundColor Cyan
 Write-Host "EXFIN WhatsApp Setup Module" -ForegroundColor Cyan
 Write-Host "============================" -ForegroundColor Cyan
