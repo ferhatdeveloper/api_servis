@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.12 (Auto VC++ Fix)
+# VERSION: 1.1.13 (Standardized Fix)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -78,17 +78,17 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.12)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.13)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
 
 if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Safe "`n[MENU] Lutfen yapmak istediginiz islemi secin:" "White"
-    Write-Safe "1) Standart Kurulum (Yerel Python 3.12 - Onerilen)" "Green"
-    Write-Safe "2) Sistem Python ile Kurulum (Varsa kullanilir)" "Cyan"
+    Write-Safe "1) Standart Kurulum (Onerilen)" "Green"
+    Write-Safe "2) Sistem Python ile Kurulum" "Cyan"
     Write-Safe "3) Python Temizleme Araci (Eski Kalintilari Kaldirir)" "Yellow"
-    Write-Safe "4) Fabrika Ayarlarina Don (Masaustu Fix)" "Red"
+    Write-Safe "4) Fabrika Ayarlarina Don" "Red"
     Write-Safe "5) Servis Kontrolu / Guncelleme" "Cyan"
     Write-Safe "6) API Guncelle (Son Degisiklikleri Cek ve Uygula)" "Green"
     Write-Safe "7) Cikis" "White"
