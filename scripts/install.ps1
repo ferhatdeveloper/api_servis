@@ -4,7 +4,11 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.7 (Pip Diagnostic Fix)
+# VERSION: 1.1.8 (Ultra-Legacy Fix)
+
+# OS Version Check
+$OSVersion = [Environment]::OSVersion.Version
+$IsLegacyOS = $OSVersion.Major -lt 6 -or ($OSVersion.Major -eq 6 -and $OSVersion.Minor -lt 3)
 
 # Write-Safe: Server 2012 uyumlulugu icin [Console]::WriteLine kullanir
 function Write-Safe($msg, $color = "White") {
@@ -57,7 +61,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.7)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.8)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -86,6 +90,11 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
         "7" { return }
         default { $OPS_MODE = "portable" }
     }
+}
+
+if ($IsLegacyOS) {
+    Write-Safe "[BILGI] Ultra-Legacy isletim sistemi algilandi (v$($OSVersion.Major).$($OSVersion.Minor))." "Yellow"
+    Write-Safe "        Uyumluluk icin Python 3.8.10 kullanilacak." "Yellow"
 }
 
 # 0. Argument / Menu Action Handling
@@ -256,11 +265,14 @@ if ($OPS_MODE -eq "portable") {
     Write-Safe "[BILGI] Tasinabilir (Portable) Python hazirlaniyor..." "Cyan"
     $PythonExe = Join-Path $PortablePyDir "python.exe"
     
-    # Eger yanlis surum (3.12) varsa ve sistem 2012 ise temizle
+    # Onceki cokmus processleri temizleyelim
+    taskkill /F /IM python.exe /T 2>$null | Out-Null
+
+    # Eger yanlis surum (3.9+) varsa ve sistem 2012 ise temizle
     if (Test-Path $PythonExe) {
-        $VerInfo = & $PythonExe --version 2>&1
-        if ($IsLegacyOS -and $VerInfo -like "*3.12*") {
-            Write-Safe "[UYARI] Hatali Python surumu (3.12) tespit edildi. 3.10 ile degistiriliyor..." "Yellow"
+        $VerInfo = try { & $PythonExe --version 2>&1 } catch { "Crash" }
+        if ($IsLegacyOS -and ($VerInfo -like "*3.12*" -or $VerInfo -like "*3.10*" -or $VerInfo -eq "Crash")) {
+            Write-Safe "[UYARI] Uyumsuz Python surumu tespit edildi. 3.8.10 ile degistiriliyor..." "Yellow"
             Remove-Item $PortablePyDir -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
@@ -269,8 +281,9 @@ if ($OPS_MODE -eq "portable") {
         $PyZip = Join-Path $TargetDir "python_portable.zip"
         
         if ($IsLegacyOS) {
-            $PyUrl = "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip"
-            $PyVerShort = "310"
+            # Server 2012 (6.2) icin son kararli surum 3.8.10'dur.
+            $PyUrl = "https://www.python.org/ftp/python/3.8.10/python-3.8.10-embed-amd64.zip"
+            $PyVerShort = "38"
         }
         else {
             $PyUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip"
@@ -288,6 +301,7 @@ if ($OPS_MODE -eq "portable") {
         $ProgressPreference = $OldProgress
         
         Write-Safe "[ISLEM] Paket yoneticisi (pip) kuruluyor..." "Yellow"
+        # .pth dosyasi surume gore python38._pth veya python312._pth olur
         $PthFile = Join-Path $PortablePyDir "python$($PyVerShort)._pth"
         if (Test-Path $PthFile) {
             $pthLines = Get-Content $PthFile
