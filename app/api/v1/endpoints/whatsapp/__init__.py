@@ -1,3 +1,4 @@
+from fastapi import APIRouter
 from . import messages, groups, instances, webhooks
 
 router = APIRouter()
