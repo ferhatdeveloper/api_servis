@@ -3,6 +3,7 @@
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # VERSION: 1.1.13 (Standardized Fix)
 
@@ -394,7 +395,7 @@ Write-Safe "[ISLEM] Node.js kontrol ediliyor..." "Yellow"
 if (!(Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Safe "[UYARI] Node.js eksik! Otomatik kuruluyor..." "Red"
     $NodeInstallerPath = Join-Path $env:TEMP "node_installer.msi"
-    $NodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi" # Stable LTS
+    $NodeUrl = "https://nodejs.org/dist/v22.13.1/node-v22.13.1-x64.msi" # Modern LTS (v22)
     
     try {
         Write-Safe "[ISLEM] Node.js yukleyici indiriliyor..." "Yellow"
