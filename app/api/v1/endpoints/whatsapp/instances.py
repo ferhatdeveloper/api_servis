@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from app.services.whatsapp_service import WhatsAppService
 
 router = APIRouter()
