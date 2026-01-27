@@ -4,10 +4,24 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# Write-Safe: Server 2012 uyumlulugu icin guvenli cikti fonksiyonu
+# VERSION: 1.1.2 (Server 2012 Fix)
+
+# Write-Safe: Server 2012 uyumlulugu icin [Console]::WriteLine kullanir
 function Write-Safe($msg, $color = "White") {
     try {
-        Write-Host $msg -ForegroundColor $color
+        # Server 2012'de Write-Host 0x1F hatasina neden olabildigi icin low-level [Console] tercih edildi.
+        [Console]::ResetColor()
+        switch ($color) {
+            "Cyan" { [Console]::ForegroundColor = [ConsoleColor]::Cyan }
+            "Green" { [Console]::ForegroundColor = [ConsoleColor]::Green }
+            "Yellow" { [Console]::ForegroundColor = [ConsoleColor]::Yellow }
+            "Red" { [Console]::ForegroundColor = [ConsoleColor]::Red }
+            "White" { [Console]::ForegroundColor = [ConsoleColor]::White }
+            "Gray" { [Console]::ForegroundColor = [ConsoleColor]::Gray } # Added for consistency, though not in original snippet
+            default { [Console]::ForegroundColor = [ConsoleColor]::White }
+        }
+        [Console]::WriteLine($msg)
+        [Console]::ResetColor()
     }
     catch {
         Write-Output $msg
@@ -19,7 +33,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (LEGACY SAFE)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.2)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -34,7 +48,9 @@ if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Safe "6) API Guncelle (Son Degisiklikleri Cek ve Uygula)" "Green"
     Write-Safe "7) Cikis" "White"
     
-    $MainChoice = Read-Host "`nSeciminiz (1-7)"
+    # Read-Host'u Write-Output ile destekleyelim (0x1F riski)
+    [Console]::Write("`nSeciminiz (1-7): ")
+    $MainChoice = [Console]::ReadLine()
     
     switch ($MainChoice) {
         "1" { $OPS_MODE = "portable" }
