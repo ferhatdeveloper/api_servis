@@ -1,13 +1,10 @@
 # EXFIN OPS API - Akıllı Kurulum ve Güncelleme Scripti
-# Kullanım: irm bit.ly/opsapi | iex
+# Kullanım: [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm bit.ly/opsapi | iex
 
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# CRITICAL: Force UTF-8 Terminal (CLM-Safe)
-Try {
-    chcp 65001 >$null
-}
-Catch { }
+# UTF-8 UTF-8 Terminal kaldirildi (Server 2012 uyumlulugu icin)
 
 $RepoUrl = "https://github.com/ferhatdeveloper/api_servis.git"
 $DefaultDir = "C:\ExfinApi"
@@ -22,9 +19,9 @@ $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
 if ($null -eq $OPS_MODE -or $OPS_MODE -eq "") {
     Write-Host "`n[MENU] Lutfen yapmak istediginiz islemi secin:" -ForegroundColor White
     Write-Host "1) Standart Kurulum (Yerel Python 3.12 - Onerilen)" -ForegroundColor Green
-    Write-Host "2) Sistem Python ile Kurulum (Varsa kullanır)" -ForegroundColor Cyan
+    Write-Host "2) Sistem Python ile Kurulum (Varsa kullanilir)" -ForegroundColor Cyan
     Write-Host "3) Python Temizleme Aracı (Eski Kalıntıları Kaldırır)" -ForegroundColor Yellow
-    Write-Host "4) Fabrika Ayarlarina Don (Bypass Islemlerini Geri Al - Masaustu Fix)" -ForegroundColor Red
+    Write-Host "4) Fabrika Ayarlarina Don (Masaustu Fix)" -ForegroundColor Red
     Write-Host "5) Servis Kontrolu / Guncelleme" -ForegroundColor Cyan
     Write-Host "6) API Guncelle (Son Degisiklikleri Cek ve Uygula)" -ForegroundColor Green
     Write-Host "7) Cikis" -ForegroundColor White
