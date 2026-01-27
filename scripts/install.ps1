@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.9 (Taskkill Fix)
+# VERSION: 1.1.10 (Extraction Fix)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -32,27 +32,44 @@ function Write-Safe($msg, $color = "White") {
     }
 }
 
-# Expand-Zip: tar olmayan eski sistemler icin ZIP acma fonksiyonu
+# Expand-Zip: tar olmayan eski sistemler icin ZIP acma fonksiyonu (Senkronize)
 function Expand-Zip($ZipPath, $DestDir) {
-    Write-Safe "[ISLEM] Dosyalar cikartiliyor..." "Yellow"
+    Write-Safe "[ISLEM] Dosyalar cikartiliyor (Lutfen bekleyin...)" "Yellow"
     if (!(Test-Path $DestDir)) { New-Item -ItemType Directory -Path $DestDir | Out-Null }
     
     try {
         if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
+            Write-Safe "> Method: Expand-Archive" "Gray"
             Expand-Archive -Path $ZipPath -DestinationPath $DestDir -Force
         }
         else {
+            Write-Safe "> Method: .NET ZipFile" "Gray"
             Add-Type -AssemblyName System.IO.Compression.FileSystem
             [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipPath, $DestDir)
         }
     }
     catch {
-        # En eski sistemler icin COM objesi fallback
+        # En eski sistemler icin COM objesi fallback (Senkronizasyon eklenmis hali)
+        Write-Safe "> Method: COM Shell (Legacy)" "Gray"
         $shell = New-Object -ComObject Shell.Application
         $zipFile = $shell.NameSpace($ZipPath)
         $destination = $shell.NameSpace($DestDir)
-        $destination.CopyHere($zipFile.Items(), 16)
+        
+        $itemCountBefore = $destination.Items().Count
+        $zipItemCount = $zipFile.Items().Count
+        
+        $destination.CopyHere($zipFile.Items(), 16) # 16: Yes to All
+        
+        # Senkronizasyon Beklemesi: Dosya sayisi esitlenene kadar bekle (max 30 sn)
+        $waitCount = 0
+        while (($destination.Items().Count -lt ($itemCountBefore + $zipItemCount)) -and ($waitCount -lt 60)) {
+            Start-Sleep -Milliseconds 500
+            $waitCount++
+        }
     }
+    
+    # Kisa bir bekleme (Sistemin dosyalari serbest birakmasi icin)
+    Start-Sleep -Seconds 1
 }
 
 # GitHub URL'sinde .git eki ZIP indirmeyi bozabilir, temiz halini kullanalim.
@@ -61,7 +78,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.9)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.10)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -299,6 +316,12 @@ if ($OPS_MODE -eq "portable") {
         Expand-Zip -ZipPath $PyZip -DestDir $PortablePyDir
         
         $ProgressPreference = $OldProgress
+        
+        if (!(Test-Path $PythonExe)) {
+            Write-Safe "[HATA] Python dosyalari cikartilamadi! ($PythonExe bulunamadi)" "Red"
+            pause
+            return
+        }
         
         Write-Safe "[ISLEM] Paket yoneticisi (pip) kuruluyor..." "Yellow"
         # .pth dosyasi surume gore python38._pth veya python312._pth olur
