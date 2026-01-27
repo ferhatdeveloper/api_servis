@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.4 (No-Tar Fix)
+# VERSION: 1.1.5 (All-Tar-Removed Fix)
 
 # Write-Safe: Server 2012 uyumlulugu icin [Console]::WriteLine kullanir
 function Write-Safe($msg, $color = "White") {
@@ -57,7 +57,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.4)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.5)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -206,8 +206,8 @@ if (!(Get-Command git -ErrorAction SilentlyContinue)) {
         Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath -UseBasicParsing -ErrorAction Stop
     }
     
-    # CLM-Safe Extraction via TAR
-    tar -xf $ZipPath -C $TargetDir
+    # tar yerine Expand-Zip kullaniliyor
+    Expand-Zip -ZipPath $ZipPath -DestDir $TargetDir
     
     # Move files from subdirectory to root if needed
     $SubDir = Get-ChildItem -Path $TargetDir -Directory | Where-Object { $_.Name -like "*-main" }
@@ -266,9 +266,8 @@ if ($OPS_MODE -eq "portable") {
         Write-Safe "[ISLEM] Python dosyalari indiriliyor..." "Yellow"
         Invoke-WebRequest -Uri $PyUrl -OutFile $PyZip -UseBasicParsing -ErrorAction Stop
         
-        Write-Safe "[ISLEM] Dosyalar cikartiliyor..." "Yellow"
-        if (!(Test-Path $PortablePyDir)) { New-Item -Path $PortablePyDir -ItemType Directory | Out-Null }
-        tar -xf $PyZip -C $PortablePyDir
+        # tar yerine Expand-Zip kullaniliyor
+        Expand-Zip -ZipPath $PyZip -DestDir $PortablePyDir
         
         $ProgressPreference = $OldProgress
         
