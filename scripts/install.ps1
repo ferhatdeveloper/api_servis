@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.8 (Ultra-Legacy Fix)
+# VERSION: 1.1.9 (Taskkill Fix)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -61,7 +61,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.8)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.9)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -265,8 +265,8 @@ if ($OPS_MODE -eq "portable") {
     Write-Safe "[BILGI] Tasinabilir (Portable) Python hazirlaniyor..." "Cyan"
     $PythonExe = Join-Path $PortablePyDir "python.exe"
     
-    # Onceki cokmus processleri temizleyelim
-    taskkill /F /IM python.exe /T 2>$null | Out-Null
+    # Onceki cokmus processleri temizleyelim (Hata vermemesi icin korumali)
+    Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
     # Eger yanlis surum (3.9+) varsa ve sistem 2012 ise temizle
     if (Test-Path $PythonExe) {
