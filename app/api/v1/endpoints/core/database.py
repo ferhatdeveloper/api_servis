@@ -458,6 +458,31 @@ async def test_connection(conn_data: DBConnection):
             return {"success": True, "message": "PostgreSQL connection successful!"}
             
         elif "mssql" in conn_data.Type.lower():
+            import platform
+            if platform.system() == "Windows":
+                try:
+                    import pyodbc
+                    drivers = [
+                        'ODBC Driver 17 for SQL Server',
+                        'ODBC Driver 18 for SQL Server',
+                        'SQL Server Native Client 11.0',
+                        'SQL Server'
+                    ]
+                    server_addr = f"{conn_data.Server},{conn_data.Port}" if conn_data.Port else conn_data.Server
+                    conn = None
+                    for driver in drivers:
+                        try:
+                            conn_str = f'DRIVER={{{driver}}};SERVER={server_addr};DATABASE={conn_data.Database};UID={conn_data.Username};PWD={conn_data.Password};TrustServerCertificate=yes;Connection Timeout=5;'
+                            conn = pyodbc.connect(conn_str)
+                            if conn: break
+                        except: continue
+                    
+                    if conn:
+                        conn.close()
+                        return {"success": True, "message": "MSSQL (pyodbc) connection successful!"}
+                except ImportError:
+                    pass
+
             import pymssql
             conn = pymssql.connect(
                 server=conn_data.Server,
@@ -468,7 +493,7 @@ async def test_connection(conn_data: DBConnection):
                 timeout=3
             )
             conn.close()
-            return {"success": True, "message": "MSSQL connection successful!"}
+            return {"success": True, "message": "MSSQL (pymssql) connection successful!"}
             
         else:
             return {"success": False, "message": f"Driver for {conn_data.Type} not implemented yet."}

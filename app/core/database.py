@@ -65,12 +65,66 @@ class DatabaseManager:
                     database=config.get("Database")
                 )
             elif db_type == "MSSQL":
-                conn = pymssql.connect(
-                    server=config.get("Server"),
-                    user=config.get("Username"),
-                    password=config.get("Password"),
-                    database=config.get("Database")
-                )
+                # Prefer pyodbc on Windows for stability
+                import platform
+                use_pyodbc = platform.system() == "Windows"
+                
+                if use_pyodbc:
+                    try:
+                        import pyodbc
+                        server = config.get("Server")
+                        port = config.get("Port", 1433)
+                        database = config.get("Database")
+                        user = config.get("Username")
+                        password = config.get("Password")
+                        
+                        # Try commonly installed drivers
+                        drivers = [
+                            'ODBC Driver 17 for SQL Server',
+                            'ODBC Driver 18 for SQL Server',
+                            'SQL Server Native Client 11.0',
+                            'SQL Server'
+                        ]
+                        
+                        conn = None
+                        for driver in drivers:
+                            try:
+                                conn_str = f'DRIVER={{{driver}}};SERVER={server},{port};DATABASE={database};UID={user};PWD={password};TrustServerCertificate=yes;Connection Timeout=10;'
+                                conn = pyodbc.connect(conn_str)
+                                if conn: 
+                                    logger.info(f"Connected to MSSQL using pyodbc ({driver})")
+                                    break
+                            except:
+                                continue
+                        
+                        if not conn:
+                            # Fallback to pymssql if pyodbc drivers failed
+                            import pymssql
+                            conn = pymssql.connect(
+                                server=server,
+                                user=user,
+                                password=password,
+                                database=database,
+                                timeout=10
+                            )
+                    except ImportError:
+                        import pymssql
+                        conn = pymssql.connect(
+                            server=config.get("Server"),
+                            user=config.get("Username"),
+                            password=config.get("Password"),
+                            database=config.get("Database"),
+                            timeout=10
+                        )
+                else:
+                    import pymssql
+                    conn = pymssql.connect(
+                        server=config.get("Server"),
+                        user=config.get("Username"),
+                        password=config.get("Password"),
+                        database=config.get("Database"),
+                        timeout=10
+                    )
             else:
                 logger.error(f"Unsupported database type: {db_type}")
                 return None
@@ -114,3 +168,38 @@ class DatabaseManager:
             return None
 
 db_manager = DatabaseManager()
+
+# Synchronous Dependency for FastAPI
+def get_db():
+    """Synchronous database session dependency"""
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy import create_url
+    
+    # We use the default DB config for this sync dependency
+    # This is typically the PostgreSQL Central DB
+    from .config import settings
+    
+    engine = db_manager._get_sync_engine(settings.DEFAULT_DB)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Helper to get sync engine (internal)
+def _get_sync_engine(self, name):
+    from sqlalchemy import create_engine
+    config = next((c for c in settings.DB_CONFIGS if c.get("Name") == name), None)
+    if not config:
+        # Fallback to defaults (already handled in get_connection, but we need engine here)
+        url = settings.CENTRAL_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        return create_engine(url)
+    
+    if config.get("Type") == "PostgreSQL":
+        url = f"postgresql://{config['Username']}:{config['Password']}@{config['Server']}:{config.get('Port', 5432)}/{config['Database']}"
+        return create_engine(url)
+    # Add MSSQL if needed, but for now we focus on PG Central DB
+    return create_engine(settings.CENTRAL_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://"))
+
+DatabaseManager._get_sync_engine = _get_sync_engine

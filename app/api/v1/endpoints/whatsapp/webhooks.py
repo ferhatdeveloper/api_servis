@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 import logging
-from app.core.async_database import get_db
+from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

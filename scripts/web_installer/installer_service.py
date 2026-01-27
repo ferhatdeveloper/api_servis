@@ -249,10 +249,96 @@ class InstallerService:
         """Low-level socket probe to verify reachability without driver crashes"""
         import socket
         try:
-            with socket.create_connection((host, port), timeout=2):
+            with socket.create_connection((host, port if port else 1433), timeout=2):
                 return True
         except:
             return False
+
+    def _get_ms_connection(self, host, user, pwd, db, port=None, timeout=10):
+        """Ultra-resilient MSSQL connection helper (pyodbc first on Windows)"""
+        import platform
+        
+        class PyODBCDictCursor:
+            def __init__(self, cursor):
+                self._cursor = cursor
+            def __getattr__(self, name):
+                return getattr(self._cursor, name)
+            def _to_dict(self, row):
+                if row is None: return None
+                return dict(zip([column[0] for column in self._cursor.description], row))
+            def fetchone(self):
+                return self._to_dict(self._cursor.fetchone())
+            def fetchall(self):
+                return [self._to_dict(row) for row in self._cursor.fetchall()]
+            def __iter__(self):
+                for row in self._cursor:
+                    yield self._to_dict(row)
+
+        class PyODBCConnectionWrapper:
+            def __init__(self, conn):
+                self._conn = conn
+            def __getattr__(self, name):
+                return getattr(self._conn, name)
+            def cursor(self, as_dict=False):
+                cur = self._conn.cursor()
+                return PyODBCDictCursor(cur) if as_dict else cur
+
+        connection = None
+        last_err = None
+        
+        # 1. Try pyodbc on Windows (Standard/Recommended)
+        if platform.system() == "Windows":
+            try:
+                import pyodbc
+                drivers = [
+                    'ODBC Driver 17 for SQL Server',
+                    'ODBC Driver 18 for SQL Server',
+                    'SQL Server Native Client 11.0',
+                    'SQL Server'
+                ]
+                
+                server_addr = f"{host},{port}" if port else host
+                for driver in drivers:
+                    try:
+                        logger.debug(f"Attempting pyodbc connect with driver {driver}")
+                        conn_str = f'DRIVER={{{driver}}};SERVER={server_addr};DATABASE={db};UID={user};PWD={pwd};TrustServerCertificate=yes;Connection Timeout={timeout};'
+                        raw_conn = pyodbc.connect(conn_str)
+                        if raw_conn:
+                            logger.info(f"Connected to MSSQL using pyodbc ({driver})")
+                            return PyODBCConnectionWrapper(raw_conn)
+                    except Exception as e:
+                        last_err = e
+                        continue
+            except ImportError:
+                logger.warning("pyodbc not found, falling back to pymssql")
+
+        # 2. Fallback to pymssql (or primary on non-Windows)
+        try:
+            import pymssql
+            server_addr = f"{host}:{port}" if port else host
+            # Try multiple charsets to avoid FreeTDS crashes
+            for charset in ['UTF-8', 'cp1254', 'cp1252', 'latin1']:
+                try:
+                    connection = pymssql.connect(
+                        server=server_addr,
+                        user=user,
+                        password=pwd,
+                        database=db,
+                        timeout=timeout,
+                        charset=charset
+                    )
+                    if connection:
+                        logger.info(f"Connected to MSSQL using pymssql (charset: {charset})")
+                        return connection
+                except Exception as e:
+                    last_err = e
+                    continue
+        except ImportError:
+            logger.error("Neither pyodbc nor pymssql is available")
+            
+        if last_err:
+            raise last_err
+        return None
 
     def _extract_error(self, e: Exception) -> str:
         """Absolute error extractor that avoids UnicodeDecodeError at all costs"""
@@ -414,40 +500,17 @@ class InstallerService:
                 if not self._probe_socket(host, port):
                     return {"success": False, "error": f"MSSQL Sunucusuna ulaşılamadı: {host}:{port} (TCP/IP kapalı olabilir veya IP yanlış)"}
 
-                # Try connection with multiple charsets to avoid driver crashes
-                connection = None
-                last_err = None
-                
-                server_addr = f"{host}:{port}" if port else host
-                
-                for charset in ['UTF-8', 'cp1254', 'cp1252', 'latin1']:
-                    try:
-                        logger.debug(f"Attempting pymssql connect with charset {charset}")
-                        connection = pymssql.connect(
-                            server=server_addr, 
-                            user=username, 
-                            password=password, 
-                            database=target_dbname, 
-                            timeout=5, 
-                            charset=charset
-                        )
-                        if connection: break
-                    except Exception as e:
-                        last_err = e
-                        err_msg = self._extract_error(e).lower()
-                        if "18456" in err_msg or "login failed" in err_msg:
-                            break
-                        if target_dbname and target_dbname.lower() in err_msg:
-                            break
-
-                if connection:
-                    connection.close()
-                    msg = "Logo (MSSQL) Bağlantısı Başarılı! 🏢✅"
-                    if method == "object":
-                        msg += " (Mod: Object DLL)"
-                    return {"success": True, "message": msg}
-                else:
-                    err_msg = self._extract_error(last_err)
+                # PHASE 1: Real Connection Test
+                try:
+                    connection = self._get_ms_connection(host, username, password, target_dbname, port)
+                    if connection:
+                        connection.close()
+                        msg = "Logo (MSSQL) Bağlantısı Başarılı! 🏢✅"
+                        return {"success": True, "message": msg}
+                    else:
+                        return {"success": False, "error": "MSSQL Bağlantısı başarısız (Bilinmeyen hata)"}
+                except Exception as e:
+                    err_msg = self._extract_error(e)
                     if "18456" in err_msg:
                         return {
                             "success": False, 
@@ -469,13 +532,13 @@ class InstallerService:
     def get_logo_firms(self, config: dict):
         """Fetches firms list from Logo ERP (MSSQL)"""
         try:
-            import pymssql
             host = config.get("host")
             user = config.get("username")
             pwd = config.get("password")
             db = config.get("database")
+            port = config.get("port")
             
-            conn = pymssql.connect(server=host, user=user, password=pwd, database=db, timeout=10, charset='cp1256')
+            conn = self._get_ms_connection(host, user, pwd, db, port)
             cur = conn.cursor()
             # Fetch firm number (NR) and name (NAME)
             cur.execute("SELECT LTRIM(STR(NR, 3, 0)), NAME FROM L_CAPIFIRM ORDER BY NR")
@@ -488,16 +551,15 @@ class InstallerService:
     def sync_logo_data(self, pg_config: dict, ms_config: dict, selected_firm: str):
         """Transfers basic master data from Logo ERP to PostgreSQL"""
         try:
-            import pymssql
             import psycopg2
             
             # MSSQL Connection
-            ms_conn = pymssql.connect(
-                server=ms_config["host"],
-                user=ms_config["username"],
-                password=ms_config["password"],
-                database=ms_config["database"],
-                charset='UTF-8'
+            ms_conn = self._get_ms_connection(
+                ms_config.get("host"),
+                ms_config.get("username"),
+                ms_config.get("password"),
+                ms_config.get("database"),
+                ms_config.get("port")
             )
             ms_cur = ms_conn.cursor(as_dict=True)
             
@@ -574,16 +636,13 @@ class InstallerService:
         firm_id = str(firm_id).strip().zfill(3)
             
         try:
-            import pymssql
-            # Use cp1256 for Arabic support. Many Logo installations use this for VARCHAR.
-            # If UTF-8 fails to show Arabic, CP1256 is the usual candidate.
-            conn = pymssql.connect(
-                server=ms_config["host"],
-                user=ms_config["username"],
-                password=ms_config["password"],
-                database=ms_config["database"],
-                charset='cp1256',
-                timeout=10
+            # Connect to MSSQL
+            conn = self._get_ms_connection(
+                ms_config.get("host"),
+                ms_config.get("username"),
+                ms_config.get("password"),
+                ms_config.get("database"),
+                ms_config.get("port")
             )
             cur = conn.cursor(as_dict=True)
             
@@ -1074,12 +1133,12 @@ class InstallerService:
             
             logs.append(f"Logo ERP Bağlantısı kuruluyor ({ms_config['host']})...")
             # MSSQL Connection
-            ms_conn = pymssql.connect(
-                server=ms_config["host"],
-                user=ms_config["username"],
-                password=ms_config["password"],
-                database=ms_config["database"],
-                charset='UTF-8'
+            ms_conn = self._get_ms_connection(
+                ms_config.get("host"),
+                ms_config.get("username"),
+                ms_config.get("password"),
+                ms_config.get("database"),
+                ms_config.get("port")
             )
             ms_cur = ms_conn.cursor(as_dict=True)
             
@@ -1360,14 +1419,13 @@ class InstallerService:
         # Ensure 3-digit padding for firm_id
         firm_id = str(firm_id).strip().zfill(3)
         try:
-            import pymssql
-            
-            ms_conn = pymssql.connect(
-                server=ms_config["host"],
-                user=ms_config["username"],
-                password=ms_config["password"],
-                database=ms_config["database"],
-                charset='UTF-8'
+            # Connect to MSSQL
+            ms_conn = self._get_ms_connection(
+                ms_config.get("host"),
+                ms_config.get("username"),
+                ms_config.get("password"),
+                ms_config.get("database"),
+                ms_config.get("port")
             )
             ms_cur = ms_conn.cursor(as_dict=True)
             

@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import json
 
-from app.core.async_database import get_db
+from app.core.database import get_db
 from app.services.whatsapp_service import WhatsAppService
 
 router = APIRouter()
