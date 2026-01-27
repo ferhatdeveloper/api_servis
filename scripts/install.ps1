@@ -392,10 +392,31 @@ else {
 
 # 5.1.a Node.js Kontrolu ve Otomatik Kurulum
 Write-Safe "[ISLEM] Node.js kontrol ediliyor..." "Yellow"
-if (!(Get-Command node -ErrorAction SilentlyContinue)) {
-    Write-Safe "[UYARI] Node.js eksik! Otomatik kuruluyor..." "Red"
+
+$NodeCmd = Get-Command node -ErrorAction SilentlyContinue
+$NeedsNodeInstall = $false
+
+if (!$NodeCmd) {
+    $NeedsNodeInstall = $true
+}
+else {
+    $CurrentVer = & node -v
+    Write-Safe "[BILGI] Mevcut Node.js surumu: $CurrentVer" "Cyan"
+    # Versiyon kontrolu (v20.17.0 alti ise guncelle)
+    if ($CurrentVer -match "v(\d+)\.(\d+)") {
+        $Major = [int]$Matches[1]
+        $Minor = [int]$Matches[2]
+        if ($Major -lt 20 -or ($Major -eq 20 -and $Minor -lt 17)) {
+            Write-Safe "[UYARI] Node.js surumu cok eski! Guncelleme gerekiyor." "Yellow"
+            $NeedsNodeInstall = $true
+        }
+    }
+}
+
+if ($NeedsNodeInstall) {
+    Write-Safe "[ISLEM] Node.js v22 LTS kuruluyor/guncelleniyor..." "Yellow"
     $NodeInstallerPath = Join-Path $env:TEMP "node_installer.msi"
-    $NodeUrl = "https://nodejs.org/dist/v22.13.1/node-v22.13.1-x64.msi" # Modern LTS (v22)
+    $NodeUrl = "https://nodejs.org/dist/v22.13.1/node-v22.13.1-x64.msi"
     
     try {
         Write-Safe "[ISLEM] Node.js yukleyici indiriliyor..." "Yellow"
@@ -405,8 +426,7 @@ if (!(Get-Command node -ErrorAction SilentlyContinue)) {
         $Process = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$NodeInstallerPath`"", "/quiet", "/norestart" -PassThru -Wait
         
         if ($Process.ExitCode -eq 0) {
-            Write-Safe "[BASARILI] Node.js kuruldu. ✅" "Green"
-            # Refresh path in current session
+            Write-Safe "[BASARILI] Node.js guncellendi. ✅" "Green"
             $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
         }
         else {
@@ -419,8 +439,7 @@ if (!(Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 else {
-    $NodeVer = node -v
-    Write-Safe "[OK] Node.js zaten yuklu ($NodeVer)." "Green"
+    Write-Safe "[OK] Node.js surumu uyumlu." "Green"
 }
 
 # 5.2 Python SSL Testi
