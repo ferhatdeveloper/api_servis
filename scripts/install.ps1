@@ -312,11 +312,35 @@ if ($OPS_MODE -eq "portable") {
 
 # 5. Bagimliliklar (Portable Python uzerine kurulur)
 Write-Safe "[BILGI] Bagimliliklar kontrol ediliyor... (1-2 dakika surebilir)" "Yellow"
-& $PythonExe -m pip install --upgrade pip
-& $PythonExe -m pip install -r requirements.txt
+
+# 5.1 Python SSL Testi
+Write-Safe "[ISLEM] Python SSL modulu test ediliyor..." "Yellow"
+$SslTest = & $PythonExe -c "import ssl; print(ssl.OPENSSL_VERSION)" 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Safe "[HATA] Python SSL modulu hatali! Pip calismayabilir." "Red"
+    Write-Safe "Detay: $SslTest" "Gray"
+    $TrustedHost = "--trusted-host pypi.org --trusted-host files.pythonhosted.org"
+}
+else {
+    Write-Safe "[OK] SSL Modulu Hazir: $SslTest" "Green"
+    $TrustedHost = ""
+}
+
+# 5.2 Pip Guncelleme ve Kurulum
+Write-Safe "[ISLEM] Pip guncelleniyor..." "Yellow"
+& $PythonExe -m pip install --upgrade pip $TrustedHost --no-warn-script-location 2>&1 | Write-Safe
+
+Write-Safe "[ISLEM] requirements.txt kuruluyor..." "Yellow"
+# Verbose cikti verelim ki kullanıcı hatayı gorsun
+Write-Safe "> Detayli cikti aktif edildi..." "Gray"
+
+# requirements.txt kurulumunu try-catch ve detayli cikti ile yapalim
+Invoke-Expression "& `"$PythonExe`" -m pip install -r requirements.txt $TrustedHost --no-warn-script-location"
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Safe "[HATA] Bagimliliklar kurulurken bir hata olustu!" "Red"
+    Write-Safe "`n[HATA] Bagimliliklar kurulurken bir hata olustu!" "Red"
+    Write-Safe "[TIP] Internet baglantisini kontrol edin veya firewall'u gecici olarak kapatin." "Yellow"
+    Write-Safe "[TIP] Sistemde Visual C++ Redistributable (2015-2022) kurulu oldugundan emin olun." "Yellow"
     pause
     return
 }
