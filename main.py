@@ -19,11 +19,13 @@ configure_logging()
 try:
     from tendo import singleton
     me = singleton.SingleInstance() # Will sys.exit(-1) if another instance is running
-except Exception as e:
-    logger.warning(f"Could not acquire singleton lock: {e}")
+except ImportError:
+    logger.warning("Package 'tendo' not found. Singleton lock disabled. Ensure only one instance runs.")
 except SystemExit:
-    logger.error("Another instance is already running! Exiting.")
+    logger.error("ALREADY RUNNING: Another instance of the API is already active (check Tray or Tasks). Exiting.")
     sys.exit(-1)
+except Exception as e:
+    logger.warning(f"Could not acquire singleton lock (Standard): {e}")
 except singleton.SingleInstanceException:
     logger.warning("SingleInstanceException raised! A stale lock file might exist. Continuing cautiously...")
 
@@ -110,6 +112,50 @@ if __name__ == "__main__":
     elif settings.USE_HTTPS:
          logger.warning("HTTPS enabled but certificate paths not configured. Falling back to HTTP.")
 
+    # Port Check & Auto-Switch: Find available port if default is taken
+    import socket
+    original_port = int(settings.API_PORT)
+    current_port = original_port
+    max_tries = 20
+    port_found = False
+
+    for i in range(max_tries):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(0.5)
+                if s.connect_ex(('127.0.0.1', current_port)) != 0:
+                    port_found = True
+                    break
+                else:
+                    logger.warning(f"Port {current_port} is busy, searching for next...")
+                    current_port += 1
+        except Exception:
+            current_port += 1
+
+    if port_found:
+        if current_port != original_port:
+            logger.info(f"🚀 PORT AUTO-SWITCH: Port {original_port} was busy. Using {current_port} instead.")
+            settings.API_PORT = current_port
+            # Persist to api.db for future starts
+            try:
+                import sqlite3
+                db_path = os.path.join(base_dir, "api.db")
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('Api_Port', ?)", (str(current_port),))
+                    conn.commit()
+                    conn.close()
+                    logger.info(f"Configuration updated: API_PORT is now permanent: {current_port}")
+            except Exception as db_e:
+                logger.warning(f"Could not persist new port to api.db: {db_e}")
+    else:
+        logger.error(f"FATAL: Could not find any free port after {max_tries} attempts.")
+        sys.exit(-1)
+
     protocol = "https" if ssl_config else "http"
     logger.info(f"Starting server on {protocol}://0.0.0.0:{settings.API_PORT}")
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.API_PORT, reload=False, **ssl_config)
+    try:
+        uvicorn.run("main:app", host="0.0.0.0", port=settings.API_PORT, reload=False, **ssl_config)
+    except Exception as run_e:
+        logger.critical(f"Uvicorn failed to start: {run_e}")
+        sys.exit(-1)

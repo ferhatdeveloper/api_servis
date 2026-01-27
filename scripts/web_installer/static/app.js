@@ -1197,13 +1197,27 @@ async function startInstallation() {
     }
 }
 
-function finishAndShowSuccess() {
+async function finishAndShowSuccess() {
+    // Fetch final API port
+    let finalPort = "8000";
+    try {
+        const portRes = await fetch('/api/get-api-port');
+        const portData = await portRes.json();
+        if (portData.port) finalPort = portData.port;
+    } catch (e) { console.error("Could not fetch final port", e); }
+
     setTimeout(() => {
         document.querySelector('.progress-container').style.display = 'none';
         document.getElementById('install-logs').style.display = 'none';
 
         const appNameSpan = document.getElementById('success-app-name');
         if (appNameSpan) appNameSpan.innerText = appState.selectedApp || "OPS";
+
+        const portInfo = document.getElementById('success-port-info');
+        if (portInfo) portInfo.innerText = `API Portu: ${finalPort} ✅`;
+
+        const docsLink = document.querySelector('.dashboard-link a');
+        if (docsLink) docsLink.href = `http://localhost:${finalPort}/docs`;
 
         // Show WhatsApp QR Addon if selected
         if (appState.selectedApp === 'WHATSAPP') {

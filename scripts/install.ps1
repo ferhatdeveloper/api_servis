@@ -456,6 +456,7 @@ if (Test-Path "$TargetDir\start_setup.py") {
         }
     }
 
+    Write-Safe "[BILGI] API Portu doluysa otomatik olarak bir sonraki musait port secilecektir." "Cyan"
     Write-Safe "[BASARILI] Kurulum sihirbazi baslatiliyor..." "Green"
     # Launch start_setup.py via portable python
     Start-Process -FilePath $PythonPath -ArgumentList "`"$SetupScript`" --mode $choice" -WorkingDirectory $TargetDir -WindowStyle Hidden

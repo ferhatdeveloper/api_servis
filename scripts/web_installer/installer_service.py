@@ -79,6 +79,22 @@ class InstallerService:
         checks["deployment_mode"] = deployment_mode
         return checks
             
+    def get_api_port(self) -> str:
+        """Reads the final API port from api.db or .env"""
+        port = "8000"
+        try:
+            import sqlite3
+            db_path = os.path.join(self.project_dir, "api.db")
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                row = conn.execute("SELECT value FROM settings WHERE key = 'Api_Port'").fetchone()
+                if row:
+                    port = row[0]
+                conn.close()
+        except:
+            pass
+        return port
+
     def setup_postgresql(self, host, port, user, pwd, dbname, app_type="OPS", load_demo=False):
         """Creates the database if it doesn't exist with encoding resilience"""
         import psycopg2

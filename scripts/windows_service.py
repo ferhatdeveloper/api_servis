@@ -102,6 +102,21 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
         
         self.ReportServiceStatus(win32service.SERVICE_STOPPED)
     
+    def _clear_port(self, port):
+        """Kills any process listening on the specified port"""
+        try:
+            import psutil
+            for proc in psutil.process_iter(['pid', 'name']):
+                try:
+                    for conn in proc.net_connections(kind='inet'):
+                        if conn.laddr.port == int(port):
+                            self.logger.info(f"Port {port} in use by PID {proc.pid} ({proc.name()}). Killing...")
+                            proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        except Exception as e:
+            self.logger.warning(f"Port clearing check failed: {e}")
+
     def SvcDoRun(self):
         """Servisi çalıştır"""
         boot_trace("SvcDoRun started")
@@ -186,6 +201,9 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
                                     ssl_args.extend(["--ssl-keyfile", key_file])
                 except Exception as e:
                     self.logger.warning(f"Failed to read .env for SSL: {e}")
+
+            # Clear port before starting
+            self._clear_port(api_port)
 
             cmd = [venv_python, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", api_port] + ssl_args
             

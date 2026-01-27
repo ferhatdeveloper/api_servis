@@ -24,6 +24,10 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 async def check_prerequisites():
     return installer.check_prerequisites()
 
+@app.get("/api/get-api-port")
+async def get_api_port():
+    return {"port": installer.get_api_port()}
+
 class DBTestRequest(BaseModel):
     type: str
     host: str

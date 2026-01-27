@@ -66,6 +66,9 @@ if %errorlevel% neq 0 (
     echo [BASARILI] Servis basariyla yuklendi.
     echo [BILGI] Servis baslatiliyor...
     "%SERVICE_RUNNER%" "scripts\windows_service.py" start
+    timeout /t 3 /nobreak >nul
+    echo.
+    "%PYTHON_EXE%" -c "import sqlite3, os; db='api.db'; conn=sqlite3.connect(db); port=conn.execute('SELECT value FROM settings WHERE key=''Api_Port''').fetchone(); print(f'>>> API SERVISINE BU ADRESTEN ULASABILIRSINIZ: http://localhost:{port[0]}') if port else print('>>> API SERVISI BASLATILDI.'); conn.close()" 2>nul
 )
 
 echo.
