@@ -387,42 +387,65 @@ class InstallerService:
         elif "mssql" in db_type or "logo" in db_type:
             try:
                 import pymssql
-                # Try direct connection first
-                try:
-                    conn = pymssql.connect(server=host, user=username, password=password, database=target_dbname, timeout=3, charset='UTF-8')
-                    conn.close()
+                
+                # Sanitize host: "." is common in Logo but pymssql/TDS might choke on it
+                if host == "." or host.lower() == "(local)":
+                    host = "127.0.0.1"
+                
+                logger.info(f"Testing MSSQL connection to {host}:{port} for DB {target_dbname}")
+                
+                # PHASE 0: Socket Probe
+                if not self._probe_socket(host, port):
+                    return {"success": False, "error": f"MSSQL Sunucusuna ulaşılamadı: {host}:{port} (TCP/IP kapalı olabilir veya IP yanlış)"}
+
+                # Try connection with multiple charsets to avoid driver crashes
+                connection = None
+                last_err = None
+                
+                server_addr = f"{host}:{port}" if port else host
+                
+                for charset in ['UTF-8', 'cp1254', 'cp1252', 'latin1']:
+                    try:
+                        logger.debug(f"Attempting pymssql connect with charset {charset}")
+                        connection = pymssql.connect(
+                            server=server_addr, 
+                            user=username, 
+                            password=password, 
+                            database=target_dbname, 
+                            timeout=5, 
+                            charset=charset
+                        )
+                        if connection: break
+                    except Exception as e:
+                        last_err = e
+                        err_msg = self._extract_error(e).lower()
+                        if "18456" in err_msg or "login failed" in err_msg:
+                            break
+                        if target_dbname and target_dbname.lower() in err_msg:
+                            break
+
+                if connection:
+                    connection.close()
                     msg = "Logo (MSSQL) Bağlantısı Başarılı! 🏢✅"
                     if method == "object":
                         msg += " (Mod: Object DLL)"
                     return {"success": True, "message": msg}
-                except Exception as e:
-                    err_msg = self._extract_error(e)
-                    # If it's a login failure or connection failure, we might want to check if the server is even there
-                    # Try connecting to 'master' to see if the server/auth is OK but DB is missing
-                    try:
-                        conn_master = pymssql.connect(server=host, user=username, password=password, database='master', timeout=2, charset='UTF-8')
-                        conn_master.close()
+                else:
+                    err_msg = self._extract_error(last_err)
+                    if "18456" in err_msg:
                         return {
                             "success": False, 
-                            "error": f"MSSQL Sunucusu ve Kimlik Bilgileri Doğru, ancak '{target_dbname}' veritabanı bulunamadı. "
-                                     "Lütfen veritabanı adını kontrol edin veya veritabanını oluşturun."
+                            "error": f"MSSQL Login Hatası (18456): Kullanıcı adı veya şifre hatalı. (Sunucu: {host})"
                         }
-                    except Exception as master_e:
-                        # If even master fails, it's likely auth or connection issue
-                        if "18456" in err_msg:
-                            return {
-                                "success": False, 
-                                "error": "MSSQL Login Hatası (18456): Kullanıcı adı veya şifre hatalı olabilir. "
-                                         "Ayrıca SQL Server'ın 'SQL Server and Windows Authentication mode'u desteklediğinden emin olun."
-                            }
-                        elif "20002" in err_msg or "connection failed" in err_msg.lower():
-                            return {
-                                "success": False,
-                                "error": f"MSSQL Bağlantı Hatası: Sunucuya ulaşılamıyor ({host}). "
-                                         "SQL Server'ın çalıştığinden ve TCP/IP protokolünün aktif olduğundan emin olun."
-                            }
-                        return {"success": False, "error": f"MSSQL Hatası: {err_msg}"}
+                    elif "20002" in err_msg or "connection failed" in err_msg.lower():
+                        return {
+                            "success": False,
+                            "error": f"MSSQL Bağlantı Hatası: Sunucuya ulaşılamıyor ({host}:{port}). "
+                                     "SQL Server'ın çalıştığinden ve TCP/IP protokolünün aktif olduğundan emin olun."
+                        }
+                    return {"success": False, "error": f"MSSQL Hatası: {err_msg}"}
             except Exception as fatal_e:
+                logger.error(f"Critical MSSQL Test Error: {fatal_e}", exc_info=True)
                 return {"success": False, "error": f"Kritik MSSQL Hatası: {self._extract_error(fatal_e)}"}
         
         return {"success": False, "error": "Bilinmeyen veritabanı tipi"}
