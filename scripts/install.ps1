@@ -4,7 +4,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
-# VERSION: 1.1.5 (All-Tar-Removed Fix)
+# VERSION: 1.1.7 (Pip Diagnostic Fix)
 
 # Write-Safe: Server 2012 uyumlulugu icin [Console]::WriteLine kullanir
 function Write-Safe($msg, $color = "White") {
@@ -57,7 +57,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.5)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.7)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
