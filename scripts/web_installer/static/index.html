@@ -151,11 +151,11 @@
 
         <!-- Step 3: Database Configuration -->
         <div class="card" id="card-3">
-            <h1>Veritabanı Yapılandırması</h1>
-            <p class="intro-text">Uygulama verilerinin saklanacağı PostgreSQL ve ERP entegrasyonu için MSSQL bilgilerini
-                girin.</p>
+            <h1 id="db-config-title">Veritabanı Yapılandırması</h1>
+            <p class="intro-text" id="db-config-intro">Uygulama verilerinin saklanacağı PostgreSQL ve ERP entegrasyonu
+                için MSSQL bilgilerini girin.</p>
 
-            <div class="db-tabs">
+            <div class="db-tabs" id="db-config-tabs">
                 <div class="db-tab active" id="tab-local" onclick="switchDBTab('local')">Yerel Kurulum</div>
                 <div class="db-tab" id="tab-backup" onclick="switchDBTab('backup')">Otomatik Yedekleme</div>
                 <div class="db-tab" id="tab-migration" onclick="switchDBTab('migration')">Sunucudan Taşıma</div>

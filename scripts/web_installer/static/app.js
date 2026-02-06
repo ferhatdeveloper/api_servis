@@ -465,6 +465,9 @@ function updateStep3UI() {
     const pgTitle = document.getElementById('pg-header-title');
     const msTitle = document.getElementById('ms-header-title');
     const demoGroup = document.getElementById('pg-demo-group');
+    const mainTitle = document.getElementById('db-config-title');
+    const introText = document.getElementById('db-config-intro');
+    const tabs = document.getElementById('db-config-tabs');
 
     if (!pgTitle || !msTitle) return;
 
@@ -472,11 +475,21 @@ function updateStep3UI() {
         pgTitle.innerText = "EXFIN Bridge Buffer (Yerel)";
         msTitle.innerText = "Logo ERP (Kaynak - Zorunlu)";
         if (demoGroup) demoGroup.classList.add('hidden');
+
+        // Customize Main Header
+        if (mainTitle) mainTitle.innerText = "Köprü Yapılandırması";
+        if (introText) introText.innerHTML = "Verilerinizi yerel bir buffer üzerinden güvenle taşıyın ve senkronize edin.";
+        if (tabs) tabs.classList.add('hidden');
     } else {
         // Reset defaults
         pgTitle.innerText = "PostgreSQL (Ana Veritabanı)";
         msTitle.innerText = "Logo ERP (Opsiyonel)";
         if (demoGroup) demoGroup.classList.remove('hidden');
+
+        // Reset Main Header
+        if (mainTitle) mainTitle.innerText = "Veritabanı Yapılandırması";
+        if (introText) introText.innerHTML = "Uygulama verilerinin saklanacağı PostgreSQL ve ERP entegrasyonu için MSSQL bilgilerini girin.";
+        if (tabs) tabs.classList.remove('hidden');
     }
 }
 
