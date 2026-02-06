@@ -1075,10 +1075,10 @@ class InstallerService:
             
             # 3. Create .env file for legacy support / frameworks
             env_path = os.path.join(self.project_dir, ".env")
-            pg = next((c for c in connections if c["type"] == "PostgreSQL"), None)
-            if pg:
+            pg = next((c for c in connections if c.get("type") == "PostgreSQL"), None)
+            if pg and pg.get("host"):
                 with open(env_path, "w", encoding="utf-8") as f:
-                    f.write(f"DATABASE_URL=postgresql://{pg['username']}:{pg['password']}@{pg['host']}:{pg['port']}/{pg['database']}\n")
+                    f.write(f"DATABASE_URL=postgresql://{pg.get('username')}:{pg.get('password')}@{pg.get('host')}:{pg.get('port')}/{pg.get('database')}\n")
                     f.write(f"API_PORT={settings.get('Api_Port', '8000')}\n")
             
             return {"success": True}

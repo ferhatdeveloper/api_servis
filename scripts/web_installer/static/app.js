@@ -1008,16 +1008,22 @@ async function startInstallation() {
     log("Konfigürasyon dökümü yapılıyor...");
 
     // 1. Prepare Save Payload
+    const connections = [];
+    if (appState.config.pg && appState.config.pg.host) {
+        connections.push({ id: 1, name: "Postgres_Main", ...appState.config.pg });
+    }
+    if (appState.config.ms && appState.config.ms.host) {
+        connections.push({ id: 2, name: "LOGO_Database", ...appState.config.ms });
+    }
+
     const savePayload = {
         settings: {
             "Api_Port": "8000",
             "DeveloperMode": "True",
-            "AppType": appState.selectedApp || "OPS"
+            "AppType": appState.selectedApp || "OPS",
+            "LogoDirectMode": (appState.selectedApp === 'BRIDGE' || !appState.config.pg?.host) ? "True" : "False"
         },
-        connections: [
-            { id: 1, name: "Postgres_Main", ...appState.config.pg },
-            ...(appState.config.ms.host ? [{ id: 2, name: "LOGO_Database", ...appState.config.ms }] : [])
-        ]
+        connections: connections
     };
 
     // 2. Save Config
@@ -1027,10 +1033,11 @@ async function startInstallation() {
             body: JSON.stringify(savePayload),
             headers: { 'Content-Type': 'application/json' }
         });
-        if ((await saveRes.json()).success) {
+        const saveData = await saveRes.json();
+        if (saveData.success) {
             log("Ayarlar api.db'ye kaydedildi. ✅");
         } else {
-            log("HATA: Ayarlar kaydedilemedi.");
+            log("HATA: Ayarlar kaydedilemedi: " + (saveData.error || "Bilinmeyen hata"));
             return;
         }
     } catch (e) {
