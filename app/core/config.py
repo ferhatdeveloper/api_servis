@@ -39,17 +39,6 @@ class Settings(BaseSettings):
     LOGO_APP_USER: str = "LOGO"
     LOGO_APP_PASS: str = "LOGO"
 
-    # Third Party
-    TWILIO_ACCOUNT_SID: Optional[str] = None
-    TWILIO_AUTH_TOKEN: Optional[str] = None
-    TWILIO_WHATSAPP_NUMBER: Optional[str] = None
-    
-    # Evolution API Settings
-    WHATSAPP_PROVIDER: str = "Evolution" # Evolution, Twilio, Meta
-    EVOLUTION_API_URL: Optional[str] = "http://localhost:8080"
-    EVOLUTION_API_TOKEN: Optional[str] = None
-    EVOLUTION_API_INSTANCE: str = "Main"
-    
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = []
 
@@ -85,8 +74,6 @@ class Settings(BaseSettings):
     
     # Integrations
     OPENAI_API_KEY: str = ""
-    WHATSAPP_API_KEY: str = ""
-    WHATSAPP_PHONE_NUMBER: str = ""
     NEBIM_API_URL: str = ""
     NEBIM_API_KEY: str = ""
     

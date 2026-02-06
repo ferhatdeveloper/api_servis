@@ -10,7 +10,6 @@ from app.api.v1.endpoints.retail import (
     duplicate_check as retail_duplicate_check, ai_reports as retail_ai, cost_accounting as retail_cost,
     notifications as retail_notifications, vpn as retail_vpn
 )
-from app.api.v1.endpoints.whatsapp import router as whatsapp_router
 from app.api.v1.endpoints import sync, operations, invoice_pdf, crm, pdks
 
 api_router = APIRouter()
@@ -20,9 +19,6 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(system.router, prefix="/system", tags=["System Management"])
 api_router.include_router(database.router, prefix="/database", tags=["Database Management"])
 api_router.include_router(companies.router, prefix="/companies", tags=["Company & Period Management"])
-
-# --- WHATSAPP (Evolution API) ---
-api_router.include_router(whatsapp_router, prefix="/whatsapp")
 
 # --- ANALYTICS ---
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])

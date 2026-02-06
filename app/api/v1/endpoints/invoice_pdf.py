@@ -25,8 +25,6 @@ class InvoicePDFRequest(BaseModel):
     invoice_number: str
     company_id: int
     period_id: int
-    send_whatsapp: bool = False
-    phone_number: Optional[str] = None
 
 # =====================================================
 # PDF GENERATION
@@ -156,41 +154,6 @@ def generate_invoice_pdf(invoice_data: dict) -> BytesIO:
     return buffer
 
 
-def send_whatsapp_pdf(phone_number: str, pdf_buffer: BytesIO, invoice_number: str) -> dict:
-    """
-    Send PDF via WhatsApp using WhatsApp Business API
-    
-    You'll need to configure your WhatsApp Business API credentials
-    """
-    try:
-        # WhatsApp Business API endpoint (örnek)
-        # Gerçek implementasyonda kendi API bilgilerinizi kullanın
-        
-        # Twilio WhatsApp API örneği:
-        # from twilio.rest import Client
-        # client = Client(account_sid, auth_token)
-        # message = client.messages.create(
-        #     from_='whatsapp:+14155238886',
-        #     body=f'Fatura No: {invoice_number}',
-        #     to=f'whatsapp:{phone_number}',
-        #     media_url=['https://your-server.com/invoice.pdf']
-        # )
-        
-        # Şimdilik mock response
-        logger.info(f"WhatsApp PDF sent to {phone_number} for invoice {invoice_number}")
-        
-        return {
-            "success": True,
-            "message": "WhatsApp message sent",
-            "phone": phone_number,
-            "invoice_number": invoice_number
-        }
-        
-    except Exception as e:
-        logger.error(f"WhatsApp send error: {e}")
-        raise Exception(f"Failed to send WhatsApp: {str(e)}")
-
-
 # =====================================================
 # ENDPOINTS
 # =====================================================
@@ -310,15 +273,6 @@ async def generate_invoice_pdf_endpoint(request: InvoicePDFRequest):
             "pdf_size_kb": len(pdf_buffer.getvalue()) / 1024
         }
         
-        # Send via WhatsApp if requested
-        if request.send_whatsapp and request.phone_number:
-            whatsapp_result = send_whatsapp_pdf(
-                request.phone_number,
-                pdf_buffer,
-                request.invoice_number
-            )
-            response['whatsapp'] = whatsapp_result
-        
         return response
         
     except HTTPException:
@@ -368,36 +322,3 @@ async def download_invoice_pdf(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/invoices/send-whatsapp")
-async def send_invoice_whatsapp(
-    invoice_number: str,
-    company_id: int,
-    period_id: int,
-    phone_number: str
-):
-    """
-    Send invoice PDF via WhatsApp
-    
-    Generates PDF and sends to specified phone number
-    """
-    try:
-        request = InvoicePDFRequest(
-            invoice_number=invoice_number,
-            company_id=company_id,
-            period_id=period_id,
-            send_whatsapp=True,
-            phone_number=phone_number
-        )
-        
-        result = await generate_invoice_pdf_endpoint(request)
-        
-        return {
-            "success": True,
-            "message": f"Invoice sent to WhatsApp: {phone_number}",
-            "invoice_number": invoice_number,
-            "whatsapp": result.get('whatsapp')
-        }
-        
-    except Exception as e:
-        logger.error(f"Send invoice WhatsApp error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
