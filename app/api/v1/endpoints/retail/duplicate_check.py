@@ -30,31 +30,45 @@ async def check_duplicate_fatura(request: DuplicateCheckRequest):
     """
     **Fatura Tekrar Kontrolü**
 
-    Sisteme yeni bir fatura eklenmeden önce çalıştırılır. Fatura numarası, cari ve tarih gibi alanların
-    kombinasyonu kontrol edilerek mükerrer giriş engellenir.
-
-    **Örnek İstek:**
-    ```json
-    {
-        "table_name": "FaturaMaster",
-        "hash": "abc123hashdegeri...",
-        "data": {
-            "fatura_no": "F-2024-001",
-            "firma_id": 1,
-            "cari_id": 123,
-            "tutar": 1500.00
-        }
-    }
-    ```
+    api.db içindeki sent_invoices tablosundan fatura numarasının daha önce 
+    gönderilip gönderilmediğini kontrol eder.
     """
-    # TODO: Database'de hash kontrolü yap
-    # SELECT * FROM TekrarliKayitKontrol WHERE TabloAdi = ? AND KayitHash = ?
+    import sqlite3
+    import os
     
-    # Şimdilik mock response
+    # Resolve api.db path relative to project root
+    base_dir = os.getcwd()
+    db_path = os.path.join(base_dir, "api.db")
+    
+    invoice_no = request.data.get("fatura_no")
+    if not invoice_no:
+        return DuplicateCheckResponse(
+            is_duplicate=False,
+            hash=request.hash,
+            message="Fatura numarası ('fatura_no') veride bulunamadı."
+        )
+
+    try:
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            res = conn.execute("SELECT id FROM sent_invoices WHERE invoice_no = ?", (invoice_no,)).fetchone()
+            conn.close()
+            
+            if res:
+                return DuplicateCheckResponse(
+                    is_duplicate=True,
+                    existing_record_id=res["id"],
+                    hash=request.hash,
+                    message=f"Bu fatura ({invoice_no}) zaten gönderilmiş! ⚠️"
+                )
+    except Exception as e:
+        pass
+
     return DuplicateCheckResponse(
         is_duplicate=False,
         hash=request.hash,
-        message="Fatura kaydı benzersiz, işleme devam edilebilir."
+        message="Fatura benzersiz, gönderilebilir. ✅"
     )
 
 
@@ -125,16 +139,39 @@ async def check_duplicate_generic(request: DuplicateCheckRequest):
 async def save_hash(request: DuplicateCheckRequest):
     """
     **Hash Kaydetme (İşlem Onayı)**
-
-    Bir kayıt başarıyla veritabanına eklendikten sonra bu endpoint çağrılmalıdır.
-    Bu işlem, hash değerini kalıcı hale getirir ve bir sonraki kontrolde 'Mükerrer' uyarısı verilmesini sağlar.
+    Yalnızca fatura gönderimi başarılı olduktan sonra bu endpoint çağrılarak
+    fatura numarasını api.db'ye (sent_invoices) işler.
     """
-    # TODO: Database'e hash kaydet
+    import sqlite3
+    import os
     
-    return {
-        "status": "success",
-        "message": "Hash başarıyla kaydedildi."
-    }
+    base_dir = os.getcwd()
+    db_path = os.path.join(base_dir, "api.db")
+    
+    invoice_no = request.data.get("fatura_no")
+    customer_code = request.data.get("cari_code") or request.data.get("customer_code")
+    customer_name = request.data.get("cari_adi") or request.data.get("customer_name")
+    amount = request.data.get("tutar") or request.data.get("total_amount") or 0.0
+    status = request.data.get("status", "SENT")
+
+    if not invoice_no:
+        return {"status": "error", "message": "Fatura numarası ('fatura_no') eksik."}
+
+    try:
+        if not os.path.exists(db_path):
+             return {"status": "error", "message": "api.db dosyası bulunamadı."}
+             
+        conn = sqlite3.connect(db_path)
+        conn.execute("""
+            INSERT OR REPLACE INTO sent_invoices 
+            (invoice_no, customer_code, customer_name, total_amount, status) 
+            VALUES (?, ?, ?, ?, ?)
+        """, (invoice_no, customer_code, customer_name, amount, status))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": f"Fatura {invoice_no} gönderim kaydı oluşturuldu."}
+    except Exception as e:
+        return {"status": "error", "message": f"Kayıt hatası: {str(e)}"}
 
 
 @router.delete("/clear-old-hashes")

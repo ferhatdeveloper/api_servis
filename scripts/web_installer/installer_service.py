@@ -1026,6 +1026,18 @@ class InstallerService:
                              password TEXT,
                              method TEXT)''')
             
+            # 3. Create Sent Invoices Tracking Table
+            cur.execute('''CREATE TABLE IF NOT EXISTS sent_invoices (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                invoice_no TEXT UNIQUE,
+                                customer_code TEXT,
+                                customer_name TEXT,
+                                total_amount REAL,
+                                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                status TEXT,
+                                platform TEXT DEFAULT 'WhatsApp'
+                            )''')
+            
              # Check if method column exists (migration)
             try:
                 cur.execute("SELECT method FROM db_connections LIMIT 1")

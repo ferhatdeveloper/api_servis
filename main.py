@@ -33,6 +33,30 @@ except singleton.SingleInstanceException:
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up EXFIN API...")
+    
+    # Initialize api.db tables if missing
+    try:
+        import sqlite3
+        import os
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        db_path = os.path.join(base_dir, "api.db")
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            conn.execute('''CREATE TABLE IF NOT EXISTS sent_invoices (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                invoice_no TEXT UNIQUE,
+                                customer_code TEXT,
+                                customer_name TEXT,
+                                total_amount REAL,
+                                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                status TEXT,
+                                platform TEXT DEFAULT 'WhatsApp'
+                            )''')
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        logger.warning(f"Could not initialize sent_invoices table: {e}")
+
     scheduler_service.start()
     yield
     # Shutdown
