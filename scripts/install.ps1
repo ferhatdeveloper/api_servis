@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# VERSION: 1.1.16 (Advanced Sync Logic)
+# VERSION: 1.1.17 (Quiet Git Sync)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -79,7 +79,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.16)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.17)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -253,15 +253,15 @@ else {
         $dirFiles = Get-ChildItem -Path . -Force
         if ($null -eq $dirFiles -or $dirFiles.Count -eq 0) {
             Write-Safe "> Klasor bos, klonlama baslatiliyor..." "Gray"
-            $null = git clone "$RepoUrl.git" . 2>&1
+            $null = git clone "$RepoUrl.git" . --quiet 2>&1
         }
         else {
             Write-Safe "[UYARI] Klasor dolu. Mevcut dosyalar korunarak guncelleniyor..." "Yellow"
-            $null = git init 2>&1
+            $null = git init --quiet 2>&1
             $null = git remote add origin "$RepoUrl.git" 2>&1
             Write-Safe "> Sunucudan veriler cekiliyor..." "Gray"
-            $null = git fetch origin 2>&1
-            $null = git reset --hard origin/main 2>&1
+            $null = git fetch origin --quiet 2>&1
+            $null = git reset --hard origin/main --quiet 2>&1
         }
     }
     else {
