@@ -165,7 +165,8 @@ class Settings(BaseSettings):
                 server = target_db.get("Server", "localhost")
                 database = target_db.get("Database") or self.DB_NAME
                 port = target_db.get("Port", 5432)
-                type_ = target_db.get("Type", "PostgreSQL").lower()
+                type_val = target_db.get("Type") or "PostgreSQL"
+                type_ = str(type_val).lower()
                 
                 if "postgres" in type_:
                     self.CENTRAL_DATABASE_URL = f"postgresql+asyncpg://{user}:{password}@{server}:{port}/{database}"
