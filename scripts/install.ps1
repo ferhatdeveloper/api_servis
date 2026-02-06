@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# VERSION: 1.1.14 (Logo Direct & Auto-Elevate Update)
+# VERSION: 1.1.15 (Robustness & Sync Fix)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -79,7 +79,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.13)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.15)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -248,16 +248,18 @@ if (!(Get-Command git -ErrorAction SilentlyContinue)) {
 else {
     if (!(Test-Path ".git")) {
         Write-Safe "[BILGI] Repo klonlaniyor..." "Yellow"
-        git clone "$RepoUrl.git" . 2>&1 | Write-Safe
+        # Standard clone might fail if dir is not empty.
+        $null = git clone "$RepoUrl.git" . 2>&1
         
         # Fallback: Eger klasor doluysa ve git degilse clone hata verir. 
         # Bu durumda init + fetch + reset --hard deneyelim.
         if ($LASTEXITCODE -ne 0) {
-            Write-Safe "[UYARI] Standart klonlama basarisiz. Mevcut klasor uzerine yaziliyor..." "Yellow"
-            git init | Out-Null
-            git remote add origin "$RepoUrl.git" 2>&1 | Out-Null
-            git fetch origin 2>&1 | Write-Safe
-            git reset --hard origin/main 2>&1 | Write-Safe
+            Write-Safe "[UYARI] Mevcut klasor uzerine yaziliyor (Git Init Fallback)..." "Yellow"
+            $null = git init 2>&1
+            $null = git remote add origin "$RepoUrl.git" 2>&1
+            Write-Safe "> Dosyalar sunucudan cekiliyor..." "Gray"
+            $null = git fetch origin 2>&1
+            $null = git reset --hard origin/main 2>&1
         }
     }
     else {
