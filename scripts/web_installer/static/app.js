@@ -1096,9 +1096,9 @@ async function startInstallation() {
         }
     }
 
-    // 4. Logo Sync (only if a firm was selected in Step 3)
+    // 4. Logo Sync (only if a firm was selected in Step 3) - SKIP FOR BRIDGE
     const firmId = document.getElementById('logo-firm-select')?.value;
-    if (!appState.migrationMode && appState.config.ms?.host && firmId) {
+    if (appState.selectedApp !== 'BRIDGE' && !appState.migrationMode && appState.config.ms?.host && firmId) {
         log("Logo veri aktarımı başlatılıyor...");
 
         // Collect MAP LINKS for customers
