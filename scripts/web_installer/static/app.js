@@ -461,6 +461,25 @@ function selectApp(appId, el) {
     // Toggle WhatsApp Settings Panel (Removed)
 }
 
+function updateStep3UI() {
+    const pgTitle = document.getElementById('pg-header-title');
+    const msTitle = document.getElementById('ms-header-title');
+    const demoGroup = document.getElementById('pg-demo-group');
+
+    if (!pgTitle || !msTitle) return;
+
+    if (appState.selectedApp === 'BRIDGE') {
+        pgTitle.innerText = "EXFIN Bridge Buffer (Yerel)";
+        msTitle.innerText = "Logo ERP (Kaynak - Zorunlu)";
+        if (demoGroup) demoGroup.classList.add('hidden');
+    } else {
+        // Reset defaults
+        pgTitle.innerText = "PostgreSQL (Ana Veritabanı)";
+        msTitle.innerText = "Logo ERP (Opsiyonel)";
+        if (demoGroup) demoGroup.classList.remove('hidden');
+    }
+}
+
 
 // --- Step 1: Init & Checks ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -577,6 +596,10 @@ function goToStep(step) {
             skipBtn.onclick = () => goToStep(5);
             card4.querySelector('.card-footer').appendChild(skipBtn);
         }
+    }
+
+    if (step === 3) {
+        updateStep3UI();
     }
 
     if (step === 5) {
