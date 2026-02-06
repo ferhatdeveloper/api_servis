@@ -132,17 +132,16 @@ class ExfinApiService(win32serviceutil.ServiceFramework):
                 py_scripts = portable_py
             else:
                 py_scripts = os.path.join(project_dir, 'venv', 'Scripts')
-            # 1. Sanal Ortam (venv) kontrolü - Standart Kurulum önceliği
-            # venv genellikle project_dir\venv dizinindedir
-            venv_python_alt = os.path.join(project_dir, 'venv', 'Scripts', 'python.exe')
-            
-            # 2. Taşınabilir (Portable) Python kontrolü
+            # 1. Taşınabilir (Portable) Python kontrolü - INTERNALLY HOSTED (Highest Priority)
             portable_python = os.path.join(project_dir, "python", "python.exe")
             
-            if os.path.exists(venv_python_alt):
-                venv_python = venv_python_alt
-            elif os.path.exists(portable_python):
+            # 2. Sanal Ortam (venv) kontrolü
+            venv_python_alt = os.path.join(project_dir, 'venv', 'Scripts', 'python.exe')
+            
+            if os.path.exists(portable_python):
                 venv_python = portable_python
+            elif os.path.exists(venv_python_alt):
+                venv_python = venv_python_alt
             elif os.path.exists(os.path.join(project_dir, "python.exe")):
                 venv_python = os.path.join(project_dir, "python.exe")
             else:

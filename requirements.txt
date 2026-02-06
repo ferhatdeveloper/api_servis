@@ -62,6 +62,7 @@ tendo>=0.3.0
 pywin32>=306
 psutil>=5.9.0
 asyncpg
+aioodbc
 bcrypt
 openpyxl
 redis
