@@ -450,7 +450,8 @@ function selectApp(appId, el) {
         'HRM': 'EXFIN_HRM',
         'CAFE': 'EXFIN_CAFE',
         'BEATPY': 'EXFIN_BEATPY',
-        'EXCHANGE': 'EXFIN_EXCHANGE'
+        'EXCHANGE': 'EXFIN_EXCHANGE',
+        'BRIDGE': 'EXFIN_BRIDGE'
     };
     if (dbMap[appId]) {
         const pgDbInput = document.getElementById('pg-db');
