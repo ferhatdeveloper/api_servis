@@ -465,31 +465,20 @@ function updateStep3UI() {
     const pgTitle = document.getElementById('pg-header-title');
     const msTitle = document.getElementById('ms-header-title');
     const demoGroup = document.getElementById('pg-demo-group');
-    const mainTitle = document.getElementById('db-config-title');
-    const introText = document.getElementById('db-config-intro');
-    const tabs = document.getElementById('db-config-tabs');
+    const pgPanel = document.getElementById('pg-panel');
 
     if (!pgTitle || !msTitle) return;
 
     if (appState.selectedApp === 'BRIDGE') {
-        pgTitle.innerText = "EXFIN Bridge Buffer (Yerel)";
+        if (pgPanel) pgPanel.classList.add('hidden');
         msTitle.innerText = "Logo ERP (Kaynak - Zorunlu)";
         if (demoGroup) demoGroup.classList.add('hidden');
-
-        // Customize Main Header
-        if (mainTitle) mainTitle.innerText = "Köprü Yapılandırması";
-        if (introText) introText.innerHTML = "Verilerinizi yerel bir buffer üzerinden güvenle taşıyın ve senkronize edin.";
-        if (tabs) tabs.classList.add('hidden');
     } else {
         // Reset defaults
+        if (pgPanel) pgPanel.classList.remove('hidden');
         pgTitle.innerText = "PostgreSQL (Ana Veritabanı)";
         msTitle.innerText = "Logo ERP (Opsiyonel)";
         if (demoGroup) demoGroup.classList.remove('hidden');
-
-        // Reset Main Header
-        if (mainTitle) mainTitle.innerText = "Veritabanı Yapılandırması";
-        if (introText) introText.innerHTML = "Uygulama verilerinin saklanacağı PostgreSQL ve ERP entegrasyonu için MSSQL bilgilerini girin.";
-        if (tabs) tabs.classList.remove('hidden');
     }
 }
 
@@ -840,6 +829,12 @@ async function handleDBFinish() {
     const msHost = appState.config.ms?.host;
 
     console.log('handleDBFinish called - firmId:', firmId, 'msHost:', msHost);
+
+    // Check if PG is configured (skip for BRIDGE)
+    if (appState.selectedApp !== 'BRIDGE' && (!appState.config.pg || !appState.config.pg.host)) {
+        alert("Lütfen önce PostgreSQL bağlantısını test edin ve onaylayın.");
+        return;
+    }
 
     // IF MSSQL is configured, we MUST have a firm selection
     if (msHost && !firmId) {
