@@ -247,7 +247,7 @@ app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 def start_installer():
     """Launches the installer server and opens browser"""
-    port = 8888
+    port = 8890
     url = f"http://localhost:{port}"
     print(f"Opening installer at {url}...")
     
