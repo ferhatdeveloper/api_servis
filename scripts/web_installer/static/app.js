@@ -450,20 +450,14 @@ function selectApp(appId, el) {
         'HRM': 'EXFIN_HRM',
         'CAFE': 'EXFIN_CAFE',
         'BEATPY': 'EXFIN_BEATPY',
-        'EXCHANGE': 'EXFIN_EXCHANGE',
-        'WHATSAPP': 'EVOLUTION_API'
+        'EXCHANGE': 'EXFIN_EXCHANGE'
     };
     if (dbMap[appId]) {
         const pgDbInput = document.getElementById('pg-db');
         if (pgDbInput) pgDbInput.value = dbMap[appId];
     }
 
-    // Toggle WhatsApp Settings Panel
-    const waPanel = document.getElementById('wa-settings-area');
-    if (waPanel) {
-        if (appId === 'WHATSAPP') waPanel.classList.remove('hidden');
-        else waPanel.classList.add('hidden');
-    }
+    // Toggle WhatsApp Settings Panel (Removed)
 }
 
 
