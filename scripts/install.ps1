@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# VERSION: 1.1.19 (Quiet Update Fix)
+# VERSION: 1.1.20 (Start-Process Bulletproof Sync)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -79,7 +79,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.19)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.20)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -256,25 +256,24 @@ else {
     if (!(Test-Path ".git")) {
         Write-Safe "[BILGI] Repo senkronize ediliyor..." "Yellow"
         
-        # Klasor bossa clone yapalim, doluysa init fallback kullanalim
         $dirFiles = Get-ChildItem -Path . -Force
         if ($null -eq $dirFiles -or $dirFiles.Count -eq 0) {
             Write-Safe "> Klasor bos, klonlama baslatiliyor..." "Gray"
-            $null = git clone "$RepoUrl.git" . --quiet 2>&1
+            Start-Process git -ArgumentList "clone $RepoUrl.git . --quiet" -NoNewWindow -Wait
         }
         else {
             Write-Safe "[UYARI] Klasor dolu. Mevcut dosyalar korunarak guncelleniyor..." "Yellow"
-            $null = git init --quiet 2>&1
-            $null = git remote add origin "$RepoUrl.git" 2>&1
+            Start-Process git -ArgumentList "init --quiet" -NoNewWindow -Wait
+            Start-Process git -ArgumentList "remote add origin $RepoUrl.git" -NoNewWindow -Wait
             Write-Safe "> Sunucudan veriler cekiliyor..." "Gray"
-            $null = git fetch origin --quiet 2>&1
-            $null = git reset --hard origin/main --quiet 2>&1
+            Start-Process git -ArgumentList "fetch origin --quiet" -NoNewWindow -Wait
+            Start-Process git -ArgumentList "reset --hard origin/main --quiet" -NoNewWindow -Wait
         }
     }
     else {
         Write-Safe "[BILGI] Mevcut depo guncelleniyor..." "Yellow"
-        $null = git fetch origin --quiet 2>&1
-        $null = git reset --hard origin/main --quiet 2>&1
+        Start-Process git -ArgumentList "fetch origin --quiet" -NoNewWindow -Wait
+        Start-Process git -ArgumentList "reset --hard origin/main --quiet" -NoNewWindow -Wait
     }
 }
 
