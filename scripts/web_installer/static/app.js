@@ -853,8 +853,13 @@ async function handleDBFinish() {
         return;
     }
 
-    // If a firm is selected, we ALWAYS go to the selection page (Step 4)
+    // If a firm is selected, we ALWAYS go to the selection page (Step 4), EXCEPT in Bridge Mode
     if (firmId) {
+        if (appState.selectedApp === 'BRIDGE') {
+            console.log('Bridge mode detected. Skipping Logo data selection (Step 4).');
+            goToStep(5);
+            return;
+        }
         console.log('Fetching Logo schema info for firm:', firmId);
         const success = await fetchLogoSchemaInfo();
         if (success) {
