@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# VERSION: 1.1.18 (Kill Process Before Sync)
+# VERSION: 1.1.19 (Quiet Update Fix)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -79,7 +79,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.18)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.19)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -273,8 +273,8 @@ else {
     }
     else {
         Write-Safe "[BILGI] Mevcut depo guncelleniyor..." "Yellow"
-        git fetch origin 2>&1 | Out-Null
-        git reset --hard origin/main 2>&1 | Write-Safe
+        $null = git fetch origin --quiet 2>&1
+        $null = git reset --hard origin/main --quiet 2>&1
     }
 }
 
