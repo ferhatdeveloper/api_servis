@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# VERSION: 1.1.17 (Quiet Git Sync)
+# VERSION: 1.1.18 (Kill Process Before Sync)
 
 # OS Version Check
 $OSVersion = [Environment]::OSVersion.Version
@@ -79,7 +79,7 @@ $DefaultDir = "C:\ExfinApi"
 
 # --- INTERACTIVE MAIN MENU ---
 Write-Safe "`n==========================================" "Cyan"
-Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.17)" "Cyan"
+Write-Safe "   EXFIN OPS API - SMART INSTALLER (v1.1.18)" "Cyan"
 Write-Safe "==========================================" "Cyan"
 
 $OPS_MODE = if ($args[0]) { $args[0] } else { $env:OPS_ARG }
@@ -218,6 +218,13 @@ if (!(Test-Path $TargetDir)) {
 }
 
 Set-Location $TargetDir
+ 
+# 2.9 (NEW): Git Senkronizasyonu oncesi Python sureclerini oldur
+# Windows'da acik dosyalarin uzerine yazilamaz, bu yuzden once kapatiyoruz.
+Write-Safe "[ISLEM] Temizlik yapiliyor (Acik islemler kapatiliyor)..." "Yellow"
+Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process Exfin_ApiService -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
 
 # 3. Git Kontrolü ve İndirme
 if (!(Get-Command git -ErrorAction SilentlyContinue)) {
@@ -298,9 +305,6 @@ if ($OPS_MODE -eq "portable") {
     Write-Safe "[BILGI] Tasinabilir (Portable) Python hazirlaniyor..." "Cyan"
     $PythonExe = Join-Path $PortablePyDir "python.exe"
     
-    # Onceki cokmus processleri temizleyelim (Hata vermemesi icin korumali)
-    Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
     # Eger yanlis surum (3.9+) varsa ve sistem 2012 ise temizle
     if (Test-Path $PythonExe) {
         $VerInfo = try { & $PythonExe --version 2>&1 } catch { "Crash" }
