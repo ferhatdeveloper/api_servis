@@ -248,12 +248,22 @@ if (!(Get-Command git -ErrorAction SilentlyContinue)) {
 else {
     if (!(Test-Path ".git")) {
         Write-Safe "[BILGI] Repo klonlaniyor..." "Yellow"
-        git clone "$RepoUrl.git" .
+        git clone "$RepoUrl.git" . 2>&1 | Write-Safe
+        
+        # Fallback: Eger klasor doluysa ve git degilse clone hata verir. 
+        # Bu durumda init + fetch + reset --hard deneyelim.
+        if ($LASTEXITCODE -ne 0) {
+            Write-Safe "[UYARI] Standart klonlama basarisiz. Mevcut klasor uzerine yaziliyor..." "Yellow"
+            git init | Out-Null
+            git remote add origin "$RepoUrl.git" 2>&1 | Out-Null
+            git fetch origin 2>&1 | Write-Safe
+            git reset --hard origin/main 2>&1 | Write-Safe
+        }
     }
     else {
         Write-Safe "[BILGI] Mevcut depo guncelleniyor..." "Yellow"
-        git fetch origin | Out-Null
-        git reset --hard origin/main | Out-Null
+        git fetch origin 2>&1 | Out-Null
+        git reset --hard origin/main 2>&1 | Write-Safe
     }
 }
 
@@ -460,9 +470,12 @@ else {
 Write-Safe "[ISLEM] Pip guncelleniyor..." "Yellow"
 & $PythonExe -m pip install --upgrade pip $TrustedHost --no-warn-script-location 2>&1 | Write-Safe
 
-Write-Safe "[ISLEM] requirements.txt kuruluyor..." "Yellow"
-# Verbose cikti verelim ki kullanıcı hatayı gorsun
-Write-Safe "> Detayli cikti aktif edildi..." "Gray"
+# requirements.txt kontrolu
+if (!(Test-Path "requirements.txt")) {
+    Write-Safe "[HATA] requirements.txt dosyasi bulunamadi! Dosya indirme sirasinda bir sorun olmus olabilir." "Red"
+    pause
+    return
+}
 
 # requirements.txt kurulumunu try-catch ve detayli cikti ile yapalim
 Invoke-Expression "& `"$PythonExe`" -m pip install -r requirements.txt $TrustedHost --no-warn-script-location"
