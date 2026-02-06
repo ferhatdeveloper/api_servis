@@ -249,6 +249,14 @@ def start_installer():
     """Launches the installer server and opens browser"""
     port = 8890
     url = f"http://localhost:{port}"
+
+    # Self-elevation check
+    import ctypes
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        print("Yönetici izni yok, izin isteniyor...")
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+        sys.exit(0)
+
     print(f"Opening installer at {url}...")
     
     # Open browser after a slight delay to ensure server is up

@@ -735,6 +735,17 @@ async function testDB(type) {
             } else {
                 appState.config.ms = payload;
                 if (typeof fetchLogoFirms === 'function') fetchLogoFirms();
+
+                // FOR BRIDGE MODE: Enable next button if MSSQL connects (since PG is skipped)
+                if (appState.selectedApp === 'BRIDGE') {
+                    const nextBtn = document.getElementById('btn-next-db');
+                    if (nextBtn) {
+                        nextBtn.disabled = false;
+                        nextBtn.onclick = () => handleDBFinish();
+                        // Update button text to be more relevant for Bridge
+                        nextBtn.innerText = "Devam Et";
+                    }
+                }
             }
         } else if ((result.db_missing || result.db_empty) && type === 'postgres') {
             statusEl.innerHTML = `<span style="color:yellow">Veritabanı hazır değil (Eksik veya Boş). Otomatik hazırlanıyor...</span>`;
